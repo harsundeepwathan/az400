@@ -11,6 +11,9 @@ Two styles:
           TV so cables and the bracket have somewhere to go
   shaker  a grid of MDF mouldings planted straight onto the plastered wall,
           with the TV bay left as one larger opening
+  flush   a seamless boarded wall with shadow gaps instead of trims and the
+          screen recessed into a niche -- the minimal version, and the one that
+          lives or dies on the filling and the paint
 
 Sizes are millimetres. Sheet material is assumed to be 2440 x 1220 MDF.
 """
@@ -39,8 +42,8 @@ class Spec:
                  bay_width=0.0, board_height=0.0, module_width=0.0):
         if width <= 0 or height <= 0:
             raise ValueError("wall width and height must be positive")
-        if style not in ("slat", "shaker"):
-            raise ValueError("style must be 'slat' or 'shaker'")
+        if style not in ("slat", "shaker", "flush"):
+            raise ValueError("style must be 'slat', 'shaker' or 'flush'")
         if slat_width <= 0 or slat_gap < 0:
             raise ValueError("slat width must be positive and the gap cannot be negative")
         self.name = name
@@ -109,7 +112,12 @@ class Spec:
 
     @property
     def build_out(self) -> float:
-        return self.thickness + (self.batten if self.style == "slat" else 0.0)
+        return self.thickness + (0.0 if self.style == "shaker" else self.batten)
+
+    @property
+    def shadow_gap(self) -> float:
+        """The reveal a flush wall is held off the floor and the ceiling by."""
+        return 15.0
 
     def batten_count(self, centres: float = 600.0) -> int:
         return int(math.ceil(self.width / centres)) + 1
@@ -182,6 +190,20 @@ def cut_list(spec: Spec) -> list[dict]:
         add("Inset return", 2, spec.inset_h, spec.build_out, spec.thickness, "sides of the bay")
         add("Inset return", 2, spec.inset_w, spec.build_out, spec.thickness,
             "head and sill of the bay")
+    elif spec.style == "flush":
+        face_h = spec.board_height - spec.shadow_gap
+        add("Face panel", math.ceil(spec.width / SHEET_SHORT), face_h, SHEET_SHORT,
+            spec.thickness, "butt joints land on a batten, filled and sanded to invisible")
+        add("Wall batten (vertical)", spec.batten_count(400.0), face_h, 50, spec.batten,
+            "400 mm centres - wider and a flush wall telegraphs every batten")
+        add("Batten, horizontal", 3, spec.width, 50, spec.batten,
+            "head, base and the niche line, to land the panel edges on")
+        add("Niche lining", 2, spec.inset_h, spec.build_out, spec.thickness,
+            "sides of the recess")
+        add("Niche lining", 2, spec.inset_w, spec.build_out, spec.thickness,
+            "head and sill of the recess")
+        add("Shadow gap ground", 2, spec.width, 40, spec.batten,
+            "sets the reveal at the floor and at the top of the boards")
     else:
         grid = spec.shaker_grid()
         add("Stile (vertical)", len(grid["stiles"]), grid["top_rail"] - spec.skirting,
@@ -285,6 +307,23 @@ def build_notes(spec: Spec) -> list[str]:
             "Leave the end gap to the corner even, not whatever is left — take the "
             "difference off both end slats.",
         ]
+    elif spec.style == "flush":
+        steps += [
+            f"Batten the wall at 400 mm centres, packed dead flat with a long straightedge. On a "
+            f"flush wall every hollow and every batten shows up in raking light, and no amount of "
+            f"filler fixes a wavy substrate. Build-out is {spec.build_out:.0f} mm.",
+            f"Hold the boards {spec.shadow_gap:.0f} mm off the floor and {spec.shadow_gap:.0f} mm "
+            f"below the top on a recessed ground, so the wall floats between two shadow gaps "
+            f"instead of needing skirting or scotia. Nothing gets a trim.",
+            "Land every panel joint on a batten, screw and glue, then fill in three thin passes "
+            "with a fine surface filler, sanding to 180 between. A butt joint you can feel in "
+            "the dark will show in daylight.",
+            f"Line the niche after the face is on, so the lining edges hide the board edges. "
+            f"The {spec.build_out:.0f} mm depth is what lets the screen sit back in the plane "
+            f"rather than hanging off the wall.",
+            "Spray the finish if you possibly can. On a flat wall a roller leaves an orange peel "
+            "that reads as texture, which is the one thing this design has nowhere to hide.",
+        ]
     else:
         steps += [
             "Mark the grid on the wall in pencil and live with it for a day before you cut "
@@ -330,10 +369,16 @@ STYLE = """
   .backing{fill:#3a4046}
   .slat{fill:#6f5b45;stroke:#5b4a37;stroke-width:.5}
   .inset{fill:#2b3036;stroke:#20242a;stroke-width:1}
+  .face{fill:#e6e1d7;stroke:#c9c2b4;stroke-width:.7}
+  .shadow{fill:#23272b}
+  .niche{fill:#2b3036;stroke:#1b1f23;stroke-width:1}
+  .nicheline{fill:none;stroke:#4b535a;stroke-width:.7}
   .moulding{fill:#dfe3e6;stroke:#9aa4ad;stroke-width:.8}
   .tv{fill:#15181b;stroke:#000;stroke-width:1}
   .screen{fill:#1d2126}
   .console{fill:#514132;stroke:#3b2f24;stroke-width:1}
+  .console-quiet{fill:#cfc8bb;stroke:#a49b8c;stroke-width:1}
+  .consoleline-quiet{stroke:#a49b8c;stroke-width:.8}
   .consoleline{stroke:#4a3b2c;stroke-width:.8}
   .glow{fill:#f7d9a2;opacity:.65;filter:url(#soft)}
   .floor{stroke:#2f3337;stroke-width:1.4}
@@ -400,6 +445,24 @@ def render(spec: Spec, target_width: float = 1240.0) -> str:
         ix, iy = px(spec.inset_x, spec.inset_top)
         out.append(f'<rect class="inset" x="{ix:.1f}" y="{iy:.1f}" '
                    f'width="{spec.inset_w * k:.1f}" height="{spec.inset_h * k:.1f}" rx="2"/>')
+    elif spec.style == "flush":
+        gap = spec.shadow_gap
+        fx, fy = px(0, spec.board_height)
+        out.append(f'<rect class="shadow" x="{fx:.1f}" y="{fy:.1f}" '
+                   f'width="{spec.width * k:.1f}" height="{spec.board_height * k:.1f}"/>')
+        px0, py0 = px(0, spec.board_height - gap)
+        out.append(f'<rect class="face" x="{px0:.1f}" y="{py0:.1f}" '
+                   f'width="{spec.width * k:.1f}" '
+                   f'height="{(spec.board_height - 2 * gap) * k:.1f}"/>')
+        # the recess: darker, with a hairline where the lining turns the corner
+        out.append(glow_rect(px, k, spec))
+        ix, iy = px(spec.inset_x, spec.inset_top)
+        out.append(f'<rect class="niche" x="{ix:.1f}" y="{iy:.1f}" '
+                   f'width="{spec.inset_w * k:.1f}" height="{spec.inset_h * k:.1f}"/>')
+        inset_edge = 5.0
+        out.append(f'<rect class="nicheline" x="{ix + inset_edge:.1f}" y="{iy + inset_edge:.1f}" '
+                   f'width="{spec.inset_w * k - 2 * inset_edge:.1f}" '
+                   f'height="{spec.inset_h * k - 2 * inset_edge:.1f}"/>')
     else:
         grid = spec.shaker_grid()
         rail = grid["rail_w"]
@@ -431,14 +494,17 @@ def render(spec: Spec, target_width: float = 1240.0) -> str:
         out.append(f'<rect class="glow" x="{cx + 6:.1f}" y="{cy + spec.console_h * k:.1f}" '
                    f'width="{spec.console_w * k - 12:.1f}" '
                    f'height="{min(14.0, spec.console_base * k * 0.6):.1f}"/>')
-        out.append(f'<rect class="console" x="{cx:.1f}" y="{cy:.1f}" '
+        # a minimal wall wants the unit to sit down, not stand out
+        unit_cls = "console-quiet" if spec.style == "flush" else "console"
+        line_cls = "consoleline-quiet" if spec.style == "flush" else "consoleline"
+        out.append(f'<rect class="{unit_cls}" x="{cx:.1f}" y="{cy:.1f}" '
                    f'width="{spec.console_w * k:.1f}" height="{spec.console_h * k:.1f}" rx="2"/>')
         # a bought modular unit is drawn as its actual modules
         module = spec.module_width or spec.console_w / 2.0
         count = max(1, int(round(spec.console_w / module)))
         for index in range(1, count):
             mx = cx + spec.console_w * k * index / count
-            out.append(f'<line class="consoleline" x1="{mx:.1f}" y1="{cy:.1f}" x2="{mx:.1f}" '
+            out.append(f'<line class="{line_cls}" x1="{mx:.1f}" y1="{cy:.1f}" x2="{mx:.1f}" '
                        f'y2="{cy + spec.console_h * k:.1f}"/>')
 
     fx0, fy0 = px(-120, 0)
@@ -484,6 +550,10 @@ def render(spec: Spec, target_width: float = 1240.0) -> str:
                   (f"Backing MDF {spec.thickness:.0f} mm", spec.thickness, "sectionmdf"),
                   (f"Slat {spec.slat_width:.0f} × {spec.thickness:.0f} mm", spec.thickness,
                    "sectionmdf")]
+    elif spec.style == "flush":
+        layers = [("Existing plaster", 120.0, "sectionfill"),
+                  (f"Batten {spec.batten:.0f} mm", spec.batten, "sectionbatten"),
+                  (f"Face panel {spec.thickness:.0f} mm", spec.thickness, "sectionmdf")]
     else:
         layers = [("Existing plaster", 120.0, "sectionfill"),
                   (f"Moulding {spec.thickness:.0f} mm", spec.thickness, "sectionmdf")]
@@ -568,7 +638,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--height", type=float, default=2400.0, help="floor to ceiling in mm")
     parser.add_argument("--tv", type=float, default=65.0, dest="tv_inches",
                         help="screen size in inches")
-    parser.add_argument("--style", default="slat", choices=("slat", "shaker"))
+    parser.add_argument("--style", default="slat", choices=("slat", "shaker", "flush"))
     parser.add_argument("--slat-width", type=float, default=60.0)
     parser.add_argument("--slat-gap", type=float, default=40.0)
     parser.add_argument("--thickness", type=float, default=18.0, help="MDF thickness")

@@ -62,6 +62,7 @@ python3 scripts/featurewall.py --width 3600 --tv 65 -o wall.svg
 python3 scripts/featurewall.py --style shaker --width 4200 --tv 75 --json
 python3 scripts/featurewall.py --width 3500 --board-height 2400 \
   --bought-console "IKEA BESTÅ" --console-width 2400 --module-width 600 -o wall.svg
+python3 scripts/featurewall.py --style flush --width 3500 --batten 75 -o wall.svg
 ```
 
 `clearances.py` exits 0 when clean, 1 when it finds problems, 2 when the file

@@ -49,7 +49,7 @@ Output is a dimensioned elevation, a section through the build-up, a cut list, a
 materials list with a sheet count, and a build sequence. Show the user the
 elevation and the cut list; keep the prose short.
 
-## The two styles
+## The three styles
 
 **Slat** — vertical MDF battens on a painted backing panel, with a flat inset bay
 where the TV hangs. Forgiving of a wavy wall, hides the cable run, and the ribs
@@ -62,6 +62,14 @@ screen in one wide central opening. Cheaper, only 18 mm proud, and it suits an
 older room. It needs a flat, sound wall: on dot-and-dab you are gluing to
 plasterboard that is itself glued on.
 
+**Flush** — the minimal one. A seamless boarded face on 75 mm battens, held
+15 mm clear of the floor and the head on a recessed ground so shadow gaps
+replace skirting and scotia, with the screen recessed into a lined niche. Fewer
+sheets than the slat wall and far more labour: battens at 400 mm centres packed
+dead flat, joints filled in three passes, and a sprayed finish, because a flat
+plane in raking light shows everything a slat wall would have hidden. Do not
+recommend it as a first sheet-goods project.
+
 ## Numbers that matter
 
 - **Screen centre 1050–1250 mm above the floor.** The script puts it at 1150 mm
@@ -73,6 +81,9 @@ plasterboard that is itself glued on.
   goes.
 - **150–250 mm between the console top and the bottom of the screen.**
 - **Bay margin 150 mm** around the screen, so the bezel is not fighting the edge.
+- **Recess depth 93 mm** if the screen is to sit back in the plane rather than on
+  it — that is a 75 mm batten plus an 18 mm board, and it is the single detail
+  that separates a minimal wall from a plain one.
 - **50 mm conduit** from behind the screen down to the console: two HDMI, one
   power, one spare. Do this before anything closes up.
 - MDF: 18 mm for slats and panels, 25 mm only if the shelf spans over 900 mm
