@@ -1,0 +1,16 @@
+{
+  "name": "Main bedroom",
+  "units": "mm",
+  "room": { "width": 3800, "depth": 3200, "height": 2400 },
+  "openings": [
+    { "type": "door", "name": "landing door", "wall": "south", "offset": 200, "width": 800, "hinge": "start", "swing": "in" },
+    { "type": "window", "wall": "east", "offset": 1000, "width": 1400, "sill": 1000, "head": 2100 }
+  ],
+  "furniture": [
+    { "name": "Bed 150", "type": "bed", "x": 2350, "y": 1100, "width": 1500, "depth": 2000, "rotation": 180, "height": 550 },
+    { "name": "Nightstand L", "type": "nightstand", "x": 1325, "y": 300, "width": 450, "depth": 400, "height": 550 },
+    { "name": "Nightstand R", "type": "nightstand", "x": 3375, "y": 300, "width": 450, "depth": 400, "height": 550 },
+    { "name": "Wardrobe", "type": "wardrobe", "x": 300, "y": 1400, "width": 1600, "depth": 600, "rotation": 90, "height": 2100 },
+    { "name": "Rug", "type": "rug", "x": 2350, "y": 2500, "width": 2200, "depth": 1000 }
+  ]
+}

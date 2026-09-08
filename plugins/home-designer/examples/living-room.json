@@ -1,0 +1,109 @@
+{
+  "name": "Living room",
+  "units": "mm",
+  "room": {
+    "width": 5200,
+    "depth": 4000,
+    "height": 2600
+  },
+  "openings": [
+    {
+      "type": "door",
+      "name": "hall door",
+      "wall": "south",
+      "offset": 400,
+      "width": 900,
+      "hinge": "start",
+      "swing": "in"
+    },
+    {
+      "type": "window",
+      "name": "garden window",
+      "wall": "north",
+      "offset": 1400,
+      "width": 2000,
+      "sill": 900,
+      "head": 2200
+    }
+  ],
+  "furniture": [
+    {
+      "name": "Rug",
+      "type": "rug",
+      "x": 3000,
+      "y": 2000,
+      "width": 3200,
+      "depth": 2400
+    },
+    {
+      "name": "Sofa",
+      "type": "sofa",
+      "x": 4600,
+      "y": 2100,
+      "width": 2200,
+      "depth": 900,
+      "rotation": 270,
+      "height": 850
+    },
+    {
+      "name": "Coffee table",
+      "type": "coffee_table",
+      "x": 3200,
+      "y": 2000,
+      "width": 1200,
+      "depth": 700,
+      "height": 420
+    },
+    {
+      "name": "Armchair",
+      "type": "armchair",
+      "x": 3560,
+      "y": 700,
+      "width": 800,
+      "depth": 850,
+      "rotation": 210,
+      "height": 900
+    },
+    {
+      "name": "Media unit",
+      "type": "media_unit",
+      "x": 200,
+      "y": 2000,
+      "width": 1800,
+      "depth": 400,
+      "rotation": 90,
+      "height": 500
+    },
+    {
+      "name": "TV 65\"",
+      "type": "tv",
+      "x": 460,
+      "y": 2000,
+      "width": 1450,
+      "depth": 80,
+      "rotation": 90,
+      "height": 850,
+      "diagonal": 1650,
+      "mounted": true
+    },
+    {
+      "name": "Bookshelf",
+      "type": "bookshelf",
+      "x": 2000,
+      "y": 3820,
+      "width": 900,
+      "depth": 350,
+      "rotation": 0,
+      "height": 1800
+    },
+    {
+      "name": "Plant",
+      "type": "plant",
+      "x": 700,
+      "y": 600,
+      "width": 500,
+      "depth": 500,
+      "height": 1400
+    }
+  ]
+}

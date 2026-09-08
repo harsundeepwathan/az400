@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/harsundeepwathan/az400/plugins/home-designer/schema/layout.schema.json",
+  "title": "Home Designer room layout",
+  "description": "A single rectangular room: its shell, its openings and the pieces standing in it. Lengths are in the unit named by `units`; x grows east, y grows south, and an item's x/y is the centre of its footprint.",
+  "type": "object",
+  "required": ["room"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "description": "Room name shown on the plan." },
+    "units": {
+      "type": "string",
+      "enum": ["mm", "cm", "m", "in", "ft"],
+      "default": "mm",
+      "description": "Unit for every length in this file."
+    },
+    "room": {
+      "type": "object",
+      "required": ["width", "depth"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "width": { "type": "number", "exclusiveMinimum": 0, "description": "East-west inside dimension." },
+        "depth": { "type": "number", "exclusiveMinimum": 0, "description": "North-south inside dimension." },
+        "height": { "type": "number", "exclusiveMinimum": 0, "default": 2400, "description": "Floor to ceiling." }
+      }
+    },
+    "clearances": {
+      "type": "object",
+      "description": "Override any default clearance limit, e.g. {\"primary_walkway\": 1000}. Same units as the rest of the file.",
+      "additionalProperties": { "type": "number" }
+    },
+    "openings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["wall", "offset", "width"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string", "enum": ["door", "window", "opening"], "default": "door" },
+          "name": { "type": "string" },
+          "wall": { "type": "string", "enum": ["north", "east", "south", "west"] },
+          "offset": { "type": "number", "minimum": 0, "description": "From the west end of a north/south wall, or the north end of an east/west wall." },
+          "width": { "type": "number", "exclusiveMinimum": 0 },
+          "hinge": { "type": "string", "enum": ["start", "end"], "default": "start", "description": "Which end of the opening the leaf pivots on; 'start' is the low-offset end." },
+          "swing": { "type": "string", "enum": ["in", "out", "none"], "description": "Doors default to 'in'; everything else to 'none'." },
+          "sill": { "type": "number", "minimum": 0, "description": "Window sill height above the floor." },
+          "head": { "type": "number", "minimum": 0, "description": "Window head height above the floor." }
+        }
+      }
+    },
+    "furniture": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["x", "y", "width", "depth"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "description": "Drives the palette on the plan and which rules apply. Known values include sofa, armchair, chair, bench, stool, coffee_table, side_table, dining_table, desk, bed, nightstand, wardrobe, dresser, storage, bookshelf, media_unit, tv, appliance, counter, fireplace, plant, rug.",
+            "default": "furniture"
+          },
+          "x": { "type": "number", "description": "Centre of the footprint, east from the west wall." },
+          "y": { "type": "number", "description": "Centre of the footprint, south from the north wall." },
+          "width": { "type": "number", "exclusiveMinimum": 0, "description": "Size across the piece's own front." },
+          "depth": { "type": "number", "exclusiveMinimum": 0, "description": "Size front to back." },
+          "rotation": { "type": "number", "default": 0, "description": "Degrees clockwise about the centre. At 0 the piece faces north (up the plan)." },
+          "height": { "type": "number", "exclusiveMinimum": 0, "description": "Used to tell whether the piece blocks a window." },
+          "diagonal": { "type": "number", "exclusiveMinimum": 0, "description": "Screens only: picture diagonal, for the viewing-distance check." },
+          "mounted": { "type": "boolean", "default": false, "description": "Hung on the wall, so it takes no floor space." },
+          "fixed": { "type": "boolean", "default": false, "description": "Cannot be moved (built-in, boiler, radiator)." },
+          "color": { "type": "string", "description": "Override the plan fill, e.g. \"#b9c7d6\"." },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

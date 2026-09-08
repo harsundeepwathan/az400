@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "az400-plugins",
+  "owner": {
+    "name": "harsundeepwathan",
+    "url": "https://github.com/harsundeepwathan/az400"
+  },
+  "description": "Plugins developed in the az400 repository.",
+  "version": "1.0.0",
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "home-designer",
+      "displayName": "Home Designer",
+      "source": "./plugins/home-designer",
+      "description": "Plan rooms, validate clearances, render scaled floor plans, build colour palettes and lighting schemes.",
+      "version": "0.1.0",
+      "author": {
+        "name": "harsundeepwathan"
+      },
+      "repository": "https://github.com/harsundeepwathan/az400",
+      "license": "MIT",
+      "keywords": ["interior-design", "floor-plan", "layout", "color-palette", "lighting"],
+      "category": "creative"
+    }
+  ]
+}

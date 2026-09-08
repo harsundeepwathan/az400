@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "home-designer",
+  "displayName": "Home Designer",
+  "version": "0.1.0",
+  "description": "Turns a room's dimensions and a wish list into a checked layout: scaled SVG floor plans, clearance and circulation validation, colour palettes and a lighting plan.",
+  "author": {
+    "name": "harsundeepwathan"
+  },
+  "repository": "https://github.com/harsundeepwathan/az400",
+  "license": "MIT",
+  "keywords": ["interior-design", "floor-plan", "layout", "color-palette", "lighting", "home"],
+  "skills": "./skills/",
+  "commands": ["./commands/"],
+  "agents": ["./agents/"]
+}
