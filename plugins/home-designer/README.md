@@ -30,6 +30,7 @@ turns to a room:
 | `room-layout` | Measuring, writing a layout file, checking it, drawing the plan |
 | `color-palette` | Building a scheme around what stays, and reading LRV |
 | `lighting-plan` | Lumens, layers, colour temperature, placement |
+| `feature-wall` | MDF TV walls: elevation, cut list, materials, build sequence |
 
 **Commands**
 
@@ -38,6 +39,7 @@ turns to a room:
 | `/design-room` | The whole loop: layout, check, plan, lighting, palette |
 | `/check-layout` | Runs the clearance checks and explains the findings |
 | `/render-floorplan` | Draws an SVG plan from a layout file |
+| `/feature-wall` | Designs an MDF TV feature wall and cuts the list for it |
 
 **Agent** — `interior-critic` reviews a finished layout and reports what will
 annoy someone living in it.
@@ -56,6 +58,8 @@ python3 scripts/floorplan.py examples/living-room.json -o plan.svg --grid
 python3 scripts/floorplan.py examples/bedroom.json -o plan.svg --scale 50
 python3 scripts/palette.py "#3E5C50" --scheme analogous -o palette.svg
 python3 scripts/lighting.py --layout examples/living-room.json --type living
+python3 scripts/featurewall.py --width 3600 --tv 65 -o wall.svg
+python3 scripts/featurewall.py --style shaker --width 4200 --tv 75 --json
 ```
 
 `clearances.py` exits 0 when clean, 1 when it finds problems, 2 when the file
@@ -103,6 +107,9 @@ per layout with a `"clearances"` block — for a wheelchair user, for instance.
 
 ## Limits worth knowing
 
+- `featurewall.py` draws one flat wall in elevation. A chimney breast, a return
+  or a sloped ceiling is yours to work around, and the sheet count is an estimate
+  with waste in it, not a cutting optimisation.
 - Rectangular rooms only. An L-shaped room has to be split into two files or
   approximated with a fixed "piece" filling the missing corner.
 - Circulation and door-swing checks rasterise at 50 mm, so anything within about

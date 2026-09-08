@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import math
 import os
 import sys
 import tempfile
@@ -18,6 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import clearances  # noqa: E402
+import featurewall  # noqa: E402
 import floorplan  # noqa: E402
 import lighting  # noqa: E402
 import palette  # noqa: E402
@@ -340,6 +342,124 @@ class LightingTests(unittest.TestCase):
     def test_task_mode_is_brighter(self):
         self.assertGreater(lighting.plan(12, "office", mode="task")["total_lumens"],
                            lighting.plan(12, "office", mode="ambient")["total_lumens"])
+
+
+class FeatureWallTests(unittest.TestCase):
+    def test_screen_geometry_from_diagonal(self):
+        spec = featurewall.Spec(tv_inches=65)
+        self.assertAlmostEqual(spec.tv_w, 1439, delta=1)
+        self.assertAlmostEqual(spec.tv_h, 809, delta=1)
+        self.assertAlmostEqual(spec.tv_w / spec.tv_h, 16 / 9, places=3)
+
+    def test_screen_sits_at_eye_level_when_the_console_allows(self):
+        spec = featurewall.Spec()
+        self.assertEqual(round(spec.tv_centre_y), 1150)
+        self.assertGreater(spec.tv_bottom, spec.console_top)
+
+    def test_screen_is_lifted_clear_of_a_tall_console(self):
+        spec = featurewall.Spec(console_height=600, console_base=400)
+        self.assertGreater(spec.tv_centre_y, 1150)
+        self.assertGreaterEqual(round(spec.tv_bottom - spec.console_top), 200)
+
+    def test_bay_clears_the_console_and_holds_the_screen(self):
+        spec = featurewall.Spec()
+        self.assertGreater(spec.inset_y, spec.console_top)
+        self.assertLess(spec.inset_y, spec.tv_bottom)
+        self.assertGreater(spec.inset_top, spec.tv_top)
+        self.assertLess(spec.inset_top, spec.height)
+
+    def test_bay_width_lands_on_the_slat_pitch(self):
+        spec = featurewall.Spec(style="slat", slat_width=60, slat_gap=40)
+        self.assertAlmostEqual((spec.inset_w + spec.slat_gap) % spec.pitch, 0, places=6)
+        self.assertGreater(spec.inset_w, spec.tv_w)
+
+    def test_slat_columns_cover_the_wall_and_break_at_the_bay(self):
+        spec = featurewall.Spec(width=3600, slat_width=60, slat_gap=40)
+        columns = spec.slat_columns()
+        self.assertEqual(len(columns), 36)
+        interrupted = [c for c in columns if c["interrupted"]]
+        self.assertTrue(0 < len(interrupted) < len(columns))
+        for column in columns:
+            self.assertGreaterEqual(column["x"], -1)
+            self.assertLessEqual(column["x"] + spec.slat_width, spec.width + 1)
+
+    def test_batten_count_follows_600_centres(self):
+        self.assertEqual(featurewall.Spec(width=3600).batten_count(), 7)
+        self.assertEqual(featurewall.Spec(width=2400).batten_count(), 5)
+
+    def test_cut_list_is_sane(self):
+        for style in ("slat", "shaker"):
+            with self.subTest(style=style):
+                spec = featurewall.Spec(style=style)
+                items = featurewall.cut_list(spec)
+                self.assertTrue(items)
+                for item in items:
+                    self.assertGreater(item["qty"], 0, item)
+                    self.assertGreater(item["width"], 0, item)
+                    self.assertGreaterEqual(item["length"], item["width"], item)
+
+    def test_console_parts_account_for_thickness(self):
+        spec = featurewall.Spec(console_height=280, console_width=2000)
+        items = {item["part"]: item for item in featurewall.cut_list(spec)}
+        self.assertEqual(items["Console end"]["width"], round(280 - 2 * 18))
+        self.assertEqual(items["Console back"]["length"], round(2000 - 2 * 18))
+
+    def test_no_console_drops_those_parts(self):
+        parts = {item["part"] for item in
+                 featurewall.cut_list(featurewall.Spec(console=False))}
+        self.assertFalse(any(part.startswith("Console") for part in parts))
+
+    def test_sheet_estimate_grows_with_the_wall(self):
+        small = featurewall.Spec(width=2400)
+        large = featurewall.Spec(width=4800)
+        small_sheets = featurewall.sheets_needed(small, featurewall.cut_list(small))
+        large_sheets = featurewall.sheets_needed(large, featurewall.cut_list(large))
+        self.assertGreater(large_sheets["sheets"], small_sheets["sheets"])
+        self.assertEqual(large_sheets["sheets"], math.ceil(large_sheets["raw"] + 0.4))
+
+    def test_over_length_parts_are_flagged(self):
+        spec = featurewall.Spec(height=2900, width=3000)
+        report = featurewall.sheets_needed(spec, featurewall.cut_list(spec))
+        self.assertTrue(report["over_length"])
+
+    def test_shaker_drops_stiles_at_the_bay(self):
+        grid = featurewall.Spec(style="shaker", width=4200).shaker_grid()
+        self.assertGreater(grid["dropped"], 0)
+        self.assertEqual(len(grid["stiles"]) + grid["dropped"], grid["bays"] + 1)
+
+    def test_rejects_impossible_combinations(self):
+        with self.assertRaises(ValueError):
+            featurewall.Spec(style="brick")
+        with self.assertRaises(ValueError):
+            featurewall.Spec(height=1600, tv_inches=85)
+        with self.assertRaises(ValueError):
+            featurewall.Spec(width=0)
+
+    def test_renders_valid_svg_for_both_styles(self):
+        for style in ("slat", "shaker"):
+            with self.subTest(style=style):
+                spec = featurewall.Spec(style=style, name="Bill & Ben's <wall>")
+                root = ET.fromstring(featurewall.render(spec))
+                text = "".join(node.text or "" for node in root.iter()
+                               if node.tag.endswith("text"))
+                self.assertIn("Bill & Ben's <wall>", text)
+                self.assertIn("Total build-out", text)
+
+    def test_cli_writes_svg_and_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "wall.svg")
+            buffer = io.StringIO()
+            with contextlib.redirect_stdout(buffer):
+                code = featurewall.main(["--width", "3600", "--tv", "65", "-o", out, "--json"])
+            self.assertEqual(code, 0)
+            payload = json.loads(buffer.getvalue())
+            self.assertEqual(payload["tv"]["centre_height"], 1150)
+            self.assertTrue(payload["cut_list"])
+            ET.parse(out)
+
+    def test_cli_reports_bad_input(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(featurewall.main(["--height", "1500", "--tv", "85"]), 2)
 
 
 class CliTests(unittest.TestCase):
