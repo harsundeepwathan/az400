@@ -35,7 +35,8 @@ class Spec:
                  slat_width=60.0, slat_gap=40.0, thickness=18.0, batten=25.0,
                  console=True, console_width=2000.0, console_height=280.0,
                  console_depth=400.0, console_base=250.0, tv_gap=200.0,
-                 skirting=0.0, name="TV feature wall"):
+                 skirting=0.0, name="TV feature wall", bought_console="",
+                 bay_width=0.0, board_height=0.0, module_width=0.0):
         if width <= 0 or height <= 0:
             raise ValueError("wall width and height must be positive")
         if style not in ("slat", "shaker"):
@@ -51,6 +52,11 @@ class Spec:
         self.slat_width = float(slat_width)
         self.slat_gap = float(slat_gap)
         self.skirting = float(skirting)
+        # Boards can stop below the ceiling -- a 2440 mm sheet will not reach a
+        # 2850 mm ceiling, and a painted reveal above reads better than a joint.
+        self.board_height = float(board_height) if board_height else self.height
+        if self.board_height > self.height or self.board_height <= 600:
+            raise ValueError("board height must be between 600 mm and the ceiling")
 
         self.tv_inches = float(tv_inches)
         diagonal = self.tv_inches * 25.4
@@ -58,6 +64,9 @@ class Spec:
         self.tv_h = diagonal * ASPECT_H
 
         self.console = bool(console)
+        # A bought unit is drawn and scheduled, but never cut from a sheet.
+        self.bought_console = str(bought_console or "")
+        self.module_width = float(module_width or 0.0)
         self.console_w = min(float(console_width), self.width - 200.0)
         self.console_h = float(console_height)
         self.console_d = float(console_depth)
@@ -78,13 +87,16 @@ class Spec:
         # The flat inset the TV hangs on: screen plus a margin, snapped to the
         # slat pitch so the panel lands between battens rather than through one.
         margin = 150.0
-        self.inset_w = self.tv_w + margin * 2
+        self.inset_w = float(bay_width) if bay_width else self.tv_w + margin * 2
+        if self.inset_w < self.tv_w + 100:
+            raise ValueError(f"the bay must be wider than the screen "
+                             f"({self.tv_w:.0f} mm) with room to spare")
         if self.style == "slat":
             self.inset_w = self.snap_to_pitch(self.inset_w)
         self.inset_x = (self.width - self.inset_w) / 2.0
         # the bay stops clear of the console rather than running behind it
         self.inset_y = max(self.tv_bottom - margin, self.console_top + 60.0)
-        self.inset_top = min(self.tv_top + margin, self.height - 60.0)
+        self.inset_top = min(self.tv_top + margin, self.board_height - 60.0)
         self.inset_h = self.inset_top - self.inset_y
         if self.inset_h < self.tv_h + 60.0:
             raise ValueError("not enough height between the console and the ceiling for "
@@ -126,7 +138,7 @@ class Spec:
         TV bay is dropped so the screen sits in one clear opening.
         """
         rail_w = 70.0
-        top_rail = min(self.height - 300.0, 2100.0)
+        top_rail = min(self.board_height - 300.0, 2100.0)
         bays = max(2, int(round(self.width / 900.0)))
         step = (self.width - rail_w) / bays
         stiles = [i * step for i in range(bays + 1)]
@@ -150,7 +162,7 @@ def cut_list(spec: Spec) -> list[dict]:
                       "width": round(width), "thickness": round(thickness), "note": note})
 
     if spec.style == "slat":
-        backing_h = spec.height - spec.skirting
+        backing_h = spec.board_height - spec.skirting
         add("Backing panel", math.ceil(spec.width / SHEET_SHORT), backing_h, SHEET_SHORT,
             spec.thickness, "cut the last one to width; butt joints land on a batten")
         add("Wall batten (vertical)", spec.batten_count(), backing_h, 50, spec.batten,
@@ -161,7 +173,7 @@ def cut_list(spec: Spec) -> list[dict]:
         cut = [c for c in columns if c["interrupted"]]
         add("Slat, full height", len(full), backing_h - spec.skirting, spec.slat_width,
             spec.thickness, "ripped from sheet, long edges eased with 120 grit")
-        add("Slat, above TV inset", len(cut), spec.height - spec.inset_top, spec.slat_width,
+        add("Slat, above TV inset", len(cut), spec.board_height - spec.inset_top, spec.slat_width,
             spec.thickness, "over the inset")
         add("Slat, below TV inset", len(cut), spec.inset_y - spec.skirting, spec.slat_width,
             spec.thickness, "under the inset")
@@ -180,7 +192,7 @@ def cut_list(spec: Spec) -> list[dict]:
         add("TV bay lining", 4, max(spec.inset_w, spec.inset_h), 40, spec.thickness,
             "frames the opening the TV hangs in")
 
-    if spec.console:
+    if spec.console and not spec.bought_console:
         add("Console top / bottom", 2, spec.console_w, spec.console_d, spec.thickness)
         add("Console end", 2, spec.console_d, spec.console_h - 2 * spec.thickness,
             spec.thickness)
@@ -229,11 +241,18 @@ def materials(spec: Spec, items: list[dict]) -> list[str]:
         lines.append(f"{spec.batten_count()} × 50 × {spec.batten:.0f} mm softwood battens "
                      f"at 600 mm centres, plus wall plugs and 60 mm screws")
     lines += [
-        "Grab adhesive (MDF to backing), 18 g pin nails, 12 × 40 mm screws for the cleat",
+        ("Grab adhesive (MDF to backing), 18 g pin nails"
+         + ("" if spec.bought_console else ", 12 × 40 mm screws for the cleat")),
         "MDF primer (two coats, sanded between) and eggshell or satin topcoat",
         "Caulk for the wall junctions, filler for the pin holes",
     ]
-    if spec.console:
+    if spec.console and spec.bought_console:
+        lines.append(f"{spec.bought_console} — bought, not built: "
+                     f"{spec.console_w:.0f} × {spec.console_d:.0f} × {spec.console_h:.0f} mm, "
+                     f"hung with its underside {spec.console_base:.0f} mm above the floor")
+        lines.append("Suspension rail and fixings to suit the bench, plus wall anchors rated "
+                     "for the loaded weight — see the build notes")
+    elif spec.console:
         lines.append("Push-to-open hinges or runners, and a 60 mm cable grommet")
     lines.append("2 m of 24 V LED strip + driver if you want the shadow-gap glow")
     if sheet["over_length"]:
@@ -281,7 +300,18 @@ def build_notes(spec: Spec) -> list[str]:
         "Fill, caulk the wall junctions, prime the cut MDF edges twice — they drink paint — "
         "and sand between coats. Spray or roll with a fine foam roller, never a brush.",
     ]
-    if spec.console:
+    if spec.console and spec.bought_console:
+        steps.append(
+            f"Fix noggins behind the boards on the line of the bench's suspension rail before "
+            f"the boards go up. The rail must reach solid structure, not the {spec.thickness:.0f} mm "
+            f"board face: mark the rail height ({spec.console_base + spec.console_h - 60:.0f} mm "
+            f"is typical) and screw the noggin to the studs or the masonry now, while you can "
+            f"still see them.")
+        steps.append(
+            f"Hang {spec.bought_console} on that rail with its underside "
+            f"{spec.console_base:.0f} mm above the floor. Load it after it is fixed, not before, "
+            f"and keep the heavy things at the ends where the fixings are.")
+    elif spec.console:
         steps.append(
             f"Hang the console on a French cleat at {spec.console_base:.0f} mm above the "
             f"floor. The gap under it is what makes it look floating; an LED strip in that "
@@ -347,16 +377,19 @@ def render(spec: Spec, target_width: float = 1240.0) -> str:
                f'width="{spec.width * k:.1f}" height="{plan_h:.1f}"/>')
 
     if spec.style == "slat":
-        out.append(f'<rect class="backing" x="{x0:.1f}" y="{y0:.1f}" '
-                   f'width="{spec.width * k:.1f}" height="{plan_h:.1f}"/>')
+        bx0, by0 = px(0, spec.board_height)
+        out.append(f'<rect class="backing" x="{bx0:.1f}" y="{by0:.1f}" '
+                   f'width="{spec.width * k:.1f}" '
+                   f'height="{spec.board_height * k:.1f}"/>')
         for column in spec.slat_columns():
             sx = column["x"]
             if not column["interrupted"]:
-                bx, by = px(sx, spec.height)
+                bx, by = px(sx, spec.board_height)
                 out.append(f'<rect class="slat" x="{bx:.1f}" y="{by:.1f}" '
-                           f'width="{spec.slat_width * k:.1f}" height="{plan_h:.1f}"/>')
+                           f'width="{spec.slat_width * k:.1f}" '
+                           f'height="{spec.board_height * k:.1f}"/>')
                 continue
-            for bottom, top in ((spec.inset_top, spec.height), (0.0, spec.inset_y)):
+            for bottom, top in ((spec.inset_top, spec.board_height), (0.0, spec.inset_y)):
                 if top - bottom <= 1:
                     continue
                 bx, by = px(sx, top)
@@ -400,9 +433,13 @@ def render(spec: Spec, target_width: float = 1240.0) -> str:
                    f'height="{min(14.0, spec.console_base * k * 0.6):.1f}"/>')
         out.append(f'<rect class="console" x="{cx:.1f}" y="{cy:.1f}" '
                    f'width="{spec.console_w * k:.1f}" height="{spec.console_h * k:.1f}" rx="2"/>')
-        mid = cx + spec.console_w * k / 2.0
-        out.append(f'<line class="consoleline" x1="{mid:.1f}" y1="{cy:.1f}" x2="{mid:.1f}" '
-                   f'y2="{cy + spec.console_h * k:.1f}"/>')
+        # a bought modular unit is drawn as its actual modules
+        module = spec.module_width or spec.console_w / 2.0
+        count = max(1, int(round(spec.console_w / module)))
+        for index in range(1, count):
+            mx = cx + spec.console_w * k * index / count
+            out.append(f'<line class="consoleline" x1="{mx:.1f}" y1="{cy:.1f}" x2="{mx:.1f}" '
+                       f'y2="{cy + spec.console_h * k:.1f}"/>')
 
     fx0, fy0 = px(-120, 0)
     fx1, _ = px(spec.width + 120, 0)
@@ -480,7 +517,8 @@ def render(spec: Spec, target_width: float = 1240.0) -> str:
     if spec.style == "slat":
         keys.append(f"{len(spec.slat_columns())} slats at {spec.pitch:.0f} mm pitch")
     if spec.console:
-        keys.append(f"Console {spec.console_w:.0f} × {spec.console_h:.0f} × "
+        label = spec.bought_console or "Console"
+        keys.append(f"{label} {spec.console_w:.0f} × {spec.console_h:.0f} × "
                     f"{spec.console_d:.0f} deep")
         keys.append(f"Floating {spec.console_base:.0f} above the floor")
     for index, line in enumerate(keys):
@@ -538,8 +576,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-console", action="store_true", help="leave out the media unit")
     parser.add_argument("--console-width", type=float, default=2000.0)
     parser.add_argument("--console-height", type=float, default=280.0)
+    parser.add_argument("--console-depth", type=float, default=400.0)
     parser.add_argument("--console-base", type=float, default=250.0,
                         help="height of the underside above the floor")
+    parser.add_argument("--bought-console", default="",
+                        help="name of a bought wall-hung unit; it is drawn and scheduled "
+                             "but left out of the cut list")
+    parser.add_argument("--board-height", type=float, default=0.0,
+                        help="height of the boarded zone; below the ceiling leaves a painted "
+                             "reveal and keeps every board inside one 2440 mm sheet")
+    parser.add_argument("--module-width", type=float, default=0.0,
+                        help="module width of a bought unit, so the elevation shows its "
+                             "real divisions (600 for a BESTA frame)")
+    parser.add_argument("--bay-width", type=float, default=0.0,
+                        help="width of the flat bay behind the screen (default: screen + 300)")
     parser.add_argument("--name", default="TV feature wall")
     parser.add_argument("-o", "--out", help="write the elevation SVG here")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
@@ -551,7 +601,12 @@ def main(argv: list[str] | None = None) -> int:
                     thickness=args.thickness, batten=args.batten,
                     console=not args.no_console, console_width=args.console_width,
                     console_height=args.console_height,
+                    console_depth=args.console_depth,
                     console_base=args.console_base,
+                    bought_console=args.bought_console,
+                    bay_width=args.bay_width,
+                    board_height=args.board_height,
+                    module_width=args.module_width,
                     name=args.name)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)

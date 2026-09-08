@@ -60,6 +60,8 @@ python3 scripts/palette.py "#3E5C50" --scheme analogous -o palette.svg
 python3 scripts/lighting.py --layout examples/living-room.json --type living
 python3 scripts/featurewall.py --width 3600 --tv 65 -o wall.svg
 python3 scripts/featurewall.py --style shaker --width 4200 --tv 75 --json
+python3 scripts/featurewall.py --width 3500 --board-height 2400 \
+  --bought-console "IKEA BESTÅ" --console-width 2400 --module-width 600 -o wall.svg
 ```
 
 `clearances.py` exits 0 when clean, 1 when it finds problems, 2 when the file
@@ -107,7 +109,10 @@ per layout with a `"clearances"` block — for a wheelchair user, for instance.
 
 ## Limits worth knowing
 
-- `featurewall.py` draws one flat wall in elevation. A chimney breast, a return
+- `featurewall.py` draws one flat wall in elevation. `--bought-console` schedules a
+  shop-bought unit instead of cutting it, `--board-height` stops the boards below the
+  ceiling so every piece fits a 2440 mm sheet, and `--bay-width` sizes the flat bay
+  behind the screen. A chimney breast, a return
   or a sloped ceiling is yours to work around, and the sheet count is an estimate
   with waste in it, not a cutting optimisation.
 - Rectangular rooms only. An L-shaped room has to be split into two files or

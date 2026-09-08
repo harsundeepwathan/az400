@@ -30,7 +30,20 @@ python3 "$PLUGIN/scripts/featurewall.py" --width 3600 --tv 75 --json
 
 Useful switches: `--slat-width` / `--slat-gap` (default 60 and 40, a 100 mm
 pitch), `--thickness` (18 mm MDF), `--batten` (25 mm), `--console-width`,
-`--console-height`, `--console-base`, `--no-console`, `--name`.
+`--console-height`, `--console-depth`, `--console-base`, `--no-console`, `--name`.
+
+For a shop-bought unit — an IKEA BESTÅ run, say — add `--bought-console "IKEA BESTÅ"`
+and `--module-width 600`: the bench is drawn at its real module divisions and
+scheduled as a bought item, and its carcass drops out of the cut list. Use
+`--bay-width` to size the flat bay behind the screen against the bench, and
+`--board-height` to stop the boards below the ceiling — a 2440 mm sheet will not
+reach a 2850 mm ceiling, and a painted reveal above reads better than a joint.
+
+**Hanging a bought unit is the part that goes wrong.** A loaded 2.4 m run is heavy,
+and it cannot be fixed to the board face. A continuous timber noggin goes on the
+structural wall at the suspension-rail line *before* the boards, fixed at 400 mm
+centres into studs or masonry; the boards go over it; the rail is screwed through
+with screws long enough to clear the build-out. Say this every time.
 
 Output is a dimensioned elevation, a section through the build-up, a cut list, a
 materials list with a sheet count, and a build sequence. Show the user the
