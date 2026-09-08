@@ -41,6 +41,7 @@ turning circles.
 
 | Key | Default | Why |
 |---|---|---|
+| `side_table_reach` | 500 | A side table wants to be *within* this of a seat — touching one is correct. |
 | `sofa_to_table_min` | 300 | Below this there is nowhere to put your legs. |
 | `sofa_to_table_max` | 450 | Above it you have to stand up to reach your cup. |
 | `tv_distance_factor_min` | 1.5 × diagonal | Closer and you see pixels and turn your head. |

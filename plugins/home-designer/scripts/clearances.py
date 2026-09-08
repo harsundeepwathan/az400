@@ -31,6 +31,7 @@ DEFAULTS = {
     "primary_walkway": 900,      # a route people use to cross the room
     "secondary_gap": 750,        # squeeze-past route between two pieces
     "approach": 600,             # getting to a piece from the circulation route
+    "side_table_reach": 500,   # a side table should be this close to a seat
     "sofa_to_table_min": 300,
     "sofa_to_table_max": 450,
     "bed_side": 600,
@@ -44,7 +45,8 @@ DEFAULTS = {
 }
 
 SEATING = {"sofa", "armchair", "chair", "loveseat", "sectional", "bench"}
-LOW_TABLES = {"coffee_table", "ottoman", "side_table"}
+LOW_TABLES = {"coffee_table", "ottoman"}
+SIDE_TABLES = {"side_table", "lamp_table"}
 FRONTED = {"wardrobe": "wardrobe_front", "closet": "wardrobe_front",
            "dresser": "storage_front", "storage": "storage_front",
            "bookshelf": "storage_front", "media_unit": "storage_front",
@@ -319,6 +321,22 @@ def check_seating(room: Room, report: Report, values: dict) -> None:
                        items=[nearest.name, table.name], measured=round(gap), required=high)
 
 
+def check_side_tables(room: Room, report: Report, values: dict) -> None:
+    """A side table has the opposite problem to a coffee table: it should be
+    within arm's reach of a seat, and touching one is correct."""
+    seats = [i for i in room.items if i.kind in SEATING]
+    if not seats:
+        return
+    for table in [i for i in room.items if i.kind in SIDE_TABLES]:
+        gap = min(polygon_distance(seat.corners, table.corners) for seat in seats)
+        if gap > float(values["side_table_reach"]):
+            report.add("note", "reach",
+                       f"{table.name} is {gap:.0f} mm from the nearest seat; a side table "
+                       f"wants to be within {values['side_table_reach']:.0f} mm of one",
+                       items=[table.name], measured=round(gap),
+                       required=values["side_table_reach"])
+
+
 def check_screens(room: Room, report: Report, values: dict) -> None:
     seats = [i for i in room.items if i.kind in SEATING]
     for screen in [i for i in room.items if i.kind in SCREENS]:
@@ -438,6 +456,7 @@ def analyse(room: Room) -> tuple[Report, dict]:
     check_window_blocking(room, report)
     stats = check_circulation(room, report, values)
     check_seating(room, report, values)
+    check_side_tables(room, report, values)
     check_screens(room, report, values)
     check_beds(room, report, values)
     check_fronts(room, report, values)

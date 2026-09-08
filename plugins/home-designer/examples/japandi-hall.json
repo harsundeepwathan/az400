@@ -1,0 +1,21 @@
+{
+  "name": "Type A living room — Japandi scheme",
+  "units": "mm",
+  "room": { "width": 3400, "depth": 3500, "height": 2850 },
+  "clearances": { "primary_walkway": 900 },
+  "openings": [
+    { "type": "opening", "name": "opening to dining", "wall": "north", "offset": 400, "width": 2600 },
+    { "type": "window", "name": "south window", "wall": "south", "offset": 250, "width": 2900, "sill": 500, "head": 2400 }
+  ],
+  "furniture": [
+    { "name": "Wool rug 1700x2400", "type": "rug", "x": 1300, "y": 1750, "width": 1700, "depth": 2400 },
+    { "name": "Sofa 2100", "type": "sofa", "x": 485, "y": 1750, "width": 2100, "depth": 850, "rotation": 90, "height": 720 },
+    { "name": "Coffee table", "type": "coffee_table", "x": 1610, "y": 1750, "width": 900, "depth": 600, "rotation": 90, "height": 330 },
+    { "name": "Pouffe", "type": "stool", "x": 1610, "y": 2620, "width": 520, "depth": 520, "height": 400 },
+    { "name": "TV console", "type": "media_unit", "x": 3200, "y": 1750, "width": 2100, "depth": 400, "rotation": 270, "height": 400 },
+    { "name": "TV 50\"", "type": "tv", "x": 3340, "y": 1750, "width": 1120, "depth": 70, "rotation": 270, "height": 700, "diagonal": 1270, "mounted": true },
+    { "name": "Side table", "type": "side_table", "x": 485, "y": 3060, "width": 450, "depth": 450, "height": 500 },
+    { "name": "Paper floor lamp", "type": "floor_lamp", "x": 300, "y": 390, "width": 400, "depth": 400, "height": 1550 },
+    { "name": "Olive tree", "type": "plant", "x": 3100, "y": 350, "width": 550, "depth": 550, "height": 1600 }
+  ]
+}
