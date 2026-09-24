@@ -1,0 +1,94 @@
+# Copy to config/profile.yaml (python -m jobhunter init) and fill in. profile.yaml is git-ignored.
+
+resume_path: resume.pdf          # PDF, DOCX or TXT, relative to the repo root
+data_dir: data                   # SQLite tracker, screenshots, cover letters, report
+
+personal:
+  first_name: Jane
+  last_name: Doe
+  email: jane.doe@example.com
+  phone: "+1 555 123 4567"
+  location: Toronto, ON, Canada
+  country: Canada
+  state: Ontario
+  postal_code: ""
+  linkedin: https://www.linkedin.com/in/janedoe
+  github: https://github.com/janedoe
+  website: ""
+  current_company: Contoso
+  current_title: DevOps Engineer
+
+search:
+  titles:                        # what you want to be hired as
+    - DevOps Engineer
+    - Site Reliability Engineer
+    - Platform Engineer
+    - Cloud Engineer
+  keywords: [azure devops, terraform, kubernetes]   # extra skills to recognise beyond the built-in list
+  exclude_keywords: [clearance required, commission only, unpaid]
+  work_modes: [remote, hybrid, onsite]              # any subset
+  locations: [Toronto, Ontario, Canada]             # for hybrid/onsite roles (substring match on job location)
+  remote_regions: [worldwide, anywhere, global, canada, north america, americas]  # acceptable remote scopes
+  include_unknown_work_mode: true
+  min_score: 55                  # 0-100; jobs at/above this are applied to
+  max_age_days: 30
+
+sources:
+  greenhouse: true
+  lever: true
+  ashby: true
+  workable: true
+  remotive: true                 # remote-only aggregator
+  remoteok: true                 # remote-only aggregator
+  arbeitnow: true                # Europe-focused, remote + onsite
+  adzuna: false                  # broad (US/UK/CA/AU/EU...) incl. hybrid/onsite; needs ADZUNA_APP_ID/ADZUNA_APP_KEY
+
+adzuna:
+  country: ca                    # us, gb, ca, au, de, fr, in, ...
+  pages: 2
+
+# Company career boards to watch are in config/companies.yaml; discovery adds more automatically.
+discovery:
+  enabled: false                 # needs SERPAPI_KEY, BRAVE_API_KEY or GOOGLE_CSE_KEY+GOOGLE_CSE_ID
+  max_queries: 20
+
+apply:
+  enabled: true
+  mode: review                   # review = fill, you click Submit | submit = fully automatic when confident
+  daily_limit: 15
+  ats: [workable, greenhouse, lever, ashby]
+  headless: false                # keep false to see/solve CAPTCHAs and review; CI runs headless
+  human_timeout_sec: 600
+  cover_letter: true             # generated per job by Claude (or cover_letter_template below)
+  screenshots: true
+
+# cover_letter_template: |
+#   Dear {company} team, I'm applying for the {title} role...
+
+# Answers to screening questions. Used before Claude, and always for legal/eligibility questions.
+answers:
+  work_authorization: "Yes"      # legally authorized to work in the job's country
+  require_sponsorship: "No"
+  salary_expectation: "120000 CAD"
+  notice_period: "2 weeks"
+  willing_to_relocate: "No"
+  onsite_ok: "Yes"               # OK with hybrid/in-office attendance
+  years_experience: 5
+  how_heard: "Company careers page"
+  over_18: "Yes"
+  background_check_ok: "Yes"
+  worked_here_before: "No"
+  education: "Bachelor's Degree"
+  languages: "English"
+  optional_consents: false      # tick optional "contact me about future roles" boxes
+  eeo: {}                        # e.g. {gender: "Female", veteran: "I am not a protected veteran"}; empty = decline
+  custom:                        # regex on the question label -> answer
+    - match: "hear about (this|the) (job|role|position)"
+      answer: "Company careers page"
+    - match: "open to contract"
+      answer: "Yes"
+
+llm:
+  enabled: true                  # uses ANTHROPIC_API_KEY if set; otherwise keyword scoring only
+  model: claude-opus-5
+  rescore_top: 40                # Claude re-scores this many top keyword matches per run

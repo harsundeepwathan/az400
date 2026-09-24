@@ -1,0 +1,6 @@
+Jane Doe - DevOps Engineer
+Toronto, Canada | jane.doe@example.com
+Summary: 6 years of experience building CI/CD with Azure DevOps, GitHub Actions and Jenkins.
+Skills: Python, Bash, Terraform, Kubernetes, Docker, Azure, AWS, Prometheus, Grafana, PostgreSQL, Linux
+Experience
+Contoso - DevOps Engineer (2019 - 2025): Azure Pipelines, AKS, Helm, Terraform modules.

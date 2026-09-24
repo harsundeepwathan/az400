@@ -1,0 +1,23 @@
+<!doctype html><html><body>
+<p>Thank you for your interest in Acme. We are an equal opportunity employer.</p>
+<form id="f" onsubmit="event.preventDefault(); if (this.checkValidity()) document.body.innerHTML='<h2>Your application has been submitted!</h2>';">
+  <label for="firstname">First name *</label><input id="firstname" name="firstname" required>
+  <label for="lastname">Last name *</label><input id="lastname" name="lastname" required>
+  <label for="email">Email *</label><input id="email" name="email" type="email" required>
+  <label for="phone">Phone</label><input id="phone" name="phone" type="tel">
+  <div><span class="label">Resume *</span><input type="file" name="resume" data-ui="resume" style="display:none" required></div>
+  <label for="li">LinkedIn profile</label><input id="li" name="QA_1" type="url">
+  <fieldset><legend>Are you legally authorized to work in Canada? *</legend>
+    <label><input type="radio" name="QA_2" value="1" required> Yes</label>
+    <label><input type="radio" name="QA_2" value="0"> No</label></fieldset>
+  <div class="question"><div class="label">Will you now or in the future require visa sponsorship?</div>
+    <label><input type="radio" name="QA_3" value="y"> Yes</label>
+    <label><input type="radio" name="QA_3" value="n"> No</label></div>
+  <label for="yrs">Total years of professional experience *</label>
+  <select id="yrs" name="QA_4" required><option value="">Select...</option><option>0-2 years</option><option>3-5 years</option><option>6+ years</option></select>
+  <label for="gender">Gender</label>
+  <select id="gender" name="gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Decline to self-identify</option></select>
+  <label for="why">Why do you want to join Acme? *</label><textarea id="why" name="QA_5" required></textarea>
+  <label><input type="checkbox" name="gdpr" required> I agree to the privacy policy *</label>
+  <button type="submit" data-ui="apply-button">Submit application</button>
+</form></body></html>

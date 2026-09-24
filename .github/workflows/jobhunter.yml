@@ -1,0 +1,84 @@
+# GitHub Actions equivalent of azure-pipelines.yml.
+# Enable by setting the repository variable JOBHUNTER_ENABLED=true.
+# PRIVACY: artifacts (report, form screenshots) contain your personal data. On a public repo, any
+# signed-in GitHub user can download them - keep this repository private if you enable the hunt job.
+# Secrets: PROFILE_YAML (contents of config/profile.yaml), RESUME_B64 (base64 of your resume PDF),
+#          ANTHROPIC_API_KEY, optional SERPAPI_KEY / BRAVE_API_KEY / ADZUNA_APP_ID / ADZUNA_APP_KEY.
+name: jobhunter
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 13 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      auto_apply:
+        description: Submit applications automatically (headless; uncertain ones go to review)
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r requirements-dev.txt && python -m playwright install --with-deps chromium
+      - run: ruff check jobhunter tests
+      - run: python -m pytest -q
+
+  hunt:
+    needs: test
+    if: vars.JOBHUNTER_ENABLED == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r requirements.txt && python -m playwright install --with-deps chromium
+      - name: Stage private config
+        env:
+          PROFILE_YAML: ${{ secrets.PROFILE_YAML }}
+          RESUME_B64: ${{ secrets.RESUME_B64 }}
+        run: |
+          mkdir -p config data
+          printf '%s' "$PROFILE_YAML" > config/profile.yaml
+          printf '%s' "$RESUME_B64" | base64 -d > resume.pdf
+      - name: Restore tracker
+        uses: actions/cache/restore@v4
+        with:
+          path: data/jobs.db
+          key: jobhunter-db-${{ github.run_id }}
+          restore-keys: jobhunter-db-
+      - name: Search, score, apply
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+        run: |
+          python -m jobhunter run --no-apply
+          if [ "${{ inputs.auto_apply }}" = "true" ]; then
+            python -m jobhunter apply --submit --headless
+          else
+            python -m jobhunter apply --headless
+          fi
+          python -m jobhunter report
+      - name: Save tracker
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/jobs.db
+          key: jobhunter-db-${{ github.run_id }}
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobhunter-report
+          path: |
+            data/report.html
+            data/report.json
+            data/applications/*.png

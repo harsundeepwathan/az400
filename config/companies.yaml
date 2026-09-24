@@ -1,0 +1,8 @@
+# Company job boards to scan every run (slug = the part of the careers URL after the ATS domain).
+#   greenhouse: job-boards.greenhouse.io/<slug>    lever: jobs.lever.co/<slug>
+#   ashby:      jobs.ashbyhq.com/<slug>            workable: apply.workable.com/<slug>
+# `python -m jobhunter discover` finds more automatically.
+greenhouse: [gitlab, cloudflare, datadog, elastic, mongodb, twilio, stripe, airbnb]
+lever: [palantir, spotify]
+ashby: [ramp, notion, linear, vercel, supabase]
+workable: []

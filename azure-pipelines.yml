@@ -1,0 +1,121 @@
+# Job hunting pipeline for Azure DevOps.
+#
+#  - CI stage: lint + tests on every push/PR.
+#  - Hunt stage: on the daily schedule (or a manual run) searches, scores, optionally auto-applies,
+#    and publishes the tracker (SQLite DB + HTML report) as a pipeline artifact. The DB from the
+#    previous run is downloaded first so jobs are never applied to twice.
+#
+# One-time setup (Pipelines > Library):
+#  - Secure files:   profile.yaml (your config/profile.yaml) and your resume (name it resume.pdf)
+#  - Variable group "jobhunter" with secret ANTHROPIC_API_KEY (optional: SERPAPI_KEY / BRAVE_API_KEY,
+#    ADZUNA_APP_ID, ADZUNA_APP_KEY)
+# Unattended runs are headless: forms that need a human (CAPTCHA, unknown answer) are left as
+# needs_review in the report for you to finish locally with `python -m jobhunter apply --job <uid>`.
+
+trigger:
+  branches:
+    include: ['*']
+
+pr:
+  branches:
+    include: ['*']
+
+schedules:
+  - cron: '0 13 * * 1-5'          # 13:00 UTC, weekdays
+    displayName: Daily job hunt
+    branches:
+      include: [main, master]
+    always: true
+
+parameters:
+  - name: autoApply
+    displayName: Submit applications automatically (headless; uncertain ones go to review)
+    type: boolean
+    default: false
+
+variables:
+  pythonVersion: '3.11'
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: CI
+    jobs:
+      - job: test
+        steps:
+          - task: UsePythonVersion@0
+            inputs: { versionSpec: '$(pythonVersion)' }
+          - script: |
+              pip install -r requirements-dev.txt
+              python -m playwright install --with-deps chromium
+            displayName: Install
+          - script: ruff check jobhunter tests
+            displayName: Lint
+          - script: python -m pytest -q --junitxml=test-results.xml
+            displayName: Test
+          - task: PublishTestResults@2
+            condition: always()
+            inputs: { testResultsFiles: test-results.xml }
+
+  - stage: Hunt
+    dependsOn: CI
+    condition: and(succeeded(), in(variables['Build.Reason'], 'Schedule', 'Manual'))
+    variables:
+      - group: jobhunter
+    jobs:
+      - job: hunt
+        timeoutInMinutes: 120
+        steps:
+          - task: UsePythonVersion@0
+            inputs: { versionSpec: '$(pythonVersion)' }
+          - script: |
+              pip install -r requirements.txt
+              python -m playwright install --with-deps chromium
+            displayName: Install
+          - task: DownloadSecureFile@1
+            name: profile
+            inputs: { secureFile: profile.yaml }
+          - task: DownloadSecureFile@1
+            name: resume
+            inputs: { secureFile: resume.pdf }
+          - script: |
+              mkdir -p config data
+              cp "$(profile.secureFilePath)" config/profile.yaml
+              cp "$(resume.secureFilePath)" resume.pdf
+            displayName: Stage private config
+          - task: DownloadPipelineArtifact@2
+            displayName: Restore tracker from last run
+            continueOnError: true
+            inputs:
+              buildType: specific
+              project: '$(System.TeamProjectId)'
+              definition: '$(System.DefinitionId)'
+              buildVersionToDownload: latestFromBranch
+              branchName: '$(Build.SourceBranch)'
+              allowPartiallySucceededBuilds: true
+              artifactName: jobhunter-data
+              targetPath: data
+          - script: |
+              set -e
+              python -m jobhunter run --no-apply
+              if [ "${{ parameters.autoApply }}" = "True" ]; then
+                python -m jobhunter apply --submit --headless
+              else
+                python -m jobhunter apply --headless     # review mode: fills forms, screenshots, never submits
+              fi
+              python -m jobhunter report
+            displayName: Search, score, apply
+            env:
+              ANTHROPIC_API_KEY: $(ANTHROPIC_API_KEY)
+              SERPAPI_KEY: $(SERPAPI_KEY)
+              BRAVE_API_KEY: $(BRAVE_API_KEY)
+              ADZUNA_APP_ID: $(ADZUNA_APP_ID)
+              ADZUNA_APP_KEY: $(ADZUNA_APP_KEY)
+          - script: rm -rf data/browser-profile
+            condition: always()
+            displayName: Drop browser profile
+          - publish: data
+            artifact: jobhunter-data
+            condition: always()
+            displayName: Publish tracker + report
