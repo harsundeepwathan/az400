@@ -1,0 +1,38 @@
+Alex Morgan
+London, UK | alex.morgan@example.com | +44 20 7946 0958 | linkedin.com/in/alexmorgan-demo
+
+Professional Summary
+Platform engineer with eight years of experience building reliable cloud infrastructure and developer tooling for product teams in fintech and e-commerce.
+
+Experience
+Senior Platform Engineer | Northwind Payments | London
+Mar 2021 – Present
+• Led migration of 40 services from EC2 to Kubernetes (EKS), cutting infrastructure cost by 28%
+• Built a Terraform module library adopted by 12 product teams
+• Mentored four engineers and ran the on-call rotation
+• Designed CI/CD pipelines in GitHub Actions for Go and TypeScript services
+
+DevOps Engineer — Contoso Retail — Manchester
+Jan 2017 – Feb 2021
+• Automated release process with Jenkins and Ansible, reducing deployment time from 2 hours to 15 minutes
+• Maintained PostgreSQL and Redis clusters serving the online store
+• Introduced Prometheus and Grafana monitoring across production systems
+
+Education
+BSc Computer Science, University of Leeds, 2016
+
+Skills
+Cloud: AWS, Kubernetes, Terraform, Docker
+Languages: Go, Python, TypeScript, Bash
+Observability: Prometheus, Grafana, OpenTelemetry
+
+Certifications
+AWS Certified Solutions Architect – Associate (2022)
+Certified Kubernetes Administrator, CNCF, 2021
+
+Projects
+Open-source Terraform linter
+• Command-line tool that checks Terraform modules for security misconfigurations; 300 GitHub stars
+
+Languages
+English, Spanish

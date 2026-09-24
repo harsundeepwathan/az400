@@ -1,0 +1,15 @@
+# Optional: local PostgreSQL for development if you prefer Docker over
+# `npm run db:local:start`. Matches the DATABASE_URL in .env.example.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: jobpilot
+    ports:
+      - "54329:5432"
+    volumes:
+      - jobpilot-db:/var/lib/postgresql/data
+volumes:
+  jobpilot-db:
