@@ -9,9 +9,12 @@ import {
   formatCents,
   toCSV,
   importReceipts,
+  findDuplicate,
 } from './receipts.js';
 import { openStore } from './storage.js';
 import { sampleReceipts } from './sample.js';
+import { parseReceiptText } from './parse.js';
+import { recognize, warmUpOcr } from './ocr.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (cents) => formatCents(cents);
@@ -128,7 +131,7 @@ function renderList(visible) {
         : el('span', { class: 'thumb placeholder', 'aria-hidden': 'true' }, r.merchant.slice(0, 1).toUpperCase());
       const date = new Date(`${r.date}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
       return el('li', {
-          class: 'receipt', tabindex: '0', role: 'button', 'aria-label': `Edit ${r.merchant}, ${fmt(r.amountCents)}`,
+          class: 'receipt', 'data-id': r.id, tabindex: '0', role: 'button', 'aria-label': `Edit ${r.merchant}, ${fmt(r.amountCents)}`,
           onclick: () => openForm(r),
           onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openForm(r); } },
         },
@@ -155,23 +158,32 @@ function todayLocal() {
   return `${localMonth(d)}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function openForm(receipt = null) {
+// `draft` pre-fills a new receipt (from a scan): { values, image, notice, unsure: [fields] }.
+function openForm(receipt = null, draft = null) {
   state.editingId = receipt?.id ?? null;
-  state.pendingImage = undefined;
+  state.pendingImage = draft?.image ?? undefined;
   form.reset();
   clearErrors();
-  $('#dialogTitle').textContent = receipt ? 'Edit receipt' : 'Add receipt';
+  const src = receipt ?? draft?.values ?? null;
+  $('#dialogTitle').textContent = receipt ? 'Edit receipt' : draft ? 'Review scanned receipt' : 'Add receipt';
   $('#deleteBtn').hidden = !receipt;
-  form.merchant.value = receipt?.merchant ?? '';
-  form.date.value = receipt?.date ?? todayLocal();
-  form.amount.value = receipt ? (receipt.amountCents / 100).toFixed(2) : '';
-  form.category.value = receipt?.category ?? 'Groceries';
-  form.paymentMethod.value = receipt?.paymentMethod ?? '';
-  form.notes.value = receipt?.notes ?? '';
-  setPreview(receipt?.image ?? null);
+  form.merchant.value = src?.merchant ?? '';
+  form.date.value = src?.date ?? todayLocal();
+  form.amount.value = src?.amountCents ? (src.amountCents / 100).toFixed(2) : '';
+  form.category.value = src?.category ?? 'Groceries';
+  form.paymentMethod.value = src?.paymentMethod ?? '';
+  form.notes.value = src?.notes ?? '';
+  setPreview(receipt?.image ?? draft?.image ?? null);
+  const notice = $('#formNotice');
+  notice.hidden = !draft?.notice;
+  notice.textContent = draft?.notice ?? '';
+  for (const field of draft?.unsure ?? []) form[field].classList.add('unsure');
   dialog.showModal();
-  form.merchant.focus();
+  const firstUnsure = draft?.unsure?.map((f) => form[f]).find(Boolean);
+  (firstUnsure ?? form.merchant).focus();
 }
+
+form.addEventListener('input', (e) => e.target.classList?.remove('unsure'));
 
 function setPreview(src) {
   const img = $('#photoPreview');
@@ -183,6 +195,7 @@ function setPreview(src) {
 function clearErrors() {
   form.querySelectorAll('[data-err]').forEach((n) => { n.textContent = ''; });
   form.querySelectorAll('[aria-invalid]').forEach((n) => n.removeAttribute('aria-invalid'));
+  form.querySelectorAll('.unsure').forEach((n) => n.classList.remove('unsure'));
 }
 
 function showErrors(errors) {
@@ -223,6 +236,7 @@ form.addEventListener('submit', async (e) => {
     : [...state.receipts, result.value];
   dialog.close();
   render();
+  flash(result.value.id);
   toast(existing ? 'Receipt updated' : 'Receipt added');
 });
 
@@ -253,24 +267,152 @@ $('#photoRemove').addEventListener('click', () => {
   setPreview(null);
 });
 
-// Shrinks photos before storing so a few hundred receipts stay well within quota.
-function downscaleImage(file, maxSide, quality) {
+function loadImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
     img.src = url;
   });
 }
+
+// Shrinks photos before storing so a few hundred receipts stay well within quota.
+function imageToDataUrl(img, maxSide = 1280, quality = 0.8) {
+  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+async function downscaleImage(file, maxSide, quality) {
+  return imageToDataUrl(await loadImage(file), maxSide, quality);
+}
+
+// ---------- Scanning ----------
+
+const scanOverlay = $('#scanOverlay');
+
+function setScanProgress({ stage, progress }) {
+  $('#scanStage').textContent = stage;
+  $('#scanBar').style.width = `${Math.round((progress ?? 0) * 100)}%`;
+}
+
+async function scanFile(file) {
+  if (!file || !file.type.startsWith('image/')) return toast('Choose an image of a receipt');
+  if (state.scanning) return;
+  state.scanning = true;
+  let img;
+  try {
+    img = await loadImage(file);
+  } catch {
+    state.scanning = false;
+    return toast('Could not read that image');
+  }
+  const image = imageToDataUrl(img);
+  $('#scanPreview').src = image;
+  setScanProgress({ stage: 'Preparing scanner…', progress: 0 });
+  scanOverlay.hidden = false;
+
+  let parsed;
+  try {
+    const text = await recognize(img, setScanProgress);
+    parsed = parseReceiptText(text);
+  } catch (err) {
+    console.error(err);
+    scanOverlay.hidden = true;
+    state.scanning = false;
+    openForm(null, { image, notice: `${err.message || 'Scanning failed.'} Enter the details manually — the photo is attached.`, unsure: ['merchant', 'amount'] });
+    return;
+  }
+  scanOverlay.hidden = true;
+  state.scanning = false;
+
+  const values = { ...parsed, amount: parsed.amountCents ? parsed.amountCents / 100 : '' };
+  if (parsed.autoLog) {
+    const result = createReceipt({ ...values, image });
+    if (result.ok) {
+      await saveScanned(result.value, parsed);
+      return;
+    }
+  }
+  const unsure = Object.entries(parsed.confidence).filter(([, ok]) => !ok).map(([f]) => f);
+  openForm(null, {
+    values: parsed,
+    image,
+    unsure,
+    notice: `Couldn't read everything clearly — check the highlighted ${unsure.length === 1 ? 'field' : 'fields'} and save.`,
+  });
+}
+
+async function saveScanned(receipt, parsed) {
+  const duplicate = findDuplicate(state.receipts, receipt);
+  try {
+    await state.store.put(receipt);
+  } catch (err) {
+    console.error(err);
+    return toast('Could not save — storage may be full.');
+  }
+  state.receipts = [...state.receipts, receipt];
+  render();
+  flash(receipt.id);
+  const dateNote = parsed.confidence.date ? '' : ' (dated today)';
+  const dupNote = duplicate ? ' — looks like a duplicate' : '';
+  toast(`Logged ${fmt(receipt.amountCents)} at ${receipt.merchant}${dateNote}${dupNote}`, [
+    { label: 'Edit', run: () => openForm(state.receipts.find((r) => r.id === receipt.id)) },
+    { label: 'Undo', run: async () => {
+      await state.store.remove(receipt.id);
+      state.receipts = state.receipts.filter((r) => r.id !== receipt.id);
+      render();
+      toast('Scan undone');
+    } },
+  ], 7000);
+}
+
+function flash(id) {
+  const node = document.querySelector(`.receipt[data-id="${CSS.escape(id)}"]`);
+  if (!node) return;
+  node.classList.add('flash');
+  node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  setTimeout(() => node.classList.remove('flash'), 2000);
+}
+
+$('#scanInput').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  scanFile(file);
+});
+$('#scanBtn').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#scanInput').click(); }
+});
+$('#scanBtn').addEventListener('pointerenter', warmUpOcr, { once: true });
+$('#scanBtn').addEventListener('focus', warmUpOcr, { once: true });
+
+// Desktop: drop or paste a receipt image anywhere to scan it.
+let dragDepth = 0;
+document.addEventListener('dragenter', (e) => {
+  if (![...(e.dataTransfer?.types ?? [])].includes('Files')) return;
+  dragDepth++;
+  document.body.classList.add('dragging');
+});
+document.addEventListener('dragleave', () => {
+  if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); }
+});
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  document.body.classList.remove('dragging');
+  if (document.querySelector('dialog[open]')) return;
+  scanFile(e.dataTransfer?.files?.[0]);
+});
+document.addEventListener('paste', (e) => {
+  if (document.querySelector('dialog[open]')) return;
+  const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+  if (file) scanFile(file);
+});
 
 function showImage(src) {
   $('#imageFull').src = src;
@@ -350,12 +492,17 @@ $('#clearAll').addEventListener('click', async () => {
 });
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, actions = [], duration = 2600) {
   const t = $('#toast');
-  t.textContent = msg;
+  const hide = () => t.classList.remove('show');
+  t.replaceChildren(
+    el('span', {}, msg),
+    ...actions.map((a) => el('button', { type: 'button', onclick: () => { hide(); a.run(); } }, a.label)),
+  );
+  t.classList.toggle('has-actions', actions.length > 0);
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  toastTimer = setTimeout(hide, duration);
 }
 
 // ---------- Init ----------
@@ -371,6 +518,12 @@ async function init() {
   filters.addEventListener('submit', (e) => e.preventDefault());
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 's' && !e.metaKey && !e.ctrlKey && !document.querySelector('dialog[open]') &&
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+      e.preventDefault();
+      $('#scanInput').click();
+      return;
+    }
     if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !document.querySelector('dialog[open]') &&
         !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
       e.preventDefault();

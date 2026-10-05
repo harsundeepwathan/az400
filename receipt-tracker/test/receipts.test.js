@@ -11,6 +11,7 @@ import {
   lastMonths,
   toCSV,
   importReceipts,
+  findDuplicate,
 } from '../src/receipts.js';
 import { sampleReceipts } from '../src/sample.js';
 
@@ -109,4 +110,10 @@ test('sample data is valid and never dated in the future', () => {
   assert.equal(skipped, 0);
   assert.ok(imported.length > 10);
   assert.ok(imported.every((r) => r.date <= '2026-10-02'));
+});
+
+test('findDuplicate matches merchant, date and amount case-insensitively', () => {
+  assert.equal(findDuplicate(fixtures, { id: 'x', merchant: 'shell ', date: '2026-09-10', amountCents: 4000 })?.id, '2');
+  assert.equal(findDuplicate(fixtures, { id: 'x', merchant: 'Shell', date: '2026-09-10', amountCents: 4001 }), null);
+  assert.equal(findDuplicate(fixtures, fixtures[1]), null);
 });

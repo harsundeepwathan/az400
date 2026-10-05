@@ -102,6 +102,16 @@ export function filterReceipts(receipts, { query = '', category = '', from = '',
   });
 }
 
+// A receipt with the same merchant, date and amount is almost certainly a re-scan.
+export function findDuplicate(receipts, candidate) {
+  const name = candidate.merchant.trim().toLowerCase();
+  return receipts.find((r) =>
+    r.id !== candidate.id &&
+    r.date === candidate.date &&
+    r.amountCents === candidate.amountCents &&
+    r.merchant.trim().toLowerCase() === name) ?? null;
+}
+
 const SORTERS = {
   'date-desc': (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
   'date-asc': (a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt),

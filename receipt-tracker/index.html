@@ -25,7 +25,12 @@
           <button type="button" id="clearAll" class="danger">Delete all receipts</button>
         </div>
       </details>
-      <button class="btn primary" id="addBtn" type="button">+ Add receipt</button>
+      <button class="btn ghost" id="addBtn" type="button" title="Add manually (n)"><span aria-hidden="true">+</span><span class="hide-sm">&nbsp;Add</span><span class="sr-only"> receipt manually</span></button>
+      <label class="btn primary" id="scanBtn" tabindex="0" title="Scan a receipt (s)">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 4h4V2H3a1 1 0 0 0-1 1v5h2V4Zm16 0v4h2V3a1 1 0 0 0-1-1h-5v2h4ZM4 16H2v5a1 1 0 0 0 1 1h5v-2H4v-4Zm16 4h-4v2h5a1 1 0 0 0 1-1v-5h-2v4ZM7 11h10v2H7v-2Z"/></svg>
+        Scan receipt
+        <input type="file" id="scanInput" accept="image/*" capture="environment" hidden>
+      </label>
     </div>
   </header>
 
@@ -67,7 +72,8 @@
       <ul class="receipts" id="receiptList"></ul>
       <div class="empty" id="emptyState" hidden>
         <p><strong>No receipts yet.</strong></p>
-        <p>Add your first receipt, or load sample data to explore.</p>
+        <p>Tap <strong>Scan receipt</strong> to photograph one — it's read and logged automatically.</p>
+        <p class="hide-sm">On a computer you can also drop or paste a receipt image anywhere on this page.</p>
       </div>
     </section>
   </main>
@@ -78,6 +84,7 @@
         <h2 id="dialogTitle">Add receipt</h2>
         <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
       </header>
+      <p class="form-notice" id="formNotice" role="status" hidden></p>
       <div class="form-grid">
         <label>Merchant<input name="merchant" required maxlength="120" autocomplete="off"><small class="err" data-err="merchant"></small></label>
         <label>Date<input name="date" type="date" required><small class="err" data-err="date"></small></label>
@@ -108,6 +115,16 @@
     <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
     <img id="imageFull" alt="Receipt photo">
   </dialog>
+
+  <div class="scan-overlay" id="scanOverlay" role="alertdialog" aria-modal="true" aria-labelledby="scanStage" hidden>
+    <div class="scan-card">
+      <div class="scan-image"><img id="scanPreview" alt="Receipt being scanned"><div class="scan-line"></div></div>
+      <p id="scanStage" aria-live="polite">Preparing scanner…</p>
+      <div class="progress"><div id="scanBar"></div></div>
+    </div>
+  </div>
+
+  <div class="drop-hint" aria-hidden="true"><div>Drop receipt to scan</div></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
