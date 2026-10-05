@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Receipt Tracker</title>
+  <meta name="description" content="Track, search and summarize your receipts.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M6 2h12a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-3 2V3a1 1 0 0 1 1-1Zm2 5v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>
+      <h1>Receipt Tracker</h1>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" id="exportCsv" type="button">Export CSV</button>
+      <details class="menu">
+        <summary class="btn ghost" aria-label="More actions">⋯</summary>
+        <div class="menu-panel">
+          <button type="button" id="exportCsvMenu">Export CSV</button>
+          <button type="button" id="exportJson">Back up (JSON)</button>
+          <label class="menu-file">Restore backup<input type="file" id="importJson" accept="application/json,.json" hidden></label>
+          <button type="button" id="loadSample">Load sample data</button>
+          <button type="button" id="clearAll" class="danger">Delete all receipts</button>
+        </div>
+      </details>
+      <button class="btn primary" id="addBtn" type="button">+ Add receipt</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stats" aria-label="Summary">
+      <div class="stat"><span class="stat-label">Total spent</span><span class="stat-value" id="statTotal">$0.00</span></div>
+      <div class="stat"><span class="stat-label">Receipts</span><span class="stat-value" id="statCount">0</span></div>
+      <div class="stat"><span class="stat-label">Average</span><span class="stat-value" id="statAvg">$0.00</span></div>
+      <div class="stat"><span class="stat-label">This month</span><span class="stat-value" id="statMonth">$0.00</span></div>
+    </section>
+
+    <section class="panel charts">
+      <div>
+        <h2>Last 6 months</h2>
+        <div class="bars" id="monthChart" role="img" aria-label="Spending by month"></div>
+      </div>
+      <div>
+        <h2>By category</h2>
+        <ul class="cat-list" id="categoryChart"></ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <form class="filters" id="filters" role="search">
+        <input type="search" id="fQuery" placeholder="Search merchant, notes…" aria-label="Search">
+        <select id="fCategory" aria-label="Category"><option value="">All categories</option></select>
+        <label class="inline">From <input type="date" id="fFrom"></label>
+        <label class="inline">To <input type="date" id="fTo"></label>
+        <select id="fSort" aria-label="Sort">
+          <option value="date-desc">Newest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="amount-desc">Highest amount</option>
+          <option value="amount-asc">Lowest amount</option>
+          <option value="merchant">Merchant A–Z</option>
+        </select>
+        <button type="reset" class="btn ghost">Clear</button>
+      </form>
+      <p class="filter-note" id="filterNote" hidden></p>
+      <ul class="receipts" id="receiptList"></ul>
+      <div class="empty" id="emptyState" hidden>
+        <p><strong>No receipts yet.</strong></p>
+        <p>Add your first receipt, or load sample data to explore.</p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="receiptDialog" aria-labelledby="dialogTitle">
+    <form method="dialog" id="receiptForm" novalidate>
+      <header class="dialog-head">
+        <h2 id="dialogTitle">Add receipt</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </header>
+      <div class="form-grid">
+        <label>Merchant<input name="merchant" required maxlength="120" autocomplete="off"><small class="err" data-err="merchant"></small></label>
+        <label>Date<input name="date" type="date" required><small class="err" data-err="date"></small></label>
+        <label>Amount<input name="amount" inputmode="decimal" placeholder="0.00" required><small class="err" data-err="amount"></small></label>
+        <label>Category<select name="category" id="formCategory"></select></label>
+        <label>Payment method<input name="paymentMethod" list="paymentMethods" placeholder="e.g. Visa ••1234"></label>
+        <label class="full">Notes<textarea name="notes" rows="2"></textarea></label>
+        <div class="full photo-field">
+          <span>Photo</span>
+          <div class="photo-row">
+            <img id="photoPreview" alt="" hidden>
+            <label class="btn ghost">Choose photo<input type="file" id="photoInput" accept="image/*" capture="environment" hidden></label>
+            <button type="button" class="btn ghost" id="photoRemove" hidden>Remove</button>
+          </div>
+        </div>
+      </div>
+      <datalist id="paymentMethods"><option>Cash</option><option>Credit card</option><option>Debit card</option><option>Mobile pay</option></datalist>
+      <footer class="dialog-foot">
+        <button type="button" class="btn danger-ghost" id="deleteBtn" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn primary" value="save">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="imageDialog" class="image-dialog">
+    <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    <img id="imageFull" alt="Receipt photo">
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

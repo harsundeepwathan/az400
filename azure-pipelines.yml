@@ -1,0 +1,47 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - receipt-tracker/*
+      - azure-pipelines.yml
+
+pr:
+  paths:
+    include:
+      - receipt-tracker/*
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  appDir: receipt-tracker
+
+stages:
+  - stage: Build
+    jobs:
+      - job: TestAndPackage
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '22.x'
+            displayName: Use Node 22
+
+          - script: npm test
+            workingDirectory: $(appDir)
+            displayName: Run unit tests
+
+          - task: CopyFiles@2
+            inputs:
+              SourceFolder: $(appDir)
+              Contents: |
+                index.html
+                styles.css
+                src/**
+              TargetFolder: $(Build.ArtifactStagingDirectory)/site
+            displayName: Stage static site
+
+          - publish: $(Build.ArtifactStagingDirectory)/site
+            artifact: receipt-tracker-site
+            displayName: Publish site artifact

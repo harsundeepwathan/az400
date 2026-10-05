@@ -1,0 +1,14 @@
+{
+  "name": "receipt-tracker",
+  "version": "1.0.0",
+  "description": "A browser-based receipt tracker: capture, search, summarize and export receipts.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server . -p 8080 -c-1",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
