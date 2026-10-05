@@ -12,7 +12,7 @@ public struct Evidence: Hashable, Codable, Sendable {
     }
 }
 
-public struct ProgressionRecommendation: Hashable, Sendable {
+public struct ProgressionRecommendation: Identifiable, Hashable, Sendable {
     public enum Action: String, Hashable, Sendable {
         /// No history yet. The user picks a starting load.
         case establishBaseline
@@ -37,6 +37,7 @@ public struct ProgressionRecommendation: Hashable, Sendable {
     }
 
     public var exerciseID: String
+    public var id: String { exerciseID }
     public var action: Action
     /// Nil when there is no history to base a load on.
     public var weight: Double?

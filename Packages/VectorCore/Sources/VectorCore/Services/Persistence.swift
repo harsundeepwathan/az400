@@ -1,5 +1,17 @@
 import Foundation
 
+/// A next-session target the athlete accepted or adjusted. Applied when
+/// the next workout containing the exercise starts, then cleared.
+public struct TargetOverride: Codable, Hashable, Sendable {
+    public var weight: Double
+    public var reps: Int
+
+    public init(weight: Double, reps: Int) {
+        self.weight = weight
+        self.reps = reps
+    }
+}
+
 /// Everything the app persists, as one versioned document. At this data
 /// size (years of training fit in a few MB) a single atomic JSON write is
 /// simpler and more robust than a database, and trivially exportable.
@@ -20,6 +32,8 @@ public struct AppData: Codable, Hashable, Sendable {
     public var dismissedInsightIDs: Set<String>
     public var lastUpgradeMoment: Date?
     public var tier: SubscriptionTier
+    /// Optional so documents written before this field existed still decode.
+    public var targetOverrides: [String: TargetOverride]?
 
     public init(
         schemaVersion: Int = AppData.currentSchemaVersion,
@@ -35,7 +49,8 @@ public struct AppData: Codable, Hashable, Sendable {
         scanDates: [Date] = [],
         dismissedInsightIDs: Set<String> = [],
         lastUpgradeMoment: Date? = nil,
-        tier: SubscriptionTier = .free
+        tier: SubscriptionTier = .free,
+        targetOverrides: [String: TargetOverride]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.profile = profile
@@ -51,6 +66,7 @@ public struct AppData: Codable, Hashable, Sendable {
         self.dismissedInsightIDs = dismissedInsightIDs
         self.lastUpgradeMoment = lastUpgradeMoment
         self.tier = tier
+        self.targetOverrides = targetOverrides
     }
 
     public var hasCompletedOnboarding: Bool { profile != nil }

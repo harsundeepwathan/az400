@@ -1,0 +1,49 @@
+{
+  "identifier" : "9C3E2B1A-6F0D-4C2B-9E61-3B1F7A2D4C10",
+  "nonRenewingSubscriptions" : [ ],
+  "products" : [ ],
+  "settings" : { "_failTransactionsEnabled" : false },
+  "subscriptionGroups" : [
+    {
+      "id" : "21482400",
+      "localizations" : [ ],
+      "name" : "Vector Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "59.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6449100001",
+          "introductoryOffer" : {
+            "internalID" : "6449100003",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [ { "description" : "All Pro features, billed yearly", "displayName" : "Vector Pro Annual", "locale" : "en_US" } ],
+          "productID" : "app.vector.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Annual",
+          "subscriptionGroupID" : "21482400",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6449100002",
+          "localizations" : [ { "description" : "All Pro features, billed monthly", "displayName" : "Vector Pro Monthly", "locale" : "en_US" } ],
+          "productID" : "app.vector.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "21482400",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : { "major" : 3, "minor" : 0 }
+}
