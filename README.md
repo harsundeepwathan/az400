@@ -18,6 +18,7 @@ App/Vector/                  SwiftUI app (DesignSystem, Features, App state, Pla
 App/VectorWidgets/           Today widget + Workout Live Activity / Dynamic Island
 App/Shared/                  Types shared by app and extension
 docs/                        Audit & IA, design system, product/AI/monetization, Apple ecosystem
+.claude/skills/ui-ux-pro-max/ UI/UX Pro Max skill for Claude Code (MIT, vendored)
 ```
 
 ## Getting started
@@ -44,6 +45,16 @@ They cover progressive overload rules, PR detection, analytics windows and bucke
 
 - `VectorCore` builds and all 34 tests pass with Swift 6.0.3 (Swift 5.10 language mode).
 - The SwiftUI app and widget targets were written without access to Xcode, so they have **not been compiled or run in a simulator yet**. Expect a short round of compile fixes on first build. Previews (`#Preview`) are provided for the main screens with sample, Pro, dark and empty variants.
+
+## Claude Code skill
+
+`.claude/skills/ui-ux-pro-max` vendors [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT, commit `477bcb2`). Claude Code loads it automatically for UI work in this repo. Its search tool runs from the repo root:
+
+```bash
+python3 .claude/skills/ui-ux-pro-max/scripts/search.py "navigation" --stack swiftui
+```
+
+Vector's own tokens in `docs/02-design-system.md` take precedence over the skill's generic palette and style suggestions.
 
 ## Documentation
 
