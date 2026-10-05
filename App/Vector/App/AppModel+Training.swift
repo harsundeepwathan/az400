@@ -127,8 +127,10 @@ extension AppModel {
 
     /// Called by the timer view when the countdown reaches zero in the foreground.
     func restDidFinish() {
-        guard data.restTimer != nil else { return }
-        Haptics.restFinished()
+        guard let timer = data.restTimer else { return }
+        // Only buzz if the user is actually here as it ends, not when returning
+        // to a timer that ran out while the workout was minimized.
+        if now().timeIntervalSince(timer.endsAt) < 2 { Haptics.restFinished() }
         mutate({ $0.restTimer = nil }, refreshInsights: false)
         syncLiveActivity()
     }
