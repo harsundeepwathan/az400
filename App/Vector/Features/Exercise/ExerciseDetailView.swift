@@ -64,23 +64,14 @@ struct ExerciseDetailView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            ZStack {
-                RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
-                    .fill(LinearGradient(colors: [VColor.accentSoft, VColor.surface], startPoint: .topLeading, endPoint: .bottomTrailing))
-                Image(systemName: exercise.symbol)
-                    .font(.system(size: 72, weight: .light))
-                    .foregroundStyle(VColor.accentText)
-                    .symbolEffect(.pulse, options: .repeating.speed(0.4))
-                    .accessibilityHidden(true)
-            }
-            .frame(height: 160)
+            ExerciseDemoView(exercise: exercise, height: 210)
             HStack(spacing: Space.xs) {
                 ForEach(exercise.primaryMuscles, id: \.self) {
                     Chip(text: $0.displayName, tint: VColor.accentText, fill: VColor.accentSoft)
                 }
                 ForEach(exercise.secondaryMuscles, id: \.self) { Chip(text: $0.displayName) }
             }
-            Text("\(exercise.equipment.displayName) · \(exercise.pattern.displayName)")
+            Text("\(exercise.equipment.displayName) · \(exercise.pattern.displayName)" + (exercise.level.map { " · \($0.capitalized)" } ?? ""))
                 .font(VFont.secondary)
                 .foregroundStyle(VColor.textSecondary)
         }
@@ -233,7 +224,7 @@ struct ReplaceExerciseView: View {
                             }
                         } label: {
                             HStack(alignment: .top, spacing: Space.sm) {
-                                IconBadge(symbol: option.exercise.symbol, size: 36)
+                                ExerciseThumbnail(exercise: option.exercise, size: 44)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(option.exercise.name).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
                                     if model.isPro {

@@ -27,10 +27,12 @@ targets:
     sources:
       - path: App/Vector
       - path: App/Shared
+      - path: App/WatchShared
     dependencies:
       - package: VectorCore
       - target: VectorWidgets
         embed: true
+      - target: VectorWatch
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.vector.ios
@@ -52,10 +54,17 @@ targets:
         NSHealthShareUsageDescription: Vector reads your body weight to track your trend.
         NSHealthUpdateUsageDescription: Vector saves your strength workouts and weigh-ins to Apple Health.
         NSSupportsLiveActivities: true
+        NSUbiquitousContainers:
+          iCloud.app.vector:
+            NSUbiquitousContainerIsDocumentScopePublic: false
+            NSUbiquitousContainerName: Vector
+            NSUbiquitousContainerSupportedFolderLevels: None
         ITSAppUsesNonExemptEncryption: false
         # Backend endpoint that proxies the meal-recognition model. Leave empty
         # to use the on-device demo recognizer.
         VectorMealScanEndpoint: ""
+        # Shared secret for backend/meal-scan (replace with App Attest for production).
+        VectorMealScanKey: ""
         CFBundleURLTypes:
           - CFBundleURLName: app.vector.ios
             CFBundleURLSchemes: [vector]
@@ -65,9 +74,13 @@ targets:
         com.apple.security.application-groups: [group.app.vector]
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
+        com.apple.developer.icloud-container-identifiers: [iCloud.app.vector]
+        com.apple.developer.icloud-services: [CloudDocuments]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.app.vector]
     scheme:
       testTargets:
         - package: VectorCore/VectorCoreTests
+        - VectorUITests
       storeKitConfiguration: App/Vector/Resources/Vector.storekit
       commandLineArguments:
         "-sampleData": false
@@ -93,3 +106,33 @@ targets:
       path: App/VectorWidgets/VectorWidgets.entitlements
       properties:
         com.apple.security.application-groups: [group.app.vector]
+
+  VectorWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: App/VectorWatch
+      - path: App/WatchShared
+    dependencies:
+      - package: VectorCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.vector.ios.watchkitapp
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Vector
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: app.vector.ios
+        INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: NO
+        SKIP_INSTALL: YES
+
+  VectorUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: App/VectorUITests
+    dependencies:
+      - target: Vector
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.vector.ios.uitests
+        TEST_TARGET_NAME: Vector

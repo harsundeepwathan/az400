@@ -54,7 +54,7 @@ struct TemplateDetailView: View {
             model.sheet = .exercise(exercise.id)
         } label: {
             HStack(alignment: .top, spacing: Space.sm) {
-                IconBadge(symbol: exercise.symbol, tint: VColor.textSecondary, fill: VColor.surfaceSunken, size: 40)
+                ExerciseThumbnail(exercise: exercise, size: 44)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(exercise.name).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
                     Text("\(item.sets) sets × \(item.repRange.label) reps")
@@ -190,13 +190,13 @@ struct ExercisePickerView: View {
                     .listRowInsets(EdgeInsets(top: 0, leading: Space.md, bottom: 0, trailing: Space.md))
                     .listRowBackground(Color.clear)
                 }
-                ForEach(results) { exercise in
+                ForEach(results.prefix(150)) { exercise in
                     Button {
                         onPick(exercise)
                         dismiss()
                     } label: {
                         HStack(spacing: Space.sm) {
-                            IconBadge(symbol: exercise.symbol, tint: VColor.textSecondary, fill: VColor.surfaceSunken, size: 36)
+                            ExerciseThumbnail(exercise: exercise, size: 44)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(exercise.name).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
                                 Text(exercise.primaryMuscles.map(\.displayName).joined(separator: ", ") + " · " + exercise.equipment.displayName)

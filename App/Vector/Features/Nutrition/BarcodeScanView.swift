@@ -12,6 +12,7 @@ struct BarcodeScanView: View {
     @State private var code = ""
     @State private var found: FoodItem?
     @State private var notFound: String?
+    @State private var isLookingUp = false
 
     private var scannerAvailable: Bool {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
@@ -49,6 +50,12 @@ struct BarcodeScanView: View {
                         .disabled(code.count < 6)
                 }
 
+                if isLookingUp {
+                    HStack(spacing: Space.sm) {
+                        ProgressView()
+                        Text("Looking up product…").font(VFont.secondary).foregroundStyle(VColor.textSecondary)
+                    }
+                }
                 if let notFound {
                     VStack(spacing: Space.xs) {
                         Text("We don't have \(notFound) yet").font(VFont.bodyEmphasized)
@@ -79,12 +86,25 @@ struct BarcodeScanView: View {
 
     private func lookup(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
-        guard found == nil else { return }
+        guard found == nil, !isLookingUp else { return }
         if let food = model.foods.food(barcode: trimmed) {
             notFound = nil
             found = food
-        } else {
+            return
+        }
+        guard let client = model.remoteFoods else {
             notFound = trimmed
+            return
+        }
+        isLookingUp = true
+        Task {
+            defer { isLookingUp = false }
+            if let food = try? await client.product(barcode: trimmed) {
+                notFound = nil
+                found = food
+            } else {
+                notFound = trimmed
+            }
         }
     }
 }

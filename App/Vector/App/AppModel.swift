@@ -32,6 +32,13 @@ final class AppModel {
     let catalog: ExerciseCatalog
     let foods: FoodDatabase
     let recognizer: MealRecognizing
+    /// Open Food Facts (or any remote catalogue). Nil in previews and tests.
+    let remoteFoods: RemoteFoodSearching?
+    @ObservationIgnored let sync: CloudSync?
+    /// Called after every committed change (the Watch bridge listens here).
+    @ObservationIgnored var onCommit: ((AppData) -> Void)?
+    /// Last time this device merged with iCloud; nil when sync is off.
+    private(set) var lastSyncedAt: Date?
     let calendar: Calendar
     @ObservationIgnored let store: DataStore
     @ObservationIgnored let notifications: NotificationScheduler?
@@ -51,6 +58,8 @@ final class AppModel {
     init(
         store: DataStore,
         recognizer: MealRecognizing,
+        remoteFoods: RemoteFoodSearching? = nil,
+        sync: CloudSync? = nil,
         catalog: ExerciseCatalog = .standard,
         foods: FoodDatabase = FoodDatabase(),
         calendar: Calendar = .current,
@@ -61,6 +70,8 @@ final class AppModel {
     ) {
         self.store = store
         self.recognizer = recognizer
+        self.remoteFoods = remoteFoods
+        self.sync = sync
         self.catalog = catalog
         self.foods = foods
         self.calendar = calendar
@@ -90,6 +101,7 @@ final class AppModel {
     /// Every intent funnels through here: mutate, recompute, persist.
     private func commit(_ mutate: (inout AppData) -> Void, refreshInsights: Bool = true) {
         mutate(&data)
+        data.modifiedAt = now()
         if refreshInsights { recomputeInsights() }
         scheduleSave()
     }
@@ -103,6 +115,8 @@ final class AppModel {
             guard !Task.isCancelled else { return }
             try? store.save(snapshot)
         }
+        sync?.push(snapshot)
+        onCommit?(snapshot)
         writeWidgetSnapshot()
     }
 
@@ -308,7 +322,10 @@ final class AppModel {
     }
 
     func delete(_ entry: FoodEntry) {
-        commit { $0.foodEntries.removeAll { $0.id == entry.id } }
+        commit { data in
+            data.foodEntries.removeAll { $0.id == entry.id }
+            data.deletedIDs = (data.deletedIDs ?? []).union([Tombstone.food(entry.id)])
+        }
     }
 
     func copyMeal(_ meal: MealType, from source: Date, to target: Date) {
@@ -327,7 +344,10 @@ final class AppModel {
     }
 
     func deleteSavedMeal(_ meal: SavedMeal) {
-        commit({ $0.savedMeals.removeAll { $0.id == meal.id } }, refreshInsights: false)
+        commit({ data in
+            data.savedMeals.removeAll { $0.id == meal.id }
+            data.deletedIDs = (data.deletedIDs ?? []).union([Tombstone.savedMeal(meal.id)])
+        }, refreshInsights: false)
     }
 
     func recordScan() {
@@ -337,6 +357,8 @@ final class AppModel {
     func logBodyWeight(_ kilograms: Double) {
         let entry = BodyWeightEntry(date: now(), kilograms: kilograms)
         commit { data in
+            let replaced = data.bodyWeights.filter { self.calendar.isDate($0.date, inSameDayAs: entry.date) }
+            data.deletedIDs = (data.deletedIDs ?? []).union(replaced.map { Tombstone.bodyWeight($0.id) })
             data.bodyWeights.removeAll { self.calendar.isDate($0.date, inSameDayAs: entry.date) }
             data.bodyWeights.append(entry)
             data.profile?.weightKg = kilograms
@@ -379,7 +401,9 @@ final class AppModel {
         liveActivity?.end()
         notifications?.cancelRest()
         let tier = data.tier
-        commit { $0 = AppData(tier: tier) }
+        // Tombstone everything so other devices delete it too instead of syncing it back.
+        let tombstones = Tombstone.all(in: data).union(data.deletedIDs ?? [])
+        commit { $0 = AppData(tier: tier, deletedIDs: tombstones) }
         cover = nil
         sheet = nil
     }
@@ -392,6 +416,29 @@ final class AppModel {
         guard let encoded = try? encoder.encode(data) else { return nil }
         try? encoded.write(to: url)
         return url
+    }
+
+    // MARK: Sync
+
+    /// Merges a copy that arrived from iCloud. Called on launch and whenever
+    /// another device writes.
+    func mergeRemote(_ remote: AppData) {
+        let merged = SyncMerge.merge(local: data, remote: remote)
+        lastSyncedAt = now()
+        guard merged != data else { return }
+        let hadProfile = data.profile != nil
+        data = merged
+        recomputeInsights()
+        try? store.save(data)
+        writeWidgetSnapshot()
+        if !hadProfile, data.profile != nil { selectedTab = .today }
+    }
+
+    func startSync() {
+        guard let sync else { return }
+        sync.start { [weak self] remote in
+            Task { @MainActor in self?.mergeRemote(remote) }
+        }
     }
 
     // MARK: Internal mutation access for extensions

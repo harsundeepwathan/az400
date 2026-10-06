@@ -10,6 +10,11 @@ struct FoodSearchView: View {
     @State private var query = ""
     @State private var selected: FoodItem?
     @State private var selectedMeal: MealType
+    @State private var remote: RemoteSearchState = .idle
+
+    enum RemoteSearchState: Equatable {
+        case idle, loading, loaded([FoodItem]), failed(String)
+    }
 
     init(meal: MealType, date: Date) {
         self.meal = meal
@@ -55,26 +60,69 @@ struct FoodSearchView: View {
                         }
                     }
                 }
-                Section(query.isEmpty ? "Foods" : "Results") {
-                    let results = model.foods.search(query)
-                    ForEach(results.prefix(40)) { food in
-                        Button {
-                            selected = food
-                        } label: {
-                            FoodItemRow(food: food)
+                let local = model.foods.search(query)
+                if !local.isEmpty {
+                    Section("Common foods") {
+                        ForEach(local.prefix(query.isEmpty ? 40 : 8)) { food in
+                            Button {
+                                selected = food
+                            } label: {
+                                FoodItemRow(food: food)
+                            }
                         }
                     }
-                    if results.isEmpty {
-                        VStack(alignment: .leading, spacing: Space.xs) {
-                            Text("No match for “\(query)”").font(VFont.bodyEmphasized)
-                            Text("Quick add the calories instead. You can add macros too.")
+                }
+                if !query.trimmingCharacters(in: .whitespaces).isEmpty, model.remoteFoods != nil {
+                    Section {
+                        switch remote {
+                        case .idle, .loading:
+                            ForEach(0..<3, id: \.self) { _ in
+                                FoodItemRow(food: FoodItem(id: "placeholder", name: "Loading product name",
+                                                           per100g: .zero, servingName: "1 serving", servingGrams: 100))
+                                    .skeleton(true)
+                            }
+                        case .loaded(let items) where items.isEmpty:
+                            noMatch
+                        case .loaded(let items):
+                            ForEach(items) { food in
+                                Button {
+                                    selected = food
+                                } label: {
+                                    FoodItemRow(food: food)
+                                }
+                            }
+                        case .failed(let message):
+                            Label(message, systemImage: "wifi.slash")
                                 .font(VFont.secondary)
                                 .foregroundStyle(VColor.textSecondary)
-                            Button("Quick Add") { model.sheet = .quickAdd(selectedMeal) }
-                                .buttonStyle(.secondary(compact: true))
                         }
-                        .padding(.vertical, Space.xs)
+                    } header: {
+                        Text("Packaged foods")
+                    } footer: {
+                        Text("From Open Food Facts, a free, crowd-sourced database. Check the label if numbers look off.")
                     }
+                } else if local.isEmpty {
+                    Section { noMatch }
+                }
+            }
+            .task(id: query) {
+                let trimmed = query.trimmingCharacters(in: .whitespaces)
+                guard let client = model.remoteFoods, trimmed.count >= 2 else {
+                    remote = .idle
+                    return
+                }
+                remote = .loading
+                // Debounce typing so we search once the user pauses.
+                try? await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled else { return }
+                do {
+                    let items = try await client.search(trimmed, limit: 25)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(Motion.smooth) { remote = .loaded(items) }
+                } catch RemoteFoodError.offline {
+                    remote = .failed("You're offline. Common foods and quick add still work.")
+                } catch {
+                    remote = .failed("Packaged food search is unavailable right now.")
                 }
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search foods")
@@ -94,6 +142,18 @@ struct FoodSearchView: View {
         }
     }
 
+    private var noMatch: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text("No match for “\(query)”").font(VFont.bodyEmphasized)
+            Text("Quick add the calories instead. You can add macros too.")
+                .font(VFont.secondary)
+                .foregroundStyle(VColor.textSecondary)
+            Button("Quick Add") { model.sheet = .quickAdd(selectedMeal) }
+                .buttonStyle(.secondary(compact: true))
+        }
+        .padding(.vertical, Space.xs)
+    }
+
     private func logAgain(_ entry: FoodEntry) {
         model.log([FoodEntry(date: logDate, meal: selectedMeal, name: entry.name, foodID: entry.foodID,
                              grams: entry.grams, macros: entry.macros, source: entry.source == .aiScan ? .search : entry.source)])
@@ -111,8 +171,8 @@ struct FoodItemRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(food.name).font(VFont.body).foregroundStyle(VColor.textPrimary)
-                Text("\(food.servingName) (\(Format.grams(food.servingGrams))) · P \(Format.grams(food.macros(grams: food.servingGrams).protein))")
+                Text(food.name).font(VFont.body).foregroundStyle(VColor.textPrimary).lineLimit(2)
+                Text((food.brand.map { $0 + " · " } ?? "") + "\(food.servingName) (\(Format.grams(food.servingGrams))) · P \(Format.grams(food.macros(grams: food.servingGrams).protein))")
                     .font(VFont.caption)
                     .foregroundStyle(VColor.textSecondary)
             }

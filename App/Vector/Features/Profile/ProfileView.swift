@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var showsResetConfirm = false
     @State private var exportURL: URL?
     @State private var healthConnected = false
+    @AppStorage(CloudSyncPreference.key) private var iCloudSync = true
 
     var body: some View {
         NavigationStack {
@@ -110,6 +111,23 @@ struct ProfileView: View {
                     }
 
                     Section {
+                        Toggle(isOn: $iCloudSync) {
+                            Label("iCloud Sync", systemImage: "icloud")
+                        }
+                        if let synced = model.lastSyncedAt {
+                            LabeledContent("Last synced", value: synced.formatted(.relative(presentation: .named)))
+                        } else if iCloudSync, model.sync?.isAvailable == false {
+                            Text("Sign in to iCloud in Settings to sync between your devices.")
+                                .font(VFont.caption)
+                                .foregroundStyle(VColor.textSecondary)
+                        }
+                    } header: {
+                        Text("Sync")
+                    } footer: {
+                        Text("Workouts, food logs and settings sync through your private iCloud account. Changes to this setting apply the next time you open Vector.")
+                    }
+
+                    Section {
                         Toggle(isOn: $healthConnected) {
                             Label("Apple Health", systemImage: "heart.fill")
                         }
@@ -120,7 +138,7 @@ struct ProfileView: View {
                     } header: {
                         Text("Connections")
                     } footer: {
-                        Text("Writes finished workouts to Health and reads body weight. Apple Watch support is coming soon.")
+                        Text("Writes finished workouts to Health and reads body weight. Open Vector on Apple Watch to log sets from your wrist.")
                     }
 
                     Section("Data") {

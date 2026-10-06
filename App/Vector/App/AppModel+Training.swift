@@ -183,7 +183,10 @@ extension AppModel {
     }
 
     func deleteSession(_ session: WorkoutSession) {
-        mutate { $0.sessions.removeAll { $0.id == session.id } }
+        mutate { data in
+            data.sessions.removeAll { $0.id == session.id }
+            data.deletedIDs = (data.deletedIDs ?? []).union([Tombstone.session(session.id)])
+        }
     }
 
     private func syncLiveActivity() {
@@ -253,7 +256,10 @@ extension AppModel {
 
     func deleteTemplate(_ template: WorkoutTemplate) {
         mutate { data in
-            data.customTemplates.removeAll { $0.id == template.id }
+            if data.customTemplates.contains(where: { $0.id == template.id }) {
+                data.customTemplates.removeAll { $0.id == template.id }
+                data.deletedIDs = (data.deletedIDs ?? []).union([Tombstone.template(template.id)])
+            }
             if let program = data.program, program.workouts.count > 1,
                let index = program.workouts.firstIndex(where: { $0.id == template.id }) {
                 data.program?.workouts.remove(at: index)
