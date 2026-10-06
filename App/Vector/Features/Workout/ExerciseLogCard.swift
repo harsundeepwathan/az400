@@ -22,6 +22,7 @@ struct ExerciseLogCard: View {
 
     @AppStorage("logsEffort") private var logsEffort = true
     @State private var editsNote = false
+    @State private var reportsDiscomfort = false
 
     private var isLinkedToNext: Bool {
         guard let group = log.supersetGroup else { return false }
@@ -60,6 +61,16 @@ struct ExerciseLogCard: View {
                         EffortPicker(position: position)
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
+                    if model.lastCompletion?.position == position,
+                       let feedback = SetFeedback.evaluate(set, next: log.sets[safe: setIndex + 1], restSeconds: log.restSeconds, unit: model.unit) {
+                        Text(feedback.text)
+                            .font(VFont.caption)
+                            .foregroundStyle(feedback.result == .below ? VColor.textSecondary : VColor.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, Space.xs)
+                            .transition(.opacity)
+                            .accessibilityAddTraits(.updatesFrequently)
+                    }
                 }
             }
             .animation(Motion.snappy, value: model.lastCompletion?.position)
@@ -93,6 +104,9 @@ struct ExerciseLogCard: View {
                 .strokeBorder(isCurrent && !log.isComplete ? VColor.accentText.opacity(0.5) : .clear, lineWidth: 1.5)
         }
         .animation(Motion.smooth, value: isCurrent)
+        .sheet(isPresented: $reportsDiscomfort) {
+            DiscomfortReportSheet(exerciseID: log.exerciseID, exerciseName: exercise?.name)
+        }
     }
 
     private var header: some View {
@@ -134,6 +148,7 @@ struct ExerciseLogCard: View {
                 if index < workout.session.exercises.count - 1 {
                     Button("Move Down", systemImage: "arrow.down") { model.updateWorkout { $0.moveExercise(from: index, to: index + 1) } }
                 }
+                Button("Report Discomfort", systemImage: "exclamationmark.bubble") { reportsDiscomfort = true }
                 Divider()
                 Button("Remove Exercise", systemImage: "trash", role: .destructive) {
                     withAnimation(Motion.smooth) { model.updateWorkout { $0.removeExercise(at: index) } }

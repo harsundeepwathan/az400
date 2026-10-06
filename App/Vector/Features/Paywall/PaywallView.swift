@@ -13,11 +13,12 @@ struct PaywallView: View {
     @State private var plan: PurchaseService.Plan = .annual
 
     private let benefits: [(String, String, String)] = [
-        (Icon.sparkles, "AI workout recommendations", "Know the exact weight and reps for every set"),
-        (Icon.scan, "AI meal scanning every day", "Up to 30 scans a day: photo to logged meal in seconds"),
-        ("chart.bar.xaxis", "Advanced progress analytics", "Strength curves, muscle balance, full history"),
-        ("chart.line.uptrend.xyaxis", "Smart progressive overload", "Automatic, explained progression"),
-        ("brain.head.profile", "Personalized coaching insights", "Training and nutrition patterns, with evidence")
+        ("arrow.triangle.2.circlepath", "Weekly Coach Check-In", "One clear decision each week, or a clear \"no change\""),
+        ("flame", "Adaptive calorie targets", "Adjusted to how your weight actually responds, only when you're consistent"),
+        ("chart.line.uptrend.xyaxis", "Progression for every lift", "The exact weight and reps for every exercise, explained"),
+        ("clock.arrow.circlepath", "Coaching history and outcomes", "Every adjustment, and whether it worked"),
+        (Icon.scan, "More meal scans", "Up to 30 a day: photo to logged meal in seconds"),
+        ("chart.bar.xaxis", "Advanced trends", "Strength curves, muscle balance, full history")
     ]
 
     var body: some View {
@@ -74,7 +75,7 @@ struct PaywallView: View {
                 ProBadge()
             }
             .padding(.top, Space.md)
-            Text("TRAIN SMARTER.\nGET STRONGER.")
+            Text("UNLOCK YOUR\nDIGITAL COACH.")
                 .font(.system(.largeTitle, weight: .heavy))
                 .foregroundStyle(VColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -93,8 +94,10 @@ struct PaywallView: View {
             "You've used this week's free scans. Pro makes meal logging a photo, every time."
         case .analytics, .history:
             "See your full history, strength curves and muscle balance."
+        case .coach:
+            "Your fitness coach, built around your data. Train, eat, log, and Vector works out what to change next."
         default:
-            "Training, nutrition and intelligent coaching in one place."
+            "Your fitness coach, built around your data."
         }
     }
 

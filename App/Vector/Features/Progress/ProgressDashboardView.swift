@@ -34,6 +34,8 @@ struct ProgressDashboardView: View {
 
                     // Shown with or without workouts; hides itself until a meal is logged.
                     NutritionChartsSection()
+
+                    CoachingHistorySection()
                 }
                 .padding(.horizontal, Space.gutter)
                 .padding(.bottom, Space.xl)

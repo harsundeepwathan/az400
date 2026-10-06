@@ -19,8 +19,7 @@ final class AppModel {
             sessionsCache = nil
             nutritionCache = [:]
             recentExercisesCache = nil
-            briefCache = nil
-            checkInCache = nil
+            reviewCache = nil
             if oldValue.customExercises != data.customExercises { rebuildCatalog() }
         }
     }
@@ -38,7 +37,7 @@ final class AppModel {
     /// Cached derived values, recomputed after each mutation.
     private(set) var insights: [CoachInsight] = []
     private(set) var recommendations: [ProgressionRecommendation] = [] {
-        didSet { briefCache = nil }
+        didSet { reviewCache = nil }
     }
     private(set) var isComputingInsights = false
     /// Created on first use and kept (see `photoStore`); not view state.
@@ -78,8 +77,7 @@ final class AppModel {
     @ObservationIgnored private var sessionsCache: (day: Date, value: [WorkoutSession])?
     @ObservationIgnored private var nutritionCache: [Date: DailyNutrition] = [:]
     @ObservationIgnored private var recentExercisesCache: [String]?
-    @ObservationIgnored var briefCache: (day: Date, value: DailyBrief)?
-    @ObservationIgnored var checkInCache: (day: Date, value: CheckInResult?)?
+    @ObservationIgnored var reviewCache: (day: Date, review: WeeklyReview, today: TodayCoaching)?
 
     private(set) var analytics: AnalyticsEngine
     let nutritionEngine: NutritionEngine

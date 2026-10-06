@@ -220,7 +220,7 @@ public struct UserProfile: Codable, Hashable, Sendable {
     public var targetWeightKg: Double
     public var unit: WeightUnit
     public var targets: NutritionTargets
-    /// Exercise ids the athlete wants to avoid (injury / preference).
+    /// Exercise ids the athlete wants to avoid (preference or discomfort; Vector never asks why).
     public var avoidedExerciseIDs: Set<String>
     public var restTimerNotifications: Bool
     /// Optional so profiles saved before this field existed still decode.

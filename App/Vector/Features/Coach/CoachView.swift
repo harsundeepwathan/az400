@@ -170,6 +170,9 @@ struct AdjustTargetView: View {
                         minus: { reps = max(reps - 1, 1) }, plus: { reps += 1 })
                 PrimaryButton("Use \(Format.weight(weight, unit: model.unit)) × \(reps)") {
                     model.setTarget(exerciseID: recommendation.exerciseID, weight: weight, reps: reps)
+                    // Choosing a different target than recommended counts as declining it.
+                    let matches = weight == recommendation.weight && reps == recommendation.reps
+                    model.trackProgression(recommendation, accepted: matches)
                     dismiss()
                 }
             }

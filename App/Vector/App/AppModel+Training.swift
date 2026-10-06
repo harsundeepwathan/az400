@@ -224,6 +224,7 @@ extension AppModel {
     func accept(_ recommendation: ProgressionRecommendation) {
         guard let weight = recommendation.weight else { return }
         setTarget(exerciseID: recommendation.exerciseID, weight: weight, reps: recommendation.reps)
+        trackProgression(recommendation, accepted: true)
     }
 
     // MARK: Programs & templates

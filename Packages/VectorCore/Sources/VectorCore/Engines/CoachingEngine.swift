@@ -539,3 +539,15 @@ public struct OutcomeEvaluator: Sendable {
         return DecisionOutcome(decision: decision, verdict: verdict, kgPerWeekBefore: before, kgPerWeekAfter: rate, summary: summary)
     }
 }
+
+extension NutritionTargets {
+    /// The same targets at a new calorie level: protein and fat stay, carbs
+    /// absorb the difference (rounded to 5 g, never below 50 g).
+    public func withCalories(_ calories: Double) -> NutritionTargets {
+        var updated = self
+        updated.calories = calories
+        let carbs = (calories - protein * 4 - fat * 9) / 4
+        updated.carbs = max((carbs / 5).rounded() * 5, 50)
+        return updated
+    }
+}

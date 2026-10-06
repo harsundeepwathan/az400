@@ -161,10 +161,6 @@ public struct AdaptiveNutritionEngine: Sendable {
 
     /// New targets for an accepted check-in: protein and fat are kept, carbohydrate absorbs the change.
     public static func targets(applying checkIn: NutritionCheckIn, to targets: NutritionTargets) -> NutritionTargets {
-        var updated = targets
-        updated.calories = checkIn.recommendedCalories
-        let carbs = (checkIn.recommendedCalories - targets.protein * 4 - targets.fat * 9) / 4
-        updated.carbs = max((carbs / 5).rounded() * 5, 50)
-        return updated
+        targets.withCalories(checkIn.recommendedCalories)
     }
 }

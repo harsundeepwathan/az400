@@ -11,8 +11,8 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.section) {
                     TodayHeader()
-                    if let brief = model.dailyBrief {
-                        TodayBriefCard(brief: brief)
+                    if let coaching = model.todayCoaching {
+                        VectorCoachCard(coaching: coaching)
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
                         SectionHeader("Today's training")
@@ -22,8 +22,8 @@ struct TodayView: View {
                         SectionHeader("Daily nutrition", actionTitle: "Details") { model.selectedTab = .nutrition }
                         TodayNutritionCard()
                     }
-                    if let checkIn = model.nutritionCheckIn, showsCheckIn(checkIn) {
-                        NutritionCheckInCard(result: checkIn)
+                    if model.showsWeeklyCheckIn, let review = model.weeklyReview {
+                        WeeklyCheckInCard(review: review)
                             .transition(.opacity.combined(with: .scale(scale: 0.97)))
                     }
                     if model.shouldShowUpgradeMoment {
@@ -47,15 +47,8 @@ struct TodayView: View {
             .screenBackground()
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
-            .animation(Motion.smooth, value: model.checkIns.count)
+            .animation(Motion.smooth, value: model.coachDecisions.count)
         }
-    }
-
-    /// The "needs more data" version only appears once the user has started
-    /// logging, so day one isn't a list of chores.
-    private func showsCheckIn(_ result: CheckInResult) -> Bool {
-        if case .ready = result { return true }
-        return model.bodyWeights.count >= 2 || model.sessions.count >= 3
     }
 }
 
@@ -244,6 +237,12 @@ private struct TodayNutritionCard: View {
             }
             .accessibilityElement(children: .combine)
             NutritionSummary(day: day, compact: true)
+            if let protein = model.todayCoaching?.protein {
+                Text(protein.text)
+                    .font(VFont.secondary)
+                    .foregroundStyle(VColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: Space.xs) {
                 QuickActionButton(title: "Scan Meal", symbol: Icon.scan, prominent: true) { model.cover = .scanner(meal) }
                 QuickActionButton(title: "Log Food", symbol: Icon.search) { model.sheet = .foodSearch(meal) }

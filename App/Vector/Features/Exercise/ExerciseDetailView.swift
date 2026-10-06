@@ -198,7 +198,7 @@ struct ExerciseDetailView: View {
 }
 
 /// Ranked alternatives. Everyone sees sensible swaps; Pro adds the full
-/// ranked list with the reasoning and injury/preference awareness.
+/// ranked list with the reasoning and preference/discomfort awareness.
 struct ReplaceExerciseView: View {
     var exercise: Exercise
     var workoutIndex: Int?
@@ -261,7 +261,7 @@ struct ReplaceExerciseView: View {
                         model.toggleAvoided(exercise.id)
                     } label: {
                         let avoided = model.profile?.avoidedExerciseIDs.contains(exercise.id) ?? false
-                        Label(avoided ? "Allow \(exercise.name) in plans" : "Avoid \(exercise.name) (injury or preference)",
+                        Label(avoided ? "Allow \(exercise.name) in plans" : "Avoid \(exercise.name) (preference or discomfort)",
                               systemImage: avoided ? "checkmark.circle" : "hand.raised")
                     }
                 } footer: {

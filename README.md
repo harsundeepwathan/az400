@@ -56,7 +56,7 @@ open Vector.xcodeproj    # set your Team, run the "Vector" scheme on an iOS 17+ 
 ## Tests
 
 ```bash
-cd Packages/VectorCore && swift test               # 124 tests (macOS or Linux)
+cd Packages/VectorCore && swift test               # 144 tests (macOS or Linux)
 VECTOR_LIVE_TESTS=1 swift test --filter Live       # also hits the real Open Food Facts API
 cd backend/api && npm install && npm test           # 59 tests against a real PostgreSQL (see backend/api/README.md)
 ```
@@ -67,7 +67,7 @@ They cover progressive overload (including RPE), the weekly adaptive calorie che
 
 ## Verification status
 
-- `VectorCore` builds and all 124 tests pass with Swift 6.0.3 (Swift 5.10 language mode). The live Open Food Facts check runs with `VECTOR_LIVE_TESTS=1`.
+- `VectorCore` builds and all 144 tests pass with Swift 6.0.3 (Swift 5.10 language mode). The live Open Food Facts check runs with `VECTOR_LIVE_TESTS=1`.
 - `backend/api` tests pass against PostgreSQL 16 with a fake Claude client, a locally signed Sign in with Apple JWKS and an OpenSSL-generated StoreKit certificate chain. It has **not** been run against the live Claude API, Apple's servers or a real App Store transaction (no keys or devices were available).
 - The SwiftUI app, widget, watch app and UI tests were written without access to Xcode, so they have **not been compiled or run yet**. Expect a round of compile fixes on first build.
 

@@ -117,6 +117,8 @@ Inputs (AppData) ──► Measurements  ──► Assessments ──► Decisio
 
 ## 9. Roadmap
 
+**Status:** P0 is implemented. The core is tested; the UI is not yet compiled. See [`docs/tasks/p0-coach-tasklist.md`](tasks/p0-coach-tasklist.md).
+
 **P0: digital coach MVP.** Today coaching; progression v2; nutrition, protein and training adherence; weight trends and goal bands; confidence; Weekly Coach Check-In with Apply / Keep; adaptive calories gated on adherence; a decision log with explanations; the discomfort safety path; Pro gating; coaching analytics events.
 
 **P1.** Outcome tracking surfaced in Progress → Coaching and in the AI weekly summary; accountability nudges via notifications (opt-in, at most one a week); advanced training recommendations (volume landmarks per muscle, deload weeks); long-term trends; personalised expenditure (learned from the decision log rather than formulas).
