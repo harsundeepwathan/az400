@@ -9,6 +9,7 @@ struct ScanReviewView: View {
     var onClose: () -> Void
     @Environment(AppModel.self) private var model
     @State private var changingItem: RecognizedFood?
+    @State private var editingNutrition: RecognizedFood?
     @State private var showsAddFood = false
 
     var body: some View {
@@ -25,6 +26,7 @@ struct ScanReviewView: View {
                                 unit: "g",
                                 onGrams: { session.setGrams($0, for: item.id) },
                                 onChange: { changingItem = item },
+                                onEditNutrition: { editingNutrition = item },
                                 onRemove: { session.remove(item.id) }
                             )
                             .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -72,6 +74,10 @@ struct ScanReviewView: View {
             }
             .sheet(item: $changingItem) { item in
                 ChangeFoodView(item: item) { food in session.replaceFood(food, for: item.id) }
+            }
+            .sheet(item: $editingNutrition) { item in
+                NutritionEditSheet(name: item.food.name, grams: item.grams, macros: item.macros) { session.setMacros($0, for: item.id) }
+                    .presentationDetents([.medium])
             }
             .sheet(isPresented: $showsAddFood) {
                 FoodPickerView { session.add($0) }
@@ -152,10 +158,10 @@ struct ScanReviewView: View {
 
     private func addMeal() {
         let date = model.now()
-        model.log(session.items.map {
+        model.logScannedMeal(session.items.map {
             FoodEntry(date: date, meal: session.meal, name: $0.food.name, foodID: $0.food.id,
                       grams: $0.grams, macros: $0.macros, source: .aiScan)
-        })
+        }, correction: session.correction)
         onClose()
     }
 }
@@ -165,6 +171,7 @@ private struct RecognizedFoodRow: View {
     var unit: String
     var onGrams: (Double) -> Void
     var onChange: () -> Void
+    var onEditNutrition: () -> Void
     var onRemove: () -> Void
 
     var body: some View {
@@ -191,10 +198,21 @@ private struct RecognizedFoodRow: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Change food")
                 Spacer()
-                Text("\(Format.integer(item.macros.calories)) kcal")
-                    .font(VFont.data)
-                    .foregroundStyle(VColor.textPrimary)
-                    .contentTransition(.numericText())
+                Button(action: onEditNutrition) {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(Format.integer(item.macros.calories)) kcal")
+                            .font(VFont.data)
+                            .foregroundStyle(VColor.textPrimary)
+                            .contentTransition(.numericText())
+                        Text(item.hasEditedMacros ? "Edited" : "P \(Format.grams(item.macros.protein)) · Edit")
+                            .font(VFont.caption)
+                            .foregroundStyle(item.hasEditedMacros ? VColor.accentText : VColor.textSecondary)
+                    }
+                    .frame(minHeight: Size.minTouch)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(Format.integer(item.macros.calories)) calories, \(Format.integer(item.macros.protein)) grams protein")
+                .accessibilityHint("Edit calories and macros")
                 Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(.title3))
@@ -297,5 +315,76 @@ struct FoodPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
+    }
+}
+
+/// Type the numbers in (from a label or a menu) when the estimate is off.
+/// Only calories, protein, carbs and fat: nothing users don't need.
+struct NutritionEditSheet: View {
+    var name: String
+    var grams: Double
+    var macros: Macros
+    var onSave: (Macros) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var calories: Double?
+    @State private var protein: Double?
+    @State private var carbs: Double?
+    @State private var fat: Double?
+
+    private var fromMacros: Double {
+        (protein ?? 0) * 4 + (carbs ?? 0) * 4 + (fat ?? 0) * 9
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    field("Calories", $calories, unit: "kcal")
+                    field("Protein", $protein, unit: "g")
+                    field("Carbs", $carbs, unit: "g")
+                    field("Fat", $fat, unit: "g")
+                } header: {
+                    Text("For about \(Format.grams(grams))")
+                } footer: {
+                    if let calories, abs(fromMacros - calories) > max(calories * 0.2, 40) {
+                        Text("Macros add up to about \(Format.integer(fromMacros)) kcal. Check the numbers if that looks wrong.")
+                    } else {
+                        Text("Changing the portion afterwards scales these numbers.")
+                    }
+                }
+            }
+            .navigationTitle(name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(Macros(calories: max(calories ?? 0, 0), protein: max(protein ?? 0, 0),
+                                      carbs: max(carbs ?? 0, 0), fat: max(fat ?? 0, 0)))
+                        dismiss()
+                    }
+                    .disabled(calories == nil)
+                }
+            }
+            .onAppear {
+                calories = macros.calories.rounded()
+                protein = (macros.protein * 10).rounded() / 10
+                carbs = (macros.carbs * 10).rounded() / 10
+                fat = (macros.fat * 10).rounded() / 10
+            }
+        }
+    }
+
+    private func field(_ title: String, _ value: Binding<Double?>, unit: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            TextField("0", value: value, format: .number.precision(.fractionLength(0...1)))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 100)
+            Text(unit).foregroundStyle(VColor.textSecondary).frame(width: 36, alignment: .leading)
+        }
+        .font(VFont.body.monospacedDigit())
     }
 }

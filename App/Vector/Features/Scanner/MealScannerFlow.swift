@@ -17,6 +17,8 @@ final class MealScanSession {
     var phase: Phase = .capture
     var image: UIImage?
     var items: [RecognizedFood] = []
+    /// What the AI returned, kept to measure how much the user corrected.
+    private(set) var originalItems: [RecognizedFood] = []
     var meal: MealType
     private let recognizer: MealRecognizing
     private var task: Task<Void, Never>?
@@ -39,6 +41,7 @@ final class MealScanSession {
                 let analysis = try await recognizer.analyze(imageData: data)
                 guard !Task.isCancelled else { return }
                 items = analysis.items
+                originalItems = analysis.items
                 onSuccess()
                 withAnimation(Motion.smooth) { phase = .review }
             } catch {
@@ -52,6 +55,7 @@ final class MealScanSession {
     func retake() {
         task?.cancel()
         items = []
+        originalItems = []
         image = nil
         withAnimation(Motion.smooth) { phase = .capture }
     }
@@ -67,10 +71,17 @@ final class MealScanSession {
     func replaceFood(_ food: FoodItem, for id: UUID) {
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         let previous = items[index].food
-        items[index].food = food
+        items[index].replaceFood(food)
         items[index].confidence = 1
         items[index].alternatives = [previous] + items[index].alternatives.filter { $0.id != food.id && $0.id != previous.id }
     }
+
+    func setMacros(_ macros: Macros, for id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].setMacros(macros)
+    }
+
+    var correction: ScanCorrection { ScanCorrection.compare(original: originalItems, final: items) }
 
     func remove(_ id: UUID) {
         withAnimation(Motion.smooth) { items.removeAll { $0.id == id } }

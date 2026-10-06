@@ -29,6 +29,8 @@ final class AppModel {
     /// Bumped on every completed set; views attach haptics/animation to it.
     private(set) var lastCompletion: SetCompletion?
     private(set) var lastSummary: WorkoutSummary?
+    /// The most recent scan's corrections (sent with analytics events).
+    private(set) var lastScanCorrection: ScanCorrection?
     /// Cached derived values, recomputed after each mutation.
     private(set) var insights: [CoachInsight] = []
     private(set) var recommendations: [ProgressionRecommendation] = []
@@ -359,6 +361,31 @@ final class AppModel {
             let calories = entries.reduce(0) { $0 + $1.macros.calories }
             showToast("checkmark.circle.fill", "Added to \(entries[0].meal.displayName)", subtitle: "\(Format.integer(calories)) kcal")
         }
+    }
+
+    /// Logs an AI-scanned meal. The correction summary feeds scan-accuracy analytics.
+    func logScannedMeal(_ entries: [FoodEntry], correction: ScanCorrection) {
+        log(entries)
+        lastScanCorrection = correction
+    }
+
+    // MARK: Favourite foods
+
+    var favoriteFoods: [FoodItem] { data.favoriteFoods ?? [] }
+
+    func isFavorite(food: FoodItem) -> Bool { data.favoriteFoods?.contains { $0.id == food.id } ?? false }
+
+    func toggleFavorite(food: FoodItem) {
+        commit({ data in
+            var foods = data.favoriteFoods ?? []
+            if let index = foods.firstIndex(where: { $0.id == food.id }) {
+                foods.remove(at: index)
+            } else {
+                foods.insert(food, at: 0)
+            }
+            data.favoriteFoods = foods
+        }, refreshInsights: false)
+        Haptics.light()
     }
 
     func update(_ entry: FoodEntry) {

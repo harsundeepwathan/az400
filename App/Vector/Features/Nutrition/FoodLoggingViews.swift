@@ -33,6 +33,14 @@ struct FoodSearchView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
+                if query.isEmpty && !model.favoriteFoods.isEmpty {
+                    Section("Favourites") {
+                        ForEach(model.favoriteFoods) { food in
+                            Button { selected = food } label: { FoodItemRow(food: food) }
+                                .swipeActions(edge: .leading) { favoriteAction(food) }
+                        }
+                    }
+                }
                 if query.isEmpty && !model.recentFoods.isEmpty {
                     Section("Recent") {
                         ForEach(model.recentFoods) { entry in
@@ -69,6 +77,7 @@ struct FoodSearchView: View {
                             } label: {
                                 FoodItemRow(food: food)
                             }
+                            .swipeActions(edge: .leading) { favoriteAction(food) }
                         }
                     }
                 }
@@ -90,6 +99,7 @@ struct FoodSearchView: View {
                                 } label: {
                                     FoodItemRow(food: food)
                                 }
+                                .swipeActions(edge: .leading) { favoriteAction(food) }
                             }
                         case .failed(let message):
                             Label(message, systemImage: "wifi.slash")
@@ -140,6 +150,14 @@ struct FoodSearchView: View {
                     .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    private func favoriteAction(_ food: FoodItem) -> some View {
+        let isFavorite = model.isFavorite(food: food)
+        return Button(isFavorite ? "Unfavourite" : "Favourite", systemImage: isFavorite ? "star.slash" : "star") {
+            model.toggleFavorite(food: food)
+        }
+        .tint(VColor.warning)
     }
 
     private var noMatch: some View {
@@ -239,7 +257,20 @@ struct PortionEditor: View {
             .padding(Space.gutter)
             .navigationTitle(food.name)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    let isFavorite = model.isFavorite(food: food)
+                    Button {
+                        model.toggleFavorite(food: food)
+                    } label: {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .foregroundStyle(isFavorite ? VColor.warning : VColor.textSecondary)
+                            .symbolEffect(.bounce, value: isFavorite)
+                    }
+                    .accessibilityLabel(isFavorite ? "Remove from favourites" : "Add to favourites")
+                }
+            }
         }
     }
 

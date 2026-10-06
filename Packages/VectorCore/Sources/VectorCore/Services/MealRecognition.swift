@@ -14,6 +14,11 @@ public struct RecognizedFood: Identifiable, Hashable, Sendable {
     /// Other plausible identifications, offered as one-tap corrections.
     public var alternatives: [FoodItem]
 
+    /// Calories and macros the user typed in, for `overrideGrams` of food.
+    /// They scale with later portion changes.
+    public var macroOverride: Macros?
+    public var overrideGrams: Double?
+
     public init(id: UUID = UUID(), food: FoodItem, grams: Double, confidence: Double, alternatives: [FoodItem] = []) {
         self.id = id
         self.food = food
@@ -22,8 +27,86 @@ public struct RecognizedFood: Identifiable, Hashable, Sendable {
         self.alternatives = alternatives
     }
 
-    public var macros: Macros { food.macros(grams: grams) }
+    public var macros: Macros {
+        if let macroOverride, let overrideGrams {
+            return overrideGrams > 0 ? macroOverride.scaled(by: grams / overrideGrams) : macroOverride
+        }
+        return food.macros(grams: grams)
+    }
+
     public var isLowConfidence: Bool { confidence < 0.6 }
+    public var hasEditedMacros: Bool { macroOverride != nil }
+
+    /// Sets the nutrition for the current portion. Passing the computed values clears the override.
+    public mutating func setMacros(_ macros: Macros) {
+        let computed = food.macros(grams: grams)
+        let unchanged = abs(macros.calories - computed.calories) < 0.5 && abs(macros.protein - computed.protein) < 0.05
+            && abs(macros.carbs - computed.carbs) < 0.05 && abs(macros.fat - computed.fat) < 0.05
+        if unchanged {
+            macroOverride = nil
+            overrideGrams = nil
+        } else {
+            macroOverride = macros
+            overrideGrams = grams
+        }
+    }
+
+    /// A different food means the old typed-in numbers no longer apply.
+    public mutating func replaceFood(_ newFood: FoodItem) {
+        food = newFood
+        macroOverride = nil
+        overrideGrams = nil
+    }
+}
+
+/// How the user changed an AI estimate before logging it. Sent (without the
+/// photo) so scan accuracy can be measured and improved.
+public struct ScanCorrection: Hashable, Codable, Sendable {
+    public var itemsDetected: Int
+    public var itemsLogged: Int
+    public var renamed: Int
+    public var removed: Int
+    public var added: Int
+    public var portionsChanged: Int
+    public var macrosEdited: Int
+    public var estimatedCalories: Double
+    public var loggedCalories: Double
+
+    public var wasCorrected: Bool {
+        renamed + removed + added + portionsChanged + macrosEdited > 0
+    }
+
+    /// Relative calorie change from the AI estimate to what was logged.
+    public var calorieError: Double {
+        estimatedCalories > 0 ? (loggedCalories - estimatedCalories) / estimatedCalories : 0
+    }
+
+    /// Portions within 10% of the estimate count as accepted.
+    public static func compare(original: [RecognizedFood], final: [RecognizedFood]) -> ScanCorrection {
+        let originalByID = Dictionary(original.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var renamed = 0, portions = 0, edited = 0, added = 0
+        for item in final {
+            guard let source = originalByID[item.id] else {
+                added += 1
+                continue
+            }
+            if item.food.id != source.food.id { renamed += 1 }
+            if source.grams > 0 ? abs(item.grams - source.grams) / source.grams > 0.1 : item.grams > 0 { portions += 1 }
+            if item.hasEditedMacros { edited += 1 }
+        }
+        let finalIDs = Set(final.map(\.id))
+        return ScanCorrection(
+            itemsDetected: original.count,
+            itemsLogged: final.count,
+            renamed: renamed,
+            removed: original.filter { !finalIDs.contains($0.id) }.count,
+            added: added,
+            portionsChanged: portions,
+            macrosEdited: edited,
+            estimatedCalories: original.reduce(0) { $0 + $1.macros.calories },
+            loggedCalories: final.reduce(0) { $0 + $1.macros.calories }
+        )
+    }
 }
 
 public struct MealAnalysis: Hashable, Sendable {
