@@ -67,13 +67,16 @@ Owner: ai-engineer with backend-architect. Files: `backend/api/**`.
 
 **Evidence:** `npm test` with a fake Claude client covers: Pro gating (402), validation (400), cache hit on second call the same day (no second model call), cost row written, invented-number output rejected.
 
-### [ ] T4: Coach summary, iOS side (digest + card)
+### [x] T4: Coach summary, iOS side (digest + card) (core verified; UI unverified)
 Owner: mobile-app-builder. Files: `Packages/VectorCore/**` (new `CoachDigest` builder and tests, `APIClient.coachSummary`), `App/Vector/Features/Coach/**`, minimal `App/Vector/App/*` wiring.
 - `CoachDigestBuilder` builds the contract's digest from `CoachContext` using existing engines, with JSON keys exactly as above.
 - `APIClient.coachSummary(digest:)`.
 - `CoachView` shows a "This week" summary card for Pro + signed-in users: loading state, cached text, an "AI summary of your logged data" label, and a link to the data. Free users see nothing new (no fake locked text).
 
 **Evidence:** `swift test` covers digest JSON shape (golden test against the contract example's keys), nil handling, and the API client mapping (402 → Pro required). UI is **unverified (needs Xcode)**.
+
+**Status:** `CoachDigestBuilder` (`Engines/CoachDigest.swift`), `APIClient.coachSummary(digest:)` with `CoachSummaryError.proRequired` for `402 pro_required` (the scan-quota 402 mapping is unchanged), tests in `CoachDigestTests.swift`, all passing with `swift test`. The card (`Features/Coach/CoachSummaryCard.swift`) and the wiring (`App/AppModel+Coach.swift`) were written but **not compiled or run (UI unverified, no Xcode)**. No analytics event was added: event names mirror the backend list.
+Digest rules: weights in the user's unit; nutrition covers the 7 complete days before today; `e1rm_30d_ago` is the oldest session in the last 30 days (as on Today); trend weights need a weigh-in in the last 14 days (now) or 14–28 days ago (then).
 
 ### [x] T5: Measurements and progress photos (on device) (UI unverified)
 > "measurements and progress photos (on device)"
@@ -86,7 +89,7 @@ Owner: mobile-app-builder with privacy-engineer. Files: `Packages/VectorCore/**`
 
 Status: core done and tested (`MeasurementsTests`, 14 tests: legacy decoding, partial entries, measurement union/tombstones, photo metadata kept device-local, `SyncMerge.cloudCopy`, logged-values-only series, same-day upsert, cm/in formatting, compare-day selection). App: `AppModel+Body.swift` (`ProgressPhotoStore`: Application Support/ProgressPhotos, `.completeFileProtection`, excluded from backup, ~2048 px JPEG re-encode), `Features/Progress/MeasurementsView.swift`, `Features/Progress/ProgressPhotosView.swift` (PhotosPicker + camera, pose, delete removes file, side-by-side compare), entry point on the Progress dashboard. **UI unverified (needs Xcode).** Follow-up outside T5's files: `Platform/CloudSync.swift` `write` should write `SyncMerge.cloudCopy(toWrite)` so photo metadata never reaches the iCloud JSON file (other devices already ignore it on merge).
 
-### [ ] T6: Protein-adherence and calorie charts
+### [x] T6: Protein-adherence and calorie charts (core verified; UI unverified)
 > "protein-adherence and calorie charts"
 
 Owner: mobile-app-builder. Files: `Packages/VectorCore/Sources/VectorCore/Engines/AnalyticsEngine.swift` (or a new file), tests, `App/Vector/Features/Progress/**`.
@@ -95,6 +98,8 @@ Owner: mobile-app-builder. Files: `Packages/VectorCore/Sources/VectorCore/Engine
 - Charts follow the Ink system (monochrome, data colours only for macros).
 
 **Evidence:** `swift test` covers series bucketing, gaps for unlogged days and adherence maths. UI is **unverified**.
+
+**Status:** `NutritionChartEngine` (`Engines/NutritionCharts.swift`): 7D/1M daily, 3M weekly averages of logged days; unlogged days and weeks are absent (gaps), not zero; adherence = days hit / days logged, with today counted only once hit, plus the existing protein streak. Tests in `NutritionChartTests.swift`, all passing. The Progress section (`Features/Progress/NutritionChartsSection.swift`, one insertion in `ProgressDashboardView`) was written but **not compiled or run (UI unverified, no Xcode)**. This deliberately differs from design-system §2.7 ("empty buckets render as zero") for nutrition, as this task requires.
 
 ### [ ] T7: Real Terms and Privacy pages
 > "real Terms and Privacy pages"

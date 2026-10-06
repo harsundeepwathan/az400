@@ -82,6 +82,47 @@ public enum APIError: Error, Hashable, Sendable {
     case rejected(status: Int, code: String)
 }
 
+public struct CoachSummary: Hashable, Sendable {
+    public var text: String
+    /// True when the server returned today's stored summary instead of generating one.
+    public var cached: Bool
+    public var generatedAt: Date?
+
+    public init(text: String, cached: Bool, generatedAt: Date?) {
+        self.text = text
+        self.cached = cached
+        self.generatedAt = generatedAt
+    }
+}
+
+/// Errors from `APIClient.coachSummary(digest:)`. Pro-required is its own
+/// case so the app never confuses it with the meal-scan quota (also a 402).
+public enum CoachSummaryError: Error, Hashable, Sendable {
+    /// 402 `pro_required`: the server does not see an active Pro subscription.
+    case proRequired
+    case signedOut
+    case offline
+    case rateLimited
+    /// 503 `busy`, or a response without a usable summary.
+    case unavailable
+    /// 400 `invalid_request`: the digest failed server validation.
+    case invalidDigest
+    case rejected(status: Int, code: String)
+
+    init(_ error: APIError) {
+        switch error {
+        case .signedOut: self = .signedOut
+        case .offline: self = .offline
+        case .rateLimited: self = .rateLimited
+        case .unavailable: self = .unavailable
+        case .rejected(402, "pro_required"): self = .proRequired
+        case .rejected(400, _): self = .invalidDigest
+        case .rejected(let status, let code): self = .rejected(status: status, code: code)
+        case .scanQuotaExceeded: self = .rejected(status: 402, code: "scan_quota_exceeded")
+        }
+    }
+}
+
 /// Talks to `backend/api`. Handles the session: refreshes the access token
 /// shortly before it expires and once more on a 401, with a single refresh
 /// in flight however many requests are waiting.
@@ -194,6 +235,8 @@ public actor APIClient {
         let code = body?.error ?? "http_\(status)"
         switch status {
         case 401 where authorized: return .signedOut
+        // Pro-only endpoints (coach summary) answer 402 pro_required; that is not a scan quota.
+        case 402 where code == "pro_required": return .rejected(status: 402, code: code)
         case 402: return .scanQuotaExceeded(body?.allowance?.model)
         case 429: return code == "daily_scan_limit" ? .scanQuotaExceeded(body?.allowance?.model) : .rateLimited
         case 502, 503, 504: return .unavailable
@@ -273,6 +316,29 @@ public actor APIClient {
 
     public func submitCorrection(scanID: String, _ correction: ScanCorrection) async throws {
         _ = try await perform(path: "v1/meal-scans/\(scanID)/correction", method: "POST", json: correction, authorized: true)
+    }
+
+    // MARK: Coach summary
+
+    /// AI-written summary of a structured digest (`POST /v1/coach/summary`).
+    /// Pro only; the server stores one per user per UTC day and returns it
+    /// with `cached: true` afterwards. Throws `CoachSummaryError`.
+    public func coachSummary(digest: CoachDigest) async throws -> CoachSummary {
+        struct Envelope: Encodable { var digest: CoachDigest }
+        struct Response: Decodable { var summary: String; var cached: Bool?; var generated_at: String? }
+        let data: Data
+        do {
+            data = try await perform(path: "v1/coach/summary", method: "POST", json: Envelope(digest: digest),
+                                     authorized: true, timeout: 45)
+        } catch let error as APIError {
+            throw CoachSummaryError(error)
+        }
+        guard let response = try? JSONDecoder().decode(Response.self, from: data),
+              !response.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CoachSummaryError.unavailable
+        }
+        return CoachSummary(text: response.summary, cached: response.cached ?? false,
+                            generatedAt: response.generated_at.flatMap(AllowanceDTO.parseDate))
     }
 
     // MARK: Analytics
