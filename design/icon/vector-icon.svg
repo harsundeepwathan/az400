@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Vector app icon (light, default)</title>
+  <!-- A single-stroke V whose right arm climbs past the left and ends in an
+       arrowhead: the letter becomes an upward vector. Ink #0A0A0A on white,
+       full bleed, no transparency (iOS applies the corner mask). -->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <polyline points="300,420 450,700 671.4,375" fill="none" stroke="#0A0A0A" stroke-width="112"
+            stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt"/>
+  <polygon points="771.6,227.9 783.7,458.8 552.3,301.2" fill="#0A0A0A"/>
+</svg>

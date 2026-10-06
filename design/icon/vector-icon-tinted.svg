@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Vector app icon (tinted)</title>
+  <!-- Same geometry as vector-icon.svg. Pure grayscale (white) on a transparent
+       background: iOS converts the tinted variant to luminance and applies the
+       user's tint colour, so white becomes the full tint. -->
+  <polyline points="300,420 450,700 671.4,375" fill="none" stroke="#FFFFFF" stroke-width="112"
+            stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt"/>
+  <polygon points="771.6,227.9 783.7,458.8 552.3,301.2" fill="#FFFFFF"/>
+</svg>

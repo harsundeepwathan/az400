@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Vector app icon (dark)</title>
+  <!-- Same geometry as vector-icon.svg. Ink-dark #F5F5F7 mark on a transparent
+       background, so iOS draws its own dark backdrop behind it. -->
+  <polyline points="300,420 450,700 671.4,375" fill="none" stroke="#F5F5F7" stroke-width="112"
+            stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt"/>
+  <polygon points="771.6,227.9 783.7,458.8 552.3,301.2" fill="#F5F5F7"/>
+</svg>

@@ -94,7 +94,9 @@ Owner: mobile-app-builder. Files: `Packages/VectorCore/Sources/VectorCore/Engine
 
 **Evidence:** `swift test` covers series bucketing, gaps for unlogged days and adherence maths. UI is **unverified**.
 
-### [ ] T7: Real Terms and Privacy pages
+### [x] T7: Real Terms and Privacy pages
+Status: drafts in `docs/legal/` and `web/legal/` (built by `web/legal/build.py`), marked for legal review. The claims checklist is at the end of `docs/legal/privacy.md`. Progress photos (T5) and coach summaries (T3) are described ahead of their code and flagged there.
+
 > "real Terms and Privacy pages"
 
 Owner: privacy-engineer. Files: `web/legal/**`, `docs/legal/**`.
@@ -104,7 +106,9 @@ Owner: privacy-engineer. Files: `web/legal/**`, `docs/legal/**`.
 
 **Evidence:** each data claim cites the code or migration that implements it (a checklist at the bottom of the doc).
 
-### [ ] T8: App icon
+### [x] T8: App icon
+Status: SVG sources in `design/icon/` (rendered by `design/icon/render.py`), and 1024 px light, dark and tinted PNGs in the AppIcon set. Previews at 180 and 58 px are in `design/icon/previews/`. Not yet seen on a device or simulator. Screenshots are still blocked.
+
 > "app icon and screenshots"
 
 Owner: ui-designer. Files: `design/icon/**`, `App/Vector/Resources/Assets.xcassets/AppIcon.appiconset/**`.
