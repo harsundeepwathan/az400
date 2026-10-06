@@ -25,6 +25,7 @@ backend/api/                 Node + PostgreSQL: Sign in with Apple, AI meal scan
 tools/import_exercises.py    Regenerates the bundled exercise library from free-exercise-db
 docs/                        Audit & IA, design system, product/AI/monetization, Apple ecosystem
 .claude/skills/ui-ux-pro-max/ UI/UX Pro Max skill for Claude Code (MIT, vendored)
+.claude/skills/taste-skill/   Taste Skill (anti-generic design rules) and its minimalist variant (MIT, vendored)
 .claude/agents/              The team: 18 specialist subagents (see docs/06-team.md)
 ```
 
