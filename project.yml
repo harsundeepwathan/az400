@@ -77,6 +77,7 @@ targets:
         com.apple.developer.icloud-container-identifiers: [iCloud.app.vector]
         com.apple.developer.icloud-services: [CloudDocuments]
         com.apple.developer.ubiquity-container-identifiers: [iCloud.app.vector]
+        com.apple.developer.applesignin: [Default]
     scheme:
       testTargets:
         - package: VectorCore/VectorCoreTests

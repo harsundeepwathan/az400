@@ -19,6 +19,7 @@ final class MealScanSession {
     var items: [RecognizedFood] = []
     /// What the AI returned, kept to measure how much the user corrected.
     private(set) var originalItems: [RecognizedFood] = []
+    private(set) var scanID: String?
     var meal: MealType
     private let recognizer: MealRecognizing
     private var task: Task<Void, Never>?
@@ -30,7 +31,7 @@ final class MealScanSession {
 
     var total: Macros { items.reduce(.zero) { $0 + $1.macros } }
 
-    func analyze(_ image: UIImage, onSuccess: @escaping () -> Void) {
+    func analyze(_ image: UIImage, onSuccess: @escaping (MealAnalysis) -> Void, onFailure: @escaping (MealRecognitionError) -> Void = { _ in }) {
         self.image = image
         withAnimation(Motion.smooth) { phase = .analyzing }
         task?.cancel()
@@ -42,11 +43,13 @@ final class MealScanSession {
                 guard !Task.isCancelled else { return }
                 items = analysis.items
                 originalItems = analysis.items
-                onSuccess()
+                scanID = analysis.scanID
+                onSuccess(analysis)
                 withAnimation(Motion.smooth) { phase = .review }
             } catch {
                 guard !Task.isCancelled else { return }
                 let failure = (error as? MealRecognitionError) ?? .network
+                onFailure(failure)
                 withAnimation(Motion.smooth) { phase = .failed(failure) }
             }
         }
@@ -56,6 +59,7 @@ final class MealScanSession {
         task?.cancel()
         items = []
         originalItems = []
+        scanID = nil
         image = nil
         withAnimation(Motion.smooth) { phase = .capture }
     }
@@ -203,7 +207,7 @@ private struct CaptureView: View {
                     }
                     if !cameraAvailable, model.recognizer is DemoMealRecognizer {
                         Button("Try a sample meal") {
-                            session.analyze(UIImage(systemName: "fork.knife") ?? UIImage()) { model.recordScan() }
+                            session.analyze(UIImage(systemName: "fork.knife") ?? UIImage()) { model.recordScan($0) } onFailure: { model.recordScanFailure($0) }
                         }
                         .font(VFont.secondaryEmphasized)
                         .foregroundStyle(.white.opacity(0.8))
@@ -216,7 +220,7 @@ private struct CaptureView: View {
         .fullScreenCover(isPresented: $showsCamera) {
             CameraPicker { image in
                 showsCamera = false
-                session.analyze(image) { model.recordScan() }
+                session.analyze(image) { model.recordScan($0) } onFailure: { model.recordScanFailure($0) }
             }
             .ignoresSafeArea()
         }
@@ -224,7 +228,7 @@ private struct CaptureView: View {
             guard let item else { return }
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                    session.analyze(image) { model.recordScan() }
+                    session.analyze(image) { model.recordScan($0) } onFailure: { model.recordScanFailure($0) }
                 }
             }
         }
@@ -377,6 +381,9 @@ private struct ScanErrorView: View {
                         model.sheet = .foodSearch(.suggested(forHour: model.calendar.component(.hour, from: model.now())))
                     }
                     .buttonStyle(.secondary)
+                    if error == .signInRequired {
+                        AccountSignInButton { onRetake() }
+                    }
                     if error == .quotaExceeded {
                         Button("See Pro") {
                             onClose()
@@ -404,7 +411,7 @@ extension UIImage {
     }
 }
 
-/// Shown instead of the scanner when no meal-scan service is configured, so
+/// Shown instead of the scanner when no backend is configured, so
 /// the app never pretends to analyse a photo.
 struct ScanUnavailableView: View {
     var meal: MealType

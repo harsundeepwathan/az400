@@ -12,7 +12,7 @@ final class DiagnosticsReporter: NSObject, MXMetricManagerSubscriber, @unchecked
     private let logger = Logger(subsystem: "app.vector.ios", category: "diagnostics")
     private var started = false
 
-    /// Set to your collector (e.g. a small endpoint next to the meal-scan service).
+    /// Set to your collector (e.g. an endpoint on backend/api).
     var upload: ((Data, String) -> Void)?
 
     func start() {

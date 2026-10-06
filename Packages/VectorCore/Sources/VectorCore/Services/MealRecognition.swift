@@ -112,13 +112,17 @@ public struct ScanCorrection: Hashable, Codable, Sendable {
 public struct MealAnalysis: Hashable, Sendable {
     public var items: [RecognizedFood]
     public var analyzedAt: Date
+    /// Server id for this scan, used to report corrections. Nil offline/demo.
+    public var scanID: String?
+    /// The server's view of the user's remaining scans after this one.
+    public var allowance: ScanAllowance?
 
-    public init(items: [RecognizedFood], analyzedAt: Date = Date()) {
+    public init(items: [RecognizedFood], analyzedAt: Date = Date(), scanID: String? = nil, allowance: ScanAllowance? = nil) {
         self.items = items
         self.analyzedAt = analyzedAt
+        self.scanID = scanID
+        self.allowance = allowance
     }
-
-    public var total: Macros { items.reduce(.zero) { $0 + $1.macros } }
 }
 
 public enum MealRecognitionError: Error, Hashable, Sendable {
@@ -126,6 +130,8 @@ public enum MealRecognitionError: Error, Hashable, Sendable {
     case imageUnreadable
     case network
     case quotaExceeded
+    case signInRequired
+    case busy
 
     public var title: String {
         switch self {
@@ -133,6 +139,8 @@ public enum MealRecognitionError: Error, Hashable, Sendable {
         case .imageUnreadable: "That photo didn't come through"
         case .network: "You're offline"
         case .quotaExceeded: "You've used this week's free scans"
+        case .signInRequired: "Sign in to scan meals"
+        case .busy: "Scanning is busy right now"
         }
     }
 
@@ -141,7 +149,9 @@ public enum MealRecognitionError: Error, Hashable, Sendable {
         case .noFoodDetected: "Try again with the whole plate in frame and good lighting, or search for the food instead."
         case .imageUnreadable: "Please retake the photo."
         case .network: "Meal scanning needs a connection. You can still search and log foods manually."
-        case .quotaExceeded: "Pro includes unlimited AI meal scans. Search and quick add are always free."
+        case .quotaExceeded: "Pro includes up to 30 AI meal scans a day. Search, barcode and quick add are always free."
+        case .signInRequired: "Meal scanning uses your account so your free scans are counted fairly. Search and quick add work without one."
+        case .busy: "Please try again in a minute, or search for the food instead."
         }
     }
 }
@@ -158,17 +168,12 @@ public protocol MealRecognizing: Sendable {
 ///     → { "items": [{ "name", "grams", "calories", "protein", "carbs", "fat",
 ///                      "confidence", "matchId"?, "alternatives"?: [String] }] }
 public struct RemoteMealRecognizer: MealRecognizing {
-    public let endpoint: URL
-    /// Shared secret sent as `X-Vector-Key` (see backend/meal-scan).
-    public let appKey: String?
+    public let api: APIClient
     public let database: FoodDatabase
-    public let session: URLSession
 
-    public init(endpoint: URL, appKey: String? = nil, database: FoodDatabase = FoodDatabase(), session: URLSession = .shared) {
-        self.endpoint = endpoint
-        self.appKey = appKey
+    public init(api: APIClient, database: FoodDatabase = FoodDatabase()) {
+        self.api = api
         self.database = database
-        self.session = session
     }
 
     struct Response: Decodable {
@@ -188,25 +193,24 @@ public struct RemoteMealRecognizer: MealRecognizing {
 
     public func analyze(imageData: Data) async throws -> MealAnalysis {
         guard !imageData.isEmpty else { throw MealRecognitionError.imageUnreadable }
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let appKey { request.setValue(appKey, forHTTPHeaderField: "X-Vector-Key") }
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["image": imageData.base64EncodedString()])
-        request.timeoutInterval = 50
-
-        let data: Data
-        let response: URLResponse
+        let response: APIClient.ScanResponse
         do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw MealRecognitionError.network
+            response = try await api.scanMeal(jpeg: imageData)
+        } catch let error as APIError {
+            switch error {
+            case .signedOut: throw MealRecognitionError.signInRequired
+            case .offline: throw MealRecognitionError.network
+            case .scanQuotaExceeded: throw MealRecognitionError.quotaExceeded
+            case .rateLimited, .unavailable: throw MealRecognitionError.busy
+            case .rejected(_, let code) where code == "unsupported_image" || code == "image_too_large":
+                throw MealRecognitionError.imageUnreadable
+            case .rejected: throw MealRecognitionError.busy
+            }
         }
-        if let http = response as? HTTPURLResponse {
-            if http.statusCode == 402 { throw MealRecognitionError.quotaExceeded }
-            guard (200..<300).contains(http.statusCode) else { throw MealRecognitionError.network }
-        }
-        return try Self.decode(data, database: database)
+        var analysis = try Self.decode(response.body, database: database)
+        analysis.scanID = response.scanID
+        analysis.allowance = response.allowance
+        return analysis
     }
 
     static func decode(_ data: Data, database: FoodDatabase) throws -> MealAnalysis {

@@ -78,8 +78,10 @@ struct RootSheetContent: View {
             SavedMealsView(meal: meal, date: model.now())
         case .coach:
             CoachView()
+                .onAppear { model.track(.aiRecommendationViewed, ["surface": "coach"]) }
         case .recommendations:
             RecommendationsView()
+                .onAppear { model.track(.aiRecommendationViewed, ["surface": "progressions"]) }
         case .bodyWeight:
             BodyWeightEntryView()
                 .presentationDetents([.height(320)])

@@ -48,7 +48,7 @@ struct ProfileView: View {
                                     IconBadge(symbol: Icon.sparkles, tint: VColor.textOnAccent, fill: VColor.accent)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Upgrade to Pro").font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                                        Text("AI coaching, unlimited scans, advanced analytics")
+                                        Text("AI coaching, daily meal scans, advanced analytics")
                                             .font(VFont.caption)
                                             .foregroundStyle(VColor.textSecondary)
                                     }
@@ -143,6 +143,10 @@ struct ProfileView: View {
                         Text("Connections")
                     } footer: {
                         Text("Writes finished workouts to Health and reads body weight. Open Vector on Apple Watch to log sets from your wrist.")
+                    }
+
+                    if model.isAccountAvailable {
+                        AccountSection()
                     }
 
                     Section("Data") {

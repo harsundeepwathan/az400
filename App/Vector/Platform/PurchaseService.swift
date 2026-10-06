@@ -25,6 +25,12 @@ final class PurchaseService {
     private(set) var isPro = false
     private(set) var eligibleForTrial: Bool = true
     var onTierChange: (@MainActor (SubscriptionTier) -> Void)?
+    /// The signed-in user's id, stamped on purchases as `appAccountToken`.
+    var accountToken: (@MainActor () -> UUID?)?
+    /// Receives each verified transaction's JWS for server verification.
+    var onVerifiedTransaction: (@MainActor (String) async -> Void)?
+    /// Purchase lifecycle for analytics: (event, product id).
+    var onPurchaseEvent: (@MainActor (AnalyticsEventName, String) -> Void)?
     @ObservationIgnored private var updates: Task<Void, Never>?
 
     init() {
@@ -32,6 +38,7 @@ final class PurchaseService {
             for await result in Transaction.updates {
                 if case .verified(let transaction) = result {
                     await transaction.finish()
+                    await self?.onVerifiedTransaction?(result.jwsRepresentation)
                     await self?.refreshEntitlements()
                 }
             }
@@ -61,13 +68,17 @@ final class PurchaseService {
         state = .purchasing
         defer { if state == .purchasing { state = .idle } }
         do {
-            switch try await product.purchase() {
+            var options: Set<Product.PurchaseOption> = []
+            if let token = accountToken?() { options.insert(.appAccountToken(token)) }
+            switch try await product.purchase(options: options) {
             case .success(let verification):
                 guard case .verified(let transaction) = verification else {
                     state = .failed("The purchase couldn't be verified.")
                     return false
                 }
                 await transaction.finish()
+                onPurchaseEvent?(transaction.offerType == .introductory ? .trialStarted : .subscriptionStarted, transaction.productID)
+                await onVerifiedTransaction?(verification.jwsRepresentation)
                 await refreshEntitlements()
                 return true
             case .userCancelled, .pending:
@@ -95,8 +106,19 @@ final class PurchaseService {
                 active = true
             }
         }
+        if isPro, !active { onPurchaseEvent?(.subscriptionCancelled, "") }
         isPro = active
         onTierChange?(active ? .pro : .free)
+    }
+
+    /// Sends every current entitlement to the server (after sign-in, and at
+    /// launch), so the server's tier matches what the App Store says.
+    func syncEntitlementsToServer() async {
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result, Plan(rawValue: transaction.productID) != nil {
+                await onVerifiedTransaction?(result.jwsRepresentation)
+            }
+        }
     }
 
     // MARK: Honest price presentation

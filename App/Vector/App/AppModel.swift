@@ -29,8 +29,10 @@ final class AppModel {
     /// Bumped on every completed set; views attach haptics/animation to it.
     private(set) var lastCompletion: SetCompletion?
     private(set) var lastSummary: WorkoutSummary?
-    /// The most recent scan's corrections (sent with analytics events).
-    private(set) var lastScanCorrection: ScanCorrection?
+    /// Server account; nil when signed out or no backend is configured.
+    private(set) var account: Account?
+    /// The server's count of AI scans left. Preferred over the local estimate.
+    private(set) var scanAllowance: ScanAllowance?
     /// Cached derived values, recomputed after each mutation.
     private(set) var insights: [CoachInsight] = []
     private(set) var recommendations: [ProgressionRecommendation] = []
@@ -42,12 +44,17 @@ final class AppModel {
     private(set) var catalog: ExerciseCatalog
     @ObservationIgnored private let baseCatalog: ExerciseCatalog
     let foods: FoodDatabase
-    /// Nil when no meal-scan backend is configured; the scanner then says so
+    /// Nil when no backend is configured; the scanner then says so
     /// instead of returning made-up results.
     let recognizer: MealRecognizing?
     /// Open Food Facts (or any remote catalogue). Nil in previews and tests.
     let remoteFoods: RemoteFoodSearching?
     @ObservationIgnored let sync: CloudSync?
+    /// `backend/api`. Nil when no API base URL is configured.
+    @ObservationIgnored let api: APIClient?
+    @ObservationIgnored let events: EventQueue?
+    /// Set by the app: sends current StoreKit entitlements to the server.
+    @ObservationIgnored var syncPurchasesToServer: (() async -> Void)?
     /// Called after every committed change (the Watch bridge listens here).
     @ObservationIgnored var onCommit: ((AppData) -> Void)?
     /// Last time this device merged with iCloud; nil when sync is off.
@@ -78,6 +85,8 @@ final class AppModel {
         recognizer: MealRecognizing?,
         remoteFoods: RemoteFoodSearching? = nil,
         sync: CloudSync? = nil,
+        api: APIClient? = nil,
+        events: EventQueue? = nil,
         catalog: ExerciseCatalog = .standard,
         foods: FoodDatabase = FoodDatabase(),
         calendar: Calendar = .current,
@@ -90,6 +99,8 @@ final class AppModel {
         self.recognizer = recognizer
         self.remoteFoods = remoteFoods
         self.sync = sync
+        self.api = api
+        self.events = events
         self.catalog = catalog
         self.baseCatalog = catalog
         self.foods = foods
@@ -218,6 +229,7 @@ final class AppModel {
 
     func presentPaywall(_ trigger: PaywallTrigger) {
         sheet = .paywall(trigger)
+        track(.paywallViewed, ["trigger": .string(trigger.rawValue)])
     }
 
     func setTier(_ tier: SubscriptionTier) {
@@ -346,8 +358,17 @@ final class AppModel {
         return nutritionEngine.proteinStreak(data.foodEntries, now: now(), targets: targets)
     }
 
-    var scansRemaining: Int? { policy.scansRemaining(tier: data.tier, scanDates: data.scanDates, now: now()) }
-    var canScan: Bool { policy.canScan(tier: data.tier, scanDates: data.scanDates, now: now()) }
+    /// Free scans left, for display. Nil means "don't show a count" (Pro).
+    var scansRemaining: Int? {
+        if let scanAllowance { return scanAllowance.tier == .free ? scanAllowance.remaining : nil }
+        return policy.scansRemaining(tier: data.tier, scanDates: data.scanDates, now: now())
+    }
+
+    /// The server enforces the real limit; this only decides whether to offer the camera.
+    var canScan: Bool {
+        if let scanAllowance { return scanAllowance.remaining > 0 }
+        return policy.canScan(tier: data.tier, scanDates: data.scanDates, now: now())
+    }
 
     var bodyWeights: [BodyWeightEntry] { data.bodyWeights.sorted { $0.date < $1.date } }
     var latestBodyWeight: BodyWeightEntry? { data.bodyWeights.max { $0.date < $1.date } }
@@ -357,16 +378,30 @@ final class AppModel {
     func log(_ entries: [FoodEntry], toast: Bool = true) {
         guard !entries.isEmpty else { return }
         commit { $0.foodEntries.append(contentsOf: entries) }
+        track(.foodLogged, ["source": .string(entries[0].source.rawValue), "items": .number(Double(entries.count)),
+                            "meal": .string(entries[0].meal.rawValue)])
         if toast {
             let calories = entries.reduce(0) { $0 + $1.macros.calories }
             showToast("checkmark.circle.fill", "Added to \(entries[0].meal.displayName)", subtitle: "\(Format.integer(calories)) kcal")
         }
     }
 
-    /// Logs an AI-scanned meal. The correction summary feeds scan-accuracy analytics.
-    func logScannedMeal(_ entries: [FoodEntry], correction: ScanCorrection) {
+    /// Logs an AI-scanned meal and reports how the estimate was corrected
+    /// (counts and calories only, no food names or photo) to measure accuracy.
+    func logScannedMeal(_ entries: [FoodEntry], correction: ScanCorrection, scanID: String?) {
         log(entries)
-        lastScanCorrection = correction
+        track(.aiFoodScanCorrected, [
+            "corrected": .bool(correction.wasCorrected),
+            "renamed": .number(Double(correction.renamed)),
+            "removed": .number(Double(correction.removed)),
+            "added": .number(Double(correction.added)),
+            "portions_changed": .number(Double(correction.portionsChanged)),
+            "macros_edited": .number(Double(correction.macrosEdited)),
+            "calorie_error_pct": .number((correction.calorieError * 100).rounded())
+        ])
+        if let scanID, let api {
+            Task { try? await api.submitCorrection(scanID: scanID, correction) }
+        }
     }
 
     // MARK: Favourite foods
@@ -423,9 +458,23 @@ final class AppModel {
         }, refreshInsights: false)
     }
 
-    func recordScan() {
+    func recordScan(_ analysis: MealAnalysis) {
         commit({ $0.scanDates.append(now()) }, refreshInsights: false)
+        if let allowance = analysis.allowance { scanAllowance = allowance }
+        track(.aiFoodScan, ["items": .number(Double(analysis.items.count)), "result": "ok"])
     }
+
+    func recordScanFailure(_ error: MealRecognitionError) {
+        if error == .quotaExceeded, var allowance = scanAllowance {
+            allowance.remaining = 0
+            scanAllowance = allowance
+        }
+        if error == .signInRequired { account = nil }
+        track(.aiFoodScan, ["result": .string(String(describing: error))])
+    }
+
+    func setAccount(_ account: Account?) { self.account = account }
+    func setScanAllowance(_ allowance: ScanAllowance?) { scanAllowance = allowance }
 
     func logBodyWeight(_ kilograms: Double) {
         let entry = BodyWeightEntry(date: now(), kilograms: kilograms)
@@ -448,6 +497,8 @@ final class AppModel {
             data.bodyWeights.append(BodyWeightEntry(date: now(), kilograms: plan.profile.weightKg))
         }
         selectedTab = .today
+        track(.onboardingCompleted, ["goal": .string(plan.profile.goal.rawValue), "experience": .string(plan.profile.experience.rawValue),
+                                     "days_per_week": .number(Double(plan.profile.daysPerWeek)), "equipment": .string(plan.profile.equipment.rawValue)])
     }
 
     func updateProfile(_ mutate: (inout UserProfile) -> Void) {

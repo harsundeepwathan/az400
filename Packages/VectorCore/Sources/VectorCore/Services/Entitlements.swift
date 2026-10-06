@@ -18,7 +18,7 @@ public enum ProFeature: String, CaseIterable, Hashable, Sendable {
 
     public var title: String {
         switch self {
-        case .aiMealScanning: "Unlimited AI meal scans"
+        case .aiMealScanning: "AI meal scans, up to 30 a day"
         case .aiWorkoutRecommendations: "AI workout recommendations"
         case .progressiveOverload: "Smart progressive overload"
         case .advancedAnalytics: "Advanced progress analytics"

@@ -14,7 +14,7 @@ struct PaywallView: View {
 
     private let benefits: [(String, String, String)] = [
         (Icon.sparkles, "AI workout recommendations", "Know the exact weight and reps for every set"),
-        (Icon.scan, "Unlimited AI meal scanning", "Photo to logged meal in seconds"),
+        (Icon.scan, "AI meal scanning every day", "Up to 30 scans a day: photo to logged meal in seconds"),
         ("chart.bar.xaxis", "Advanced progress analytics", "Strength curves, muscle balance, full history"),
         ("chart.line.uptrend.xyaxis", "Smart progressive overload", "Automatic, explained progression"),
         ("brain.head.profile", "Personalized coaching insights", "Training and nutrition patterns, with evidence")

@@ -44,6 +44,8 @@ extension AppModel {
                                               overrides: overrides, restPreferences: data.restPreferences ?? [:],
                                               unit: unit, now: now())
             mutate({ $0.activeWorkout = workout; $0.restTimer = nil }, refreshInsights: false)
+            track(.workoutStarted, ["source": .string(isProgramTemplate(template) ? "program" : "custom"),
+                                    "exercises": .number(Double(template.exercises.count))])
             Task { await notifications?.requestAuthorizationIfNeeded() }
         }
         syncLiveActivity()
@@ -53,6 +55,7 @@ extension AppModel {
     func startEmptyWorkout() {
         if data.activeWorkout == nil {
             mutate({ $0.activeWorkout = .empty(name: "Workout", history: $0.sessions, now: now()) }, refreshInsights: false)
+            track(.workoutStarted, ["source": "empty", "exercises": 0])
         }
         cover = .workout
     }
@@ -80,6 +83,9 @@ extension AppModel {
         }
         mutate({ $0.activeWorkout = workout; $0.restTimer = timer }, refreshInsights: false)
         setLastCompletion(result)
+        let set = workout.session.exercises[position.exercise].sets[position.set]
+        track(.setLogged, ["kind": .string(set.kind.rawValue), "pr": .bool(result.isPersonalRecord),
+                           "superset": .bool(workout.session.exercises[position.exercise].supersetGroup != nil)])
 
         if let timer, data.profile?.restTimerNotifications ?? true {
             let next = result.nextFocus.flatMap { focus -> String? in
@@ -170,6 +176,13 @@ extension AppModel {
         }
         let summary = WorkoutSummary(session: session, records: records, previous: previous,
                                      volumeChange: change, nextStep: nextStep)
+        track(.workoutCompleted, [
+            "duration_min": .number((session.duration / 60).rounded()),
+            "exercises": .number(Double(session.exercises.count)),
+            "sets": .number(Double(session.exercises.reduce(0) { $0 + $1.completedWorkingSets.count })),
+            "prs": .number(Double(records.count)),
+            "rpe_logged": .bool(session.exercises.contains { $0.sets.contains { $0.rpe != nil } })
+        ])
         setLastSummary(summary)
         cover = .summary(session.id)
         if let health { Task { try? await health.save(session) } }

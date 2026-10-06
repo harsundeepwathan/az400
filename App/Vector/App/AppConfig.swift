@@ -12,8 +12,6 @@ enum AppConfig {
     /// Base URL of `backend/api`, e.g. https://api.example.com
     static var apiBaseURL: URL? { string("VectorAPIBaseURL").flatMap(URL.init(string:)) }
 
-    static var mealScanEndpoint: URL? { apiBaseURL?.appendingPathComponent("v1/meal-scan") }
-
     static var termsURL: URL { string("VectorTermsURL").flatMap(URL.init(string:)) ?? URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")! }
 
     static var privacyURL: URL { string("VectorPrivacyURL").flatMap(URL.init(string:)) ?? URL(string: "https://www.apple.com/legal/privacy/")! }

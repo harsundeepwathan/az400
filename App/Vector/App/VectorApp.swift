@@ -18,10 +18,23 @@ struct VectorApp: App {
         #else
         let uiTesting = false
         #endif
+        // The backend is optional: without it the app works fully, minus AI
+        // meal scans, server-verified Pro and analytics upload.
+        var api: APIClient?
+        var events: EventQueue?
         var recognizer: MealRecognizing?
-        if let endpoint = AppConfig.mealScanEndpoint {
-            let key = Bundle.main.object(forInfoDictionaryKey: "VectorMealScanKey") as? String
-            recognizer = RemoteMealRecognizer(endpoint: endpoint, appKey: key)
+        if let baseURL = AppConfig.apiBaseURL, !uiTesting {
+            let client = APIClient(baseURL: baseURL, tokens: KeychainTokenStore())
+            api = client
+            recognizer = RemoteMealRecognizer(api: client)
+            let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            events = EventQueue(
+                restored: EventQueueFile.load(),
+                // Queued while signed out (bounded), uploaded once signed in.
+                isEnabled: { AnalyticsPreference.isEnabled },
+                upload: { try await client.send(events: $0, appVersion: version) },
+                persist: { EventQueueFile.save($0) }
+            )
         }
         #if DEBUG
         // Debug builds without a backend use the offline recognizer so the review flow can be exercised.
@@ -34,6 +47,8 @@ struct VectorApp: App {
             recognizer: recognizer,
             remoteFoods: uiTesting ? nil : OpenFoodFactsClient(),
             sync: uiTesting || !syncEnabled ? nil : ICloudDocumentSync(),
+            api: api,
+            events: events,
             notifications: NotificationScheduler(),
             liveActivity: LiveActivityController(),
             health: HealthKitService()
@@ -56,12 +71,27 @@ struct VectorApp: App {
                     watchBridge.start(model: model)
                     DiagnosticsReporter.shared.start()
                     purchases.onTierChange = { [weak model] tier in model?.setTier(tier) }
+                    purchases.accountToken = { [weak model] in model?.purchaseAccountToken }
+                    purchases.onVerifiedTransaction = { [weak model] jws in await model?.submitTransaction(jws) }
+                    purchases.onPurchaseEvent = { [weak model] event, product in model?.track(event, ["product": .string(product)]) }
+                    model.syncPurchasesToServer = { [purchases] in await purchases.syncEntitlementsToServer() }
+                    model.track(.appOpened)
                     await purchases.load()
+                    await model.refreshAccount()
+                    if model.isSignedIn { await purchases.syncEntitlementsToServer() }
                 }
                 .onOpenURL { url in handle(url) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { model.flush() }
+            switch phase {
+            case .background:
+                model.flush()
+                model.flushEvents()
+            case .active:
+                Task { await model.refreshAccount() }
+            default:
+                break
+            }
         }
     }
 

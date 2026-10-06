@@ -161,7 +161,7 @@ struct ScanReviewView: View {
         model.logScannedMeal(session.items.map {
             FoodEntry(date: date, meal: session.meal, name: $0.food.name, foodID: $0.food.id,
                       grams: $0.grams, macros: $0.macros, source: .aiScan)
-        }, correction: session.correction)
+        }, correction: session.correction, scanID: session.scanID)
         onClose()
     }
 }
