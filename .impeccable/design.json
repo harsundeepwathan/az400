@@ -1,0 +1,790 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T13:42:44+00:00",
+  "title": "Design System: Vector",
+  "extensions": {
+    "colorMeta": {
+      "grouped-ground": {
+        "role": "neutral",
+        "displayName": "Grouped Ground",
+        "canonical": "#F2F2F7",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252528",
+          "#414145",
+          "#616165",
+          "#828286",
+          "#A4A4A9",
+          "#C8C8CD",
+          "#EEEEF3"
+        ],
+        "dark": "#000000"
+      },
+      "cell": {
+        "role": "neutral",
+        "displayName": "Cell White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ],
+        "dark": "#1C1C1E"
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Well",
+        "canonical": "#EDEDF1",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#252528",
+          "#424245",
+          "#616164",
+          "#828285",
+          "#A4A4A8",
+          "#C9C9CC",
+          "#EEEEF2"
+        ],
+        "dark": "#2C2C2E"
+      },
+      "separator": {
+        "role": "neutral",
+        "displayName": "Separator",
+        "canonical": "#E1E1E6",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252528",
+          "#414145",
+          "#616165",
+          "#828286",
+          "#A4A4A9",
+          "#C8C8CD",
+          "#EEEEF3"
+        ],
+        "dark": "#38383A"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ],
+        "dark": "#FFFFFF"
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Grey",
+        "canonical": "#6C6C70",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252528",
+          "#424245",
+          "#616165",
+          "#828286",
+          "#A4A4A9",
+          "#C9C9CD",
+          "#EEEEF2"
+        ],
+        "dark": "#AEAEB2"
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "Tertiary Grey",
+        "canonical": "#6E6E73",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252529",
+          "#414146",
+          "#616165",
+          "#828287",
+          "#A4A4AA",
+          "#C8C8CE",
+          "#EEEEF4"
+        ],
+        "dark": "#8E8E93"
+      },
+      "text-on-tint": {
+        "role": "neutral",
+        "displayName": "Text on Tint",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ],
+        "dark": "#000000"
+      },
+      "grouped-ground-dark": {
+        "role": "neutral",
+        "displayName": "Grouped Ground (dark)",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "cell-dark": {
+        "role": "neutral",
+        "displayName": "Cell (dark)",
+        "canonical": "#1C1C1E",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#252527",
+          "#424244",
+          "#616163",
+          "#828284",
+          "#A5A5A7",
+          "#C9C9CB",
+          "#EEEEF1"
+        ]
+      },
+      "well-dark": {
+        "role": "neutral",
+        "displayName": "Well (dark)",
+        "canonical": "#2C2C2E",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#252527",
+          "#424244",
+          "#616163",
+          "#828284",
+          "#A5A5A7",
+          "#C9C9CB",
+          "#EEEEF1"
+        ]
+      },
+      "separator-dark": {
+        "role": "neutral",
+        "displayName": "Separator (dark)",
+        "canonical": "#38383A",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#252527",
+          "#424244",
+          "#616163",
+          "#828284",
+          "#A5A5A7",
+          "#C9C9CB",
+          "#EEEEF1"
+        ]
+      },
+      "tint": {
+        "role": "primary",
+        "displayName": "Action Green",
+        "canonical": "#008A55",
+        "tonalRamp": [
+          "#001400",
+          "#003211",
+          "#00522A",
+          "#007545",
+          "#2D9865",
+          "#62BA8A",
+          "#91DDB1",
+          "#BFFFD9"
+        ],
+        "dark": "#30D158"
+      },
+      "tint-text": {
+        "role": "primary",
+        "displayName": "Action Green Text",
+        "canonical": "#007A4C",
+        "tonalRamp": [
+          "#001301",
+          "#003113",
+          "#00522C",
+          "#007448",
+          "#3F966A",
+          "#6EB88F",
+          "#9ADAB5",
+          "#C7FEDD"
+        ],
+        "dark": "#30D158"
+      },
+      "tint-soft": {
+        "role": "primary",
+        "displayName": "Green Wash",
+        "canonical": "#E2F4EA",
+        "tonalRamp": [
+          "#090C0A",
+          "#212624",
+          "#3D4440",
+          "#5B645F",
+          "#7A857F",
+          "#9BA9A1",
+          "#BECEC5",
+          "#E2F4EA"
+        ],
+        "dark": "#0F2E1B"
+      },
+      "tint-dark": {
+        "role": "primary",
+        "displayName": "Action Green (dark)",
+        "canonical": "#30D158",
+        "tonalRamp": [
+          "#001300",
+          "#003200",
+          "#005406",
+          "#007720",
+          "#009D38",
+          "#28C551",
+          "#62EA7A",
+          "#9AFFA9"
+        ]
+      },
+      "text-on-tint-dark": {
+        "role": "neutral",
+        "displayName": "Text on Tint (dark)",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "nutrition": {
+        "role": "secondary",
+        "displayName": "Category Orange",
+        "canonical": "#E5521A",
+        "tonalRamp": [
+          "#2A0000",
+          "#530000",
+          "#7E1000",
+          "#AB2F00",
+          "#DB4C13",
+          "#FF764A",
+          "#FFA27A",
+          "#FFCEAA"
+        ],
+        "dark": "#FF8A3D"
+      },
+      "body": {
+        "role": "secondary",
+        "displayName": "Category Indigo",
+        "canonical": "#5E5CE6",
+        "tonalRamp": [
+          "#0B003F",
+          "#1D096A",
+          "#342B99",
+          "#4E4ACA",
+          "#6C6EF3",
+          "#8E96FF",
+          "#B3BEFF",
+          "#DAE6FF"
+        ],
+        "dark": "#8E8CFF"
+      },
+      "protein": {
+        "role": "tertiary",
+        "displayName": "Macro Blue",
+        "canonical": "#0A6CFF",
+        "tonalRamp": [
+          "#010046",
+          "#001074",
+          "#0033A5",
+          "#0054D8",
+          "#2078FF",
+          "#54A0FF",
+          "#83C8FF",
+          "#B1EFFF"
+        ],
+        "dark": "#409CFF"
+      },
+      "carbs": {
+        "role": "tertiary",
+        "displayName": "Macro Teal",
+        "canonical": "#00A0A0",
+        "tonalRamp": [
+          "#001213",
+          "#002F30",
+          "#004F4F",
+          "#007172",
+          "#009696",
+          "#48B9B8",
+          "#7EDCDB",
+          "#AFFFFF"
+        ],
+        "dark": "#40C8C8"
+      },
+      "fat": {
+        "role": "tertiary",
+        "displayName": "Macro Amber",
+        "canonical": "#E89B00",
+        "tonalRamp": [
+          "#1C0300",
+          "#3E1B00",
+          "#623600",
+          "#8A5400",
+          "#B37300",
+          "#DE9300",
+          "#FFB94E",
+          "#FFE187"
+        ],
+        "dark": "#FFD60A"
+      },
+      "calories": {
+        "role": "tertiary",
+        "displayName": "Calorie Orange",
+        "canonical": "#FF5F1F",
+        "tonalRamp": [
+          "#2A0000",
+          "#520000",
+          "#7E1100",
+          "#AC2E00",
+          "#DC4B07",
+          "#FF6D35",
+          "#FF9B6B",
+          "#FFC89D"
+        ],
+        "dark": "#FF8A3D"
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success",
+        "canonical": "#007A4C",
+        "tonalRamp": [
+          "#001301",
+          "#003113",
+          "#00522C",
+          "#007448",
+          "#3F966A",
+          "#6EB88F",
+          "#9ADAB5",
+          "#C7FEDD"
+        ],
+        "dark": "#30D158"
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Warning",
+        "canonical": "#A65A00",
+        "tonalRamp": [
+          "#210000",
+          "#451300",
+          "#6B2F00",
+          "#934C00",
+          "#B76E2B",
+          "#D8945C",
+          "#F8BA8A",
+          "#FFE2B8"
+        ],
+        "dark": "#FFB340"
+      },
+      "warning-soft": {
+        "role": "tertiary",
+        "displayName": "Warning Wash",
+        "canonical": "#FDF0DE",
+        "tonalRamp": [
+          "#0D0B08",
+          "#282420",
+          "#46413A",
+          "#676057",
+          "#898176",
+          "#ADA496",
+          "#D3C7B8",
+          "#F9EDDB"
+        ],
+        "dark": "#33240C"
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger",
+        "canonical": "#D70015",
+        "tonalRamp": [
+          "#330000",
+          "#5E0000",
+          "#8C0000",
+          "#BD0002",
+          "#E73431",
+          "#FF6B5F",
+          "#FF9A8C",
+          "#FFC8B9"
+        ],
+        "dark": "#FF6961"
+      },
+      "danger-soft": {
+        "role": "tertiary",
+        "displayName": "Danger Wash",
+        "canonical": "#FDECEA",
+        "tonalRamp": [
+          "#0D0A0A",
+          "#282423",
+          "#47403F",
+          "#675F5E",
+          "#8A807E",
+          "#AEA2A0",
+          "#D4C5C4",
+          "#FBEAE8"
+        ],
+        "dark": "#3A1714"
+      },
+      "chart-muted": {
+        "role": "neutral",
+        "displayName": "Chart Muted",
+        "canonical": "#D8D8DE",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252529",
+          "#414146",
+          "#616166",
+          "#828287",
+          "#A4A4AA",
+          "#C8C8CE",
+          "#EEEEF4"
+        ],
+        "dark": "#3A3A3C"
+      },
+      "chart-target": {
+        "role": "neutral",
+        "displayName": "Target Band",
+        "canonical": "#DDF1E5",
+        "tonalRamp": [
+          "#090C0A",
+          "#212723",
+          "#3C443F",
+          "#5A645E",
+          "#79867E",
+          "#9AA9A0",
+          "#BDCEC4",
+          "#E0F4E8"
+        ],
+        "dark": "#12301D"
+      }
+    },
+    "typographyMeta": {
+      "large-title": {
+        "displayName": "Large Title",
+        "purpose": "Screen title only."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "The one statement a cell makes."
+      },
+      "section-title": {
+        "displayName": "Section Title",
+        "purpose": "SectionHeader titles between cells."
+      },
+      "title3": {
+        "displayName": "Title3",
+        "purpose": "Exercise names, upgrade statements."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Sub-heads inside cells, empty-state titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Content."
+      },
+      "body-emphasized": {
+        "displayName": "Body Emphasized",
+        "purpose": "Button labels, decision lines."
+      },
+      "secondary": {
+        "displayName": "Secondary",
+        "purpose": "Supporting text, evidence labels."
+      },
+      "secondary-emphasized": {
+        "displayName": "Secondary Emphasized",
+        "purpose": "Category headers, inline actions."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Metric labels."
+      },
+      "caption-emphasized": {
+        "displayName": "Caption Emphasized",
+        "purpose": "Chips, ring titles."
+      },
+      "metric-hero": {
+        "displayName": "Metric Hero",
+        "purpose": "Calories left, calorie decision, workout clock."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Card metrics, recommendation headline."
+      },
+      "metric-small": {
+        "displayName": "Metric Small",
+        "purpose": "Ring centres, inline stats."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Set tables."
+      },
+      "data-secondary": {
+        "displayName": "Data Secondary",
+        "purpose": "Row values."
+      }
+    },
+    "shadows": [
+      {
+        "name": "cell",
+        "value": "none",
+        "purpose": "Content cells are flat; they separate from the ground by tone."
+      },
+      {
+        "name": "floating-toast",
+        "value": "0 6px 16px rgba(0,0,0,0.12)",
+        "purpose": "Toast on regular material."
+      },
+      {
+        "name": "floating-mini-player",
+        "value": "0 4px 12px rgba(0,0,0,0.12)",
+        "purpose": "Workout mini-player on regular material."
+      },
+      {
+        "name": "floating-rest-timer",
+        "value": "0 8px 20px rgba(0,0,0,0.15)",
+        "purpose": "Rest-timer bar on regular material."
+      },
+      {
+        "name": "chart-tooltip",
+        "value": "0 2px 6px rgba(0,0,0,0.10)",
+        "purpose": "Chart scrub tooltip."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "0.1s cubic-bezier(0.23,1,0.32,1)",
+        "purpose": "Press-down feedback."
+      },
+      {
+        "name": "snappy",
+        "value": "snappy 0.28s",
+        "purpose": "Release, taps, toggles, selection."
+      },
+      {
+        "name": "smooth",
+        "value": "smooth 0.35s",
+        "purpose": "Layout changes, evidence reveal, sheet content."
+      },
+      {
+        "name": "gentle",
+        "value": "0.45s cubic-bezier(0.23,1,0.32,1)",
+        "purpose": "Rings and bars filling on appear."
+      },
+      {
+        "name": "chart",
+        "value": "0.5s cubic-bezier(0.23,1,0.32,1)",
+        "purpose": "Chart range changes."
+      },
+      {
+        "name": "celebrate",
+        "value": "spring response 0.45, damping 0.62",
+        "purpose": "Rare moments only: PRs, workout complete."
+      },
+      {
+        "name": "enter",
+        "value": "opacity + scale 0.97",
+        "purpose": "Cells appearing in a list; nothing grows from zero."
+      },
+      {
+        "name": "reduce-motion",
+        "value": "easeInOut 0.15s cross-fade",
+        "purpose": "Replaces every animation under Reduce Motion; slides become fades."
+      }
+    ],
+    "sizes": [
+      {
+        "name": "min-touch",
+        "value": "44pt"
+      },
+      {
+        "name": "button",
+        "value": "52pt"
+      },
+      {
+        "name": "button-compact",
+        "value": "44pt"
+      },
+      {
+        "name": "set-row",
+        "value": "52pt"
+      },
+      {
+        "name": "icon-badge",
+        "value": "36pt"
+      },
+      {
+        "name": "hairline",
+        "value": "0.5pt"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled Action Green action in a view.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M7 4.5v15l13-7.5z\"/></svg>Start workout</button>",
+      "css": ".ds-btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;padding:0 24px;border:0;border-radius:16px;background:#008A55;color:#FFFFFF;font:600 17px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;cursor:pointer;transition:transform .28s cubic-bezier(0.23,1,0.32,1),opacity .28s cubic-bezier(0.23,1,0.32,1)}.ds-btn-primary:hover{opacity:.96}.ds-btn-primary:active{transform:scale(.98);opacity:.92;transition-duration:.1s}.ds-btn-primary:focus-visible{outline:3px solid #007A4C;outline-offset:2px}.ds-btn-primary:disabled{background:#6E6E73}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Tinted companion to the primary; never filled.",
+      "html": "<button class=\"ds-btn-secondary\">Keep current</button>",
+      "css": ".ds-btn-secondary{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;padding:0 16px;border:0;border-radius:16px;background:#E2F4EA;color:#007A4C;font:600 17px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;cursor:pointer;transition:transform .28s cubic-bezier(0.23,1,0.32,1)}.ds-btn-secondary:active{transform:scale(.98);transition-duration:.1s}.ds-btn-secondary:focus-visible{outline:3px solid #007A4C;outline-offset:2px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Neutral well-filled button for toolbars and grids.",
+      "html": "<button class=\"ds-btn-quiet\">Add note</button>",
+      "css": ".ds-btn-quiet{min-height:44px;padding:0 12px;border:0;border-radius:10px;background:#EDEDF1;color:#000;font:600 15px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;cursor:pointer;transition:transform .28s cubic-bezier(0.23,1,0.32,1),opacity .28s}.ds-btn-quiet:active{transform:scale(.97);opacity:.7;transition-duration:.1s}.ds-btn-quiet:focus-visible{outline:3px solid #007A4C;outline-offset:2px}"
+    },
+    {
+      "name": "Category Header",
+      "kind": "custom",
+      "refersTo": "category-header",
+      "description": "First line of a cell: category-tinted symbol and label, trailing detail.",
+      "html": "<div class=\"ds-cat\"><span class=\"ds-cat-l\" style=\"color:#E5521A\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><path d=\"M7 3v8a2 2 0 0 0 2 2v8M5 3v6M9 3v6M17 3c-2 0-3 2.5-3 6s1 4 3 4v8\"/></svg>Nutrition</span><button class=\"ds-cat-r\">Details<svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\"/></svg></button></div><div class=\"ds-cat\"><span class=\"ds-cat-l\" style=\"color:#008A55\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4\"/></svg>Coach</span><span class=\"ds-cat-r\">Today</span></div>",
+      "css": ".ds-cat{display:flex;align-items:center;gap:6px;min-height:44px;font:600 15px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif}.ds-cat-l{display:flex;align-items:center;gap:6px}.ds-cat-r{margin-left:auto;display:flex;align-items:center;gap:2px;background:none;border:0;padding:0;font:400 15px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;color:#6C6C70;cursor:pointer}button.ds-cat-r:hover{color:#000}button.ds-cat-r:focus-visible{outline:3px solid #007A4C;outline-offset:2px;border-radius:6px}"
+    },
+    {
+      "name": "Cell",
+      "kind": "card",
+      "refersTo": "cell",
+      "description": "Flat white grouped cell on the grey ground: header, one statement, numbers, one action.",
+      "html": "<div class=\"ds-ground\"><div class=\"ds-cell\"><div class=\"ds-cell-cat\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4\"/></svg>Coach</div><p class=\"ds-cell-t\">Everything is on track, no changes</p><p class=\"ds-cell-s\">Your weight is moving at the planned rate.</p></div></div>",
+      "css": ".ds-ground{background:#F2F2F7;padding:16px}.ds-cell{background:#FFFFFF;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif}.ds-cell-cat{display:flex;align-items:center;gap:6px;color:#008A55;font:600 15px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif}.ds-cell-t{margin:0;font:700 22px/28px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;color:#000}.ds-cell-s{margin:0;font:400 15px/20px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;color:#6C6C70}"
+    },
+    {
+      "name": "Metric View",
+      "kind": "custom",
+      "refersTo": "metric",
+      "description": "Caption label, rounded bold tabular value, unit and delta.",
+      "html": "<div class=\"ds-metric\"><span class=\"ds-metric-l\">Previous volume</span><span class=\"ds-metric-v\">12,480<small>kg</small></span><span class=\"ds-delta\">&#8599; +8.4%</span></div>",
+      "css": ".ds-metric{display:flex;flex-direction:column;gap:2px;font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif}.ds-metric-l{font:500 12px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;color:#6C6C70}.ds-metric-v{font:700 22px/28px ui-rounded,\"SF Pro Rounded\",-apple-system,sans-serif;font-variant-numeric:tabular-nums;color:#000}.ds-metric-v small{font:400 15px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;color:#6C6C70;margin-left:3px}.ds-delta{font:600 12px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#007A4C}"
+    },
+    {
+      "name": "Macro Bar",
+      "kind": "custom",
+      "refersTo": "protein",
+      "description": "Direct-labelled macro progress on a well track.",
+      "html": "<div class=\"ds-macro\"><div class=\"ds-macro-h\"><span><i style=\"background:#0A6CFF\"></i>Protein</span><span><b>112</b> /150g</span></div><div class=\"ds-macro-t\"><div style=\"width:75%;background:#0A6CFF\"></div></div></div>",
+      "css": ".ds-macro{font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;display:flex;flex-direction:column;gap:6px;max-width:240px}.ds-macro-h{display:flex;justify-content:space-between;font:600 15px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif;color:#000}.ds-macro-h i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}.ds-macro-h span:last-child{font-weight:400;color:#6C6C70;font-variant-numeric:tabular-nums}.ds-macro-h b{color:#000;font-weight:600}.ds-macro-t{height:6px;border-radius:9999px;background:#EDEDF1;overflow:hidden}.ds-macro-t div{height:100%;border-radius:9999px;transition:width .45s cubic-bezier(0.23,1,0.32,1)}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Capsule meta label, e.g. muscle groups.",
+      "html": "<span class=\"ds-chip\">Chest</span><span class=\"ds-chip\">Triceps</span><span class=\"ds-chip\">+2</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;margin-right:8px;border-radius:9999px;background:#EDEDF1;color:#6C6C70;font:600 12px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif}"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tint-text",
+      "description": "System tab bar, selection in Action Green Text.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"on\">Today</a><a>Train</a><a>Nutrition</a><a>Progress</a><a>Profile</a></nav>",
+      "css": ".ds-tabs{display:flex;justify-content:space-around;padding:8px 0;background:rgba(249,249,249,.94);border-top:.5px solid #E1E1E6;font:500 10px -apple-system,BlinkMacSystemFont,\"SF Pro Text\",system-ui,sans-serif}.ds-tabs a{color:#6E6E73;cursor:pointer;padding:6px 8px}.ds-tabs a.on{color:#007A4C}.ds-tabs a:hover{color:#000}.ds-tabs a:focus-visible{outline:2px solid #007A4C;border-radius:6px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Grouped Standard",
+    "overview": "Vector plays the category standard straight. It is built the way Apple Health and Fitness, Strong, MacroFactor and Whoop are built: a grey grouped ground, white cells floating on it by tone alone, one green tint that means \"you can act here\", and a fixed colour per area so the header of a cell tells you where you are before you read it. Nothing is invented for its own sake. The craft is in doing the native thing exactly: continuous corners, Dynamic Type everywhere, big rounded numerals, sentence-case labels, and one decision on screen at a time.\n\nThe density is comfortable rather than packed. Today is a single column of cells separated by a 36 pt section rhythm on a 16 pt gutter; each cell opens with a tinted category header, states one thing in a bold title, backs it with numbers in SF Pro Rounded, and offers at most one filled action. Dark mode is designed, not inverted: a pure black ground with #1C1C1E cells and a brighter green that carries black text.\n\nThe system refuses the gamified (achievement badges, confetti, neon), the clinical (spreadsheet coldness) and the \"bro\" register (aggressive black-and-red). Recommendations come from rules, so they are marked with a scope, never a sparkle.",
+    "keyCharacteristics": [
+      "Grey grouped ground, white cells, no strokes or shadows on content.",
+      "One green tint for actions, selection, links and the tab bar.",
+      "Category colour lives in the cell's header: Coach and Training green, Nutrition orange, Body indigo.",
+      "Macros are a fixed categorical set: protein blue, carbs teal, fat amber, calories orange.",
+      "SF Pro for words, SF Pro Rounded bold with tabular figures for numbers.",
+      "Sentence case everywhere; no eyebrows, no tracked uppercase labels.",
+      "One filled primary per view; secondary actions are tinted, not filled."
+    ],
+    "rules": [
+      {
+        "name": "The One Tint Rule",
+        "body": "Green is the only colour that means \"act\". If something is tappable and filled, it is Action Green; nothing else gets a filled button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Header Carries the Category Rule",
+        "body": "Category colour appears in a cell's `CategoryHeader` symbol and label (and in matching row icons), never as a cell fill, border or background wash.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never Colour Alone Rule",
+        "body": "Status and macro colours are always paired with an icon, sign or label.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Every label, header, button and title is sentence case. No uppercase, no letter-spacing, no small label above a heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rounded Numbers Rule",
+        "body": "A number the user is meant to read as a result is SF Pro Rounded bold with tabular figures and animates with a numeric content transition. Words never use the rounded face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Dynamic Type Rule",
+        "body": "Sizes above are the default Large setting; every style scales. `minimumScaleFactor` is allowed only on single-line metrics.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Decision Rule",
+        "body": "A cell states one thing and offers one way forward. The Weekly Check-In leads with the decision, then the week; evidence sits behind \"Why?\" rather than on the surface.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Cell Rule",
+        "body": "A content cell never casts a shadow or carries a border. If a surface needs a shadow, it must be floating over scrolling content on material.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** put every piece of content in a 14 pt Cell White cell on the grouped ground, padded 16 pt, separated by 36 pt.",
+      "**Do** open a cell with a `CategoryHeader` in its category colour: Coach and Training green, Nutrition orange, Body indigo.",
+      "**Do** keep to one filled Action Green button per view; make companions secondary (Green Wash) or inline text.",
+      "**Do** set result numbers in SF Pro Rounded bold with tabular figures, and pair every status or macro colour with an icon, sign or label.",
+      "**Do** use `AdaptiveStack` for paired buttons so they stack at large text sizes.",
+      "**Do** press down on the 0.1 s ease-out and release on the 0.28 s snappy curve; collapse motion to a 0.15 s fade under Reduce Motion.",
+      "**Do** keep bounce for rare moments (a PR, workout complete); completing a set stays crisp."
+    ],
+    "donts": [
+      "**Don't** give content cells shadows, strokes or category-coloured fills.",
+      "**Don't** use uppercase, letter-spacing or a small label above a heading (no eyebrows or kickers).",
+      "**Don't** use a sparkle or magic glyph for recommendations; use `scope`.",
+      "**Don't** introduce a second action colour or fill a button in a category colour.",
+      "**Don't** add achievement badges, confetti, streak pressure or neon; don't use aggressive black-and-red.",
+      "**Don't** use emoji; SF Symbols only."
+    ]
+  }
+}

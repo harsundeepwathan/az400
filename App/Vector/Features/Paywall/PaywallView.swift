@@ -71,7 +71,7 @@ struct PaywallView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             HStack(spacing: Space.xs) {
-                Text("VECTOR").font(.system(.footnote, weight: .heavy)).tracking(2).foregroundStyle(VColor.accentText)
+                Text("Vector").font(VFont.headline).foregroundStyle(VColor.accentText)
                 ProBadge()
             }
             .padding(.top, Space.md)

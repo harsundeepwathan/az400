@@ -3,7 +3,8 @@
 > - **Tint:** one green for actions, selection, links and the tab bar (#008A55 fill / #007A4C text in light, #30D158 in dark, black text on it).
 > - **Category colours:** each cell starts with a tinted category header (`CategoryHeader`): Coach and Training green, Nutrition orange, Body indigo. Macros stay blue / teal / amber, and the calorie ring is orange.
 > - **Type:** large "Today" title, sentence-case section titles (no uppercase eyebrows), metrics in SF Pro Rounded bold.
-> - **No sparkle icons:** recommendations use a trend arrow, because they come from rules, not magic.
+> - **No sparkle icons:** recommendations use the `scope` (target) symbol, because they come from rules, not magic.
+> - The full, code-derived system is in `DESIGN.md` (with `.impeccable/design.json`).
 > Provenance: Impeccable direction round, seed key 3bffb586 (operate mode); the owner took the standing exit (category standard).
 > The Ink notes below remain for history; where they conflict, this block wins.
 

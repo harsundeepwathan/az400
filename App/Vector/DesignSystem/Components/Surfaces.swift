@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Card surface. In light mode it lifts with a soft shadow; in dark mode
-/// shadows disappear against black, so a hairline stroke defines the edge.
+/// Grouped cell: a flat white (dark: #1C1C1E) rounded cell on the grey
+/// grouped ground. No stroke, no shadow; cells separate by tone.
 struct CardModifier: ViewModifier {
     var padding: CGFloat = Space.md
     var elevation: Elevation = .card
@@ -102,7 +102,7 @@ struct MuscleChips: View {
     }
 }
 
-/// Tinted circular icon used as a leading accessory in rows and cards.
+/// Tinted rounded-square icon used as a leading accessory in rows and cards.
 struct IconBadge: View {
     var symbol: String
     var tint: Color = VColor.accentText

@@ -102,7 +102,8 @@ enum Space {
 enum Radius {
     static let xs: CGFloat = 6
     static let sm: CGFloat = 10
-    static let md: CGFloat = 16
+    /// Buttons and controls; stays inside the 14 pt cell corner.
+    static let md: CGFloat = 12
     /// Grouped cells.
     static let lg: CGFloat = 14
     static let xl: CGFloat = 28

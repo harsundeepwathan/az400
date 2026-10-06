@@ -148,7 +148,6 @@ private struct TodayTrainingCard: View {
             CategoryHeader(symbol: Icon.train, title: "Training", tint: VColor.training, detail: "In progress")
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("In progress").font(VFont.captionEmphasized).foregroundStyle(VColor.accentText)
                     Text(workout.session.name).font(VFont.title).foregroundStyle(VColor.textPrimary)
                 }
                 Spacer()
