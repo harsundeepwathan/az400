@@ -58,7 +58,10 @@ struct ProfileView: View {
                     }
 
                     Section("Training") {
-                        Picker("Goal", selection: binding(\.goal)) {
+                        Picker("Goal", selection: Binding(get: { profile.goal }, set: { goal in
+                            // One goal drives both training and calorie direction.
+                            model.updateProfile { $0.goal = goal; $0.nutritionGoal = goal.nutritionGoal }
+                        })) {
                             ForEach(TrainingGoal.selectable + (profile.goal == .improveFitness ? [.improveFitness] : [])) {
                                 Text($0.title).tag($0)
                             }
@@ -89,8 +92,12 @@ struct ProfileView: View {
                                     .foregroundStyle(VColor.textSecondary)
                             }
                         }
-                        Picker("Goal", selection: binding(\.nutritionGoal)) {
-                            ForEach(NutritionGoal.allCases) { Text($0.title).tag($0) }
+                        NavigationLink {
+                            DietaryPreferencesView()
+                        } label: {
+                            LabeledContent("Dietary preferences",
+                                           value: (profile.dietaryPreferences ?? []).isEmpty ? "None"
+                                               : (profile.dietaryPreferences ?? []).map(\.title).sorted().joined(separator: ", "))
                         }
                     }
 
@@ -215,7 +222,7 @@ private struct TargetsEditor: View {
                         let age = model.calendar.component(.year, from: model.now()) - profile.birthYear
                         targets = NutritionEngine.targets(sex: profile.sex, weightKg: model.latestBodyWeight?.kilograms ?? profile.weightKg,
                                                           heightCm: profile.heightCm, age: age, trainingDays: profile.daysPerWeek,
-                                                          goal: profile.nutritionGoal)
+                                                          goal: profile.nutritionGoal, proteinPerKg: profile.goal.proteinPerKg)
                     }
                 }
             }
@@ -232,6 +239,39 @@ private struct TargetsEditor: View {
             }
             .onAppear { if let current = model.profile?.targets { targets = current } }
         }
+    }
+}
+
+private struct DietaryPreferencesView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let selected = model.profile?.dietaryPreferences ?? []
+        List {
+            Section {
+                ForEach(DietaryPreference.allCases) { preference in
+                    Button {
+                        model.updateProfile { profile in
+                            var set = profile.dietaryPreferences ?? []
+                            if set.contains(preference) { set.remove(preference) } else { set.insert(preference) }
+                            profile.dietaryPreferences = set
+                        }
+                    } label: {
+                        HStack {
+                            Text(preference.title).foregroundStyle(VColor.textPrimary)
+                            Spacer()
+                            if selected.contains(preference) {
+                                Image(systemName: "checkmark").foregroundStyle(VColor.accentText)
+                            }
+                        }
+                    }
+                    .accessibilityAddTraits(selected.contains(preference) ? .isSelected : [])
+                }
+            } footer: {
+                Text("The coach only suggests foods that fit. Search always shows every food.")
+            }
+        }
+        .navigationTitle("Dietary Preferences")
     }
 }
 

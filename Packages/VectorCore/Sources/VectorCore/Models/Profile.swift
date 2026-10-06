@@ -90,6 +90,20 @@ public enum DietaryPreference: String, Codable, CaseIterable, Hashable, Sendable
     }
 }
 
+extension DietaryPreference {
+    /// Everyday protein sources that fit every selected preference.
+    public static func proteinExamples(for preferences: Set<DietaryPreference>) -> String {
+        let plantOnly = preferences.contains(.vegan)
+        let noDairy = plantOnly || preferences.contains(.dairyFree)
+        let noMeat = plantOnly || preferences.contains(.vegetarian) || preferences.contains(.pescatarian)
+        if plantOnly { return "tofu, tempeh or a plant protein shake" }
+        if noMeat && noDairy { return preferences.contains(.pescatarian) ? "fish, eggs or a plant protein shake" : "eggs, tofu or a plant protein shake" }
+        if noMeat { return preferences.contains(.pescatarian) ? "Greek yogurt, fish or a shake" : "Greek yogurt, eggs or a shake" }
+        if noDairy { return "chicken, eggs or a plant protein shake" }
+        return "Greek yogurt or a shake"
+    }
+}
+
 public enum ExperienceLevel: String, Codable, CaseIterable, Hashable, Sendable, Identifiable {
     case beginner, intermediate, advanced
 

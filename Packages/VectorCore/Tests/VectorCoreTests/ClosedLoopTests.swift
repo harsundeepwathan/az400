@@ -147,6 +147,21 @@ final class ClosedLoopTests: XCTestCase {
         XCTAssertEqual(plan.profile.dietaryPreferences, [.vegetarian])
     }
 
+    func testProteinSuggestionsRespectDietaryPreferences() {
+        XCTAssertEqual(DietaryPreference.proteinExamples(for: []), "Greek yogurt or a shake")
+        XCTAssertEqual(DietaryPreference.proteinExamples(for: [.vegan]), "tofu, tempeh or a plant protein shake")
+        XCTAssertEqual(DietaryPreference.proteinExamples(for: [.vegetarian, .dairyFree]), "eggs, tofu or a plant protein shake")
+        XCTAssertEqual(DietaryPreference.proteinExamples(for: [.pescatarian]), "Greek yogurt, fish or a shake")
+        XCTAssertEqual(DietaryPreference.proteinExamples(for: [.dairyFree]), "chicken, eggs or a plant protein shake")
+
+        var profile = self.profile(goal: .buildMuscle, calories: 2500)
+        profile.dietaryPreferences = [.vegan]
+        let entries = food(days: 1...5, calories: 2000, protein: 90)
+        let context = CoachContext(sessions: [], foodEntries: entries, bodyWeights: [], program: nil, profile: profile, now: now)
+        let insight = InsightEngine(calendar: calendar).insights(context).first { $0.id == "protein-shortfall" }
+        XCTAssertTrue(insight?.suggestion?.contains("tofu") ?? false, insight?.suggestion ?? "no insight")
+    }
+
     func testOldProfilesAndAnswersStillDecode() throws {
         let json = """
         {"name":"A","goal":"improveFitness","experience":"beginner","daysPerWeek":3,"equipment":"fullGym","nutritionGoal":"maintain",

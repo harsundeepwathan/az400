@@ -43,7 +43,7 @@ final class VectorUITests: XCTestCase {
         tap(button("4 days"))
         tap(button("Continue"))
         tap(button("Full gym"))
-        tap(button("Maintain"))
+        tap(button("No preferences"))
         tap(button("Build My Plan"))
         XCTAssertTrue(waitForText("YOUR PLAN IS READY"))
         tap(button("Start My Plan"))

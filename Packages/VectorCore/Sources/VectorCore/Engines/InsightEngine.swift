@@ -201,7 +201,7 @@ public struct InsightEngine: Sendable {
                 Evidence("Target", Format.grams(targets.protein)),
                 Evidence("Days on target", "\(days.filter(\.hitProteinTarget).count) of \(days.count)")
             ],
-            suggestion: "Adding a \(Format.grams(min(gap, 40))) protein serving (e.g. Greek yogurt or a shake) closes most of the gap.",
+            suggestion: "Adding a \(Format.grams(min(gap, 40))) protein serving (e.g. \(DietaryPreference.proteinExamples(for: context.profile.dietaryPreferences ?? []))) closes most of the gap.",
             action: .logFood,
             actionTitle: "Log food",
             priority: 70,

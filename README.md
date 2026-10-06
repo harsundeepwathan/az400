@@ -54,18 +54,18 @@ open Vector.xcodeproj    # set your Team, run the "Vector" scheme on an iOS 17+ 
 ## Tests
 
 ```bash
-cd Packages/VectorCore && swift test               # 51 tests (macOS or Linux)
+cd Packages/VectorCore && swift test               # 82 tests (macOS or Linux)
 VECTOR_LIVE_TESTS=1 swift test --filter Live       # also hits the real Open Food Facts API
-cd backend/api && npm install && npm test           # against a real PostgreSQL (see backend/api/README.md)
+cd backend/api && npm install && npm test           # 25 tests against a real PostgreSQL (see backend/api/README.md)
 ```
 
 UI tests (`VectorUITests`) cover onboarding, logging a set, the meal-scan review and switching programs. They run in Xcode.
 
-They cover progressive overload rules, PR detection, analytics windows and bucketing, weekly sets per muscle, coach insights (every insight must carry evidence), plan generation for every equipment × frequency combination, nutrition targets, the active-workout state machine, the rest timer, entitlement rules (no upgrade moments during workouts), meal-recognition decoding and persistence round-trips.
+They cover progressive overload (including RPE), the weekly adaptive calorie check-in, the daily brief, supersets, set types and per-exercise rest, scan-correction tracking, the API client (token refresh, error mapping), the analytics queue, PR detection, analytics windows and bucketing, weekly sets per muscle, coach insights (every insight must carry evidence), plan generation for every equipment × frequency combination, nutrition targets, the active-workout state machine, the rest timer, entitlement rules (no upgrade moments during workouts), meal-recognition decoding and persistence round-trips.
 
 ## Verification status
 
-- `VectorCore` builds and all 51 tests pass with Swift 6.0.3 (Swift 5.10 language mode), including a live Open Food Facts check.
+- `VectorCore` builds and all 82 tests pass with Swift 6.0.3 (Swift 5.10 language mode). The live Open Food Facts check runs with `VECTOR_LIVE_TESTS=1`.
 - `backend/api` tests pass against PostgreSQL 16 with a fake Claude client, a locally signed Sign in with Apple JWKS and an OpenSSL-generated StoreKit certificate chain. It has **not** been run against the live Claude API, Apple's servers or a real App Store transaction (no keys or devices were available).
 - The SwiftUI app, widget, watch app and UI tests were written without access to Xcode, so they have **not been compiled or run yet**. Expect a round of compile fixes on first build.
 
@@ -85,3 +85,4 @@ Vector's own tokens in `docs/02-design-system.md` take precedence over the skill
 2. [Design system](docs/02-design-system.md)
 3. [Workouts, AI & monetization rules](docs/03-product-ai-monetization.md)
 4. [Apple ecosystem](docs/04-apple-ecosystem.md)
+5. [Launch audit, roadmap and P0 status](docs/05-launch-audit.md)

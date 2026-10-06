@@ -98,3 +98,25 @@ Build in Xcode and fix compile errors (requires a Mac); App Store Server Notific
 ### P2: post-launch
 
 Server sync of workouts and nutrition; Watch heart rate (`HKWorkoutSession`); readiness score; social and sharing; web/Android.
+
+## P0 status
+
+| # | Item | Status | Verified by |
+|---|---|---|---|
+| 1 | Release honesty | Done. Demo recognizer and sample data are DEBUG-only; scanner says "unavailable" without a backend; legal URLs configurable; privacy manifest | Code review (app not compiled) |
+| 2 | Workout core | Done. RPE (half steps) and RIR, set types (warm-up, working, drop, to failure), supersets, exercise notes, LAST → TODAY strip, history and session detail, favourite, recent and custom exercises | Core: `WorkoutCoreTests`. UI: not compiled |
+| 3 | Rest timer | Done. Presets 0:30/1:00/1:30/2:00/3:00 plus custom, remembered per exercise; no rest after warm-ups or between superset members | Core: `WorkoutCoreTests` |
+| 4 | Goals | Done. Five goals drive protein, calorie direction and target rate; dietary preferences in onboarding and Profile (used by coach food suggestions); progression repeats a top-of-range set logged at RPE ≥ 9.5 once before adding load | Core: `ClosedLoopTests`, `WorkoutCoreTests` |
+| 5 | Closed loop | Done. Weekly adaptive calorie check-in (expenditure from intake + weight trend, capped 250 kcal, guard rails) and Today's daily brief from real data, each line with evidence | Core: `ClosedLoopTests` |
+| 6 | Nutrition | Done. Favourite foods; editable calories and macros in scan review; correction summary sent per scan | Core: `ScanCorrectionTests` |
+| 7 | Backend | Done. `backend/api`: Sign in with Apple, rotating refresh tokens, server quotas with advisory lock, usage and cost logging, 24 h result cache, StoreKit JWS verification, analytics, account deletion, SQL migrations | 25 tests on PostgreSQL 16 |
+| 8 | iOS ↔ backend | Done. Keychain session, `APIClient` (refresh, single-flight), scanner on user tokens, purchases stamped with `appAccountToken` and verified server-side, analytics queue with opt-out, delete account | Core: `APIClientTests`. UI: not compiled |
+| 9 | Performance | Done. `sessions`, per-day nutrition, recent exercises, brief and check-in are cached and invalidated on data change | Code review |
+
+**Not verified anywhere yet:**
+- compiling the SwiftUI app, widgets and watch app
+- running the UI tests
+- a live Claude call
+- real Sign in with Apple and App Store transactions
+
+These need a Mac with Xcode, an Anthropic key and an Apple developer account. They are the first P1 task.
