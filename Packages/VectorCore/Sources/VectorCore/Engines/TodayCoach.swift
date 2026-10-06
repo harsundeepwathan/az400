@@ -143,7 +143,7 @@ public struct TodayCoachEngine: Sendable {
 
     public func coaching(profile: UserProfile, program: TrainingProgram?, sessions: [WorkoutSession], foodEntries: [FoodEntry],
                          bodyWeights: [BodyWeightEntry], review: WeeklyReview, checkInDue: Bool,
-                         recommendations: [ProgressionRecommendation], now: Date) -> TodayCoaching {
+                         recommendations: [ProgressionRecommendation], includesDecision: Bool = true, now: Date) -> TodayCoaching {
         let unit = profile.unit
         let metrics = CoachMetrics(calendar: calendar)
         let plannedPerWeek = max(program?.daysPerWeek ?? profile.daysPerWeek, 1)
@@ -171,11 +171,11 @@ public struct TodayCoachEngine: Sendable {
         // 1. A decision waiting in the check-in comes first.
         if checkInDue {
             switch review.recommendation {
-            case .adjustCalories(let from, let to, _):
+            case .adjustCalories(let from, let to, _) where includesDecision:
                 return TodayCoaching(focus: .checkInReady, headline: "Your weekly check-in is ready.",
                                      detail: "Vector recommends changing your calorie target from \(Format.integer(from)) to \(Format.integer(to)) kcal.",
                                      accountability: accountability, protein: protein)
-            case .improveAdherence, .onTrack, .watch:
+            case .adjustCalories, .improveAdherence, .onTrack, .watch:
                 return TodayCoaching(focus: .checkInReady, headline: "Your weekly check-in is ready.",
                                      detail: "Review your week: training, nutrition and weight in one place.",
                                      accountability: accountability, protein: protein)

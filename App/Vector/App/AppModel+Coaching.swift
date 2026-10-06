@@ -15,7 +15,7 @@ extension AppModel {
         let today = TodayCoachEngine(catalog: catalog, calendar: calendar)
             .coaching(profile: profile, program: data.program, sessions: data.sessions, foodEntries: data.foodEntries,
                       bodyWeights: data.bodyWeights, review: review, checkInDue: weeklyCheckInDue,
-                      recommendations: recommendations, now: now())
+                      recommendations: recommendations, includesDecision: isPro, now: now())
         reviewCache = (day, review, today)
         return (review, today)
     }

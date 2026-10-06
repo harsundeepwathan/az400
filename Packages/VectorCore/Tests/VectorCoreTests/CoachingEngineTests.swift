@@ -258,6 +258,14 @@ final class CoachingEngineTests: XCTestCase {
         let due = engine.coaching(profile: p, program: nil, sessions: [], foodEntries: [], bodyWeights: [], review: onTrack,
                                   checkInDue: true, recommendations: [], now: now)
         XCTAssertEqual(due.focus, .checkInReady)
+
+        let stalled = review(p, weights: weights(end: 80, weeklyChange: 0), food: food(days: 1...21, calories: 2800))
+        let pro = engine.coaching(profile: p, program: nil, sessions: [], foodEntries: [], bodyWeights: [], review: stalled,
+                                  checkInDue: true, recommendations: [], now: now)
+        XCTAssertTrue(pro.detail?.contains("kcal") ?? false, pro.detail ?? "")
+        let free = engine.coaching(profile: p, program: nil, sessions: [], foodEntries: [], bodyWeights: [], review: stalled,
+                                   checkInDue: true, recommendations: [], includesDecision: false, now: now)
+        XCTAssertFalse(free.detail?.contains("kcal") ?? true, "Free users don't see the Pro decision")
     }
 
     func testDiscomfortNotesAndSafetyText() {
