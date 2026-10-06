@@ -47,6 +47,11 @@ public struct AppData: Codable, Hashable, Sendable {
     public var restPreferences: [String: Int]?
     /// Weekly adaptive-nutrition check-ins, oldest first.
     public var checkIns: [NutritionCheckIn]?
+    /// Tape measurements, oldest first. Synced like weigh-ins.
+    public var bodyMeasurements: [BodyMeasurementEntry]?
+    /// Progress photo metadata. Device-local: never merged from or written to
+    /// iCloud (`SyncMerge`), and the images themselves stay in the app container.
+    public var progressPhotos: [ProgressPhoto]?
 
     public init(
         schemaVersion: Int = AppData.currentSchemaVersion,
@@ -70,7 +75,9 @@ public struct AppData: Codable, Hashable, Sendable {
         favoriteExerciseIDs: Set<String>? = nil,
         favoriteFoods: [FoodItem]? = nil,
         restPreferences: [String: Int]? = nil,
-        checkIns: [NutritionCheckIn]? = nil
+        checkIns: [NutritionCheckIn]? = nil,
+        bodyMeasurements: [BodyMeasurementEntry]? = nil,
+        progressPhotos: [ProgressPhoto]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.profile = profile
@@ -94,6 +101,8 @@ public struct AppData: Codable, Hashable, Sendable {
         self.favoriteFoods = favoriteFoods
         self.restPreferences = restPreferences
         self.checkIns = checkIns
+        self.bodyMeasurements = bodyMeasurements
+        self.progressPhotos = progressPhotos
     }
 
     public var hasCompletedOnboarding: Bool { profile != nil }

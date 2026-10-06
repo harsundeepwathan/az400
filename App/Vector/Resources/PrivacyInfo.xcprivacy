@@ -5,6 +5,9 @@
   Training, nutrition and body data stay on device and in the user's iCloud; they are not
   collected by us. What leaves the device: meal photos for AI analysis, the Sign in with Apple
   user ID, verified subscription state, and opt-out-able product analytics.
+  Progress photos are not collected: the images stay in the app container (complete file
+  protection, excluded from backups) and are never uploaded or synced. Their metadata (date, pose)
+  is device-local in SyncMerge. Images are re-encoded on device, which drops EXIF/location.
 -->
 <plist version="1.0">
 <dict>

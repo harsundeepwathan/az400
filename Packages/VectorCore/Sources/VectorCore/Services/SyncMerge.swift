@@ -8,6 +8,10 @@ public enum Tombstone {
     public static func savedMeal(_ id: UUID) -> String { "meal:\(id)" }
     public static func bodyWeight(_ id: UUID) -> String { "weight:\(id)" }
     public static func exercise(_ id: String) -> String { "exercise:\(id)" }
+    public static func measurement(_ id: UUID) -> String { "measurement:\(id)" }
+    /// Reserved. Photo metadata is device-local (see `SyncMerge`), so deleting
+    /// a photo doesn't need a tombstone today; use this if that ever changes.
+    public static func photo(_ id: UUID) -> String { "photo:\(id)" }
 
     /// Tombstones for every record in a document (used by "reset all data").
     public static func all(in data: AppData) -> Set<String> {
@@ -18,6 +22,7 @@ public enum Tombstone {
         data.savedMeals.forEach { result.insert(savedMeal($0.id)) }
         data.bodyWeights.forEach { result.insert(bodyWeight($0.id)) }
         data.customExercises?.forEach { result.insert(exercise($0.id)) }
+        data.bodyMeasurements?.forEach { result.insert(measurement($0.id)) }
         return result
     }
 }
@@ -30,8 +35,12 @@ public enum Tombstone {
 ///   When both sides have the same record, the newer document's copy wins.
 /// - Settings-like fields (profile, program, tier, targets) come from the
 ///   newer document.
+/// - Body measurements are unioned like weigh-ins.
 /// - The in-progress workout and rest timer never sync: they belong to the
 ///   device you're training on.
+/// - Progress photo metadata never syncs either: the images exist only on the
+///   device that took them, so the merge always keeps the local list and
+///   `cloudCopy` strips it before anything is written to iCloud.
 public enum SyncMerge {
     public static func merge(local: AppData, remote: AppData) -> AppData {
         let localNewer = (local.modifiedAt ?? .distantPast) >= (remote.modifiedAt ?? .distantPast)
@@ -63,6 +72,10 @@ public enum SyncMerge {
         merged.customExercises = exercises.isEmpty ? nil : exercises
         let checkIns = union(newer.checkIns ?? [], older.checkIns ?? [], key: { _ in "" }).sorted { $0.date < $1.date }
         merged.checkIns = checkIns.isEmpty ? nil : checkIns
+        let measurements = union(newer.bodyMeasurements ?? [], older.bodyMeasurements ?? [],
+                                 key: { Tombstone.measurement($0.id) }).sorted { $0.date < $1.date }
+        merged.bodyMeasurements = measurements.isEmpty ? nil : measurements
+        merged.progressPhotos = local.progressPhotos
         merged.scanDates = Array(Set(local.scanDates + remote.scanDates)).sorted()
         merged.dismissedInsightIDs = local.dismissedInsightIDs.union(remote.dismissedInsightIDs)
         merged.lastUpgradeMoment = [local.lastUpgradeMoment, remote.lastUpgradeMoment].compactMap { $0 }.max()
@@ -75,5 +88,15 @@ public enum SyncMerge {
         if merged.profile == nil { merged.profile = older.profile }
         if merged.program == nil { merged.program = older.program }
         return merged
+    }
+
+    /// The copy to write to iCloud: everything except device-local state
+    /// (the in-progress workout, the rest timer and progress photo metadata).
+    public static func cloudCopy(_ data: AppData) -> AppData {
+        var copy = data
+        copy.activeWorkout = nil
+        copy.restTimer = nil
+        copy.progressPhotos = nil
+        return copy
     }
 }

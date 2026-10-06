@@ -75,7 +75,7 @@ Owner: mobile-app-builder. Files: `Packages/VectorCore/**` (new `CoachDigest` bu
 
 **Evidence:** `swift test` covers digest JSON shape (golden test against the contract example's keys), nil handling, and the API client mapping (402 → Pro required). UI is **unverified (needs Xcode)**.
 
-### [ ] T5: Measurements and progress photos (on device)
+### [x] T5: Measurements and progress photos (on device) (UI unverified)
 > "measurements and progress photos (on device)"
 
 Owner: mobile-app-builder with privacy-engineer. Files: `Packages/VectorCore/**` (models, `AppData` optional fields, `SyncMerge`, analytics), `App/Vector/Features/Progress/**` (new files preferred), `App/Vector/App/*` wiring.
@@ -83,6 +83,8 @@ Owner: mobile-app-builder with privacy-engineer. Files: `Packages/VectorCore/**`
 - **Photos:** stored only in the app container with complete file protection, excluded from backup, never uploaded and never in the iCloud JSON. Metadata (id, date, pose: front/side/back) lives in `AppData`. Show a side-by-side compare of two dates. Deleting removes the file.
 
 **Evidence:** `swift test` covers model decoding with missing fields (old data), SyncMerge union/tombstones for measurements, and per-measurement trend series. UI is **unverified**.
+
+Status: core done and tested (`MeasurementsTests`, 14 tests: legacy decoding, partial entries, measurement union/tombstones, photo metadata kept device-local, `SyncMerge.cloudCopy`, logged-values-only series, same-day upsert, cm/in formatting, compare-day selection). App: `AppModel+Body.swift` (`ProgressPhotoStore`: Application Support/ProgressPhotos, `.completeFileProtection`, excluded from backup, ~2048 px JPEG re-encode), `Features/Progress/MeasurementsView.swift`, `Features/Progress/ProgressPhotosView.swift` (PhotosPicker + camera, pose, delete removes file, side-by-side compare), entry point on the Progress dashboard. **UI unverified (needs Xcode).** Follow-up outside T5's files: `Platform/CloudSync.swift` `write` should write `SyncMerge.cloudCopy(toWrite)` so photo metadata never reaches the iCloud JSON file (other devices already ignore it on merge).
 
 ### [ ] T6: Protein-adherence and calorie charts
 > "protein-adherence and calorie charts"

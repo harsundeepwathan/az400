@@ -49,8 +49,8 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
-        NSCameraUsageDescription: Vector uses the camera to photograph meals for AI calorie estimates and to scan food barcodes.
-        NSPhotoLibraryUsageDescription: Choose a meal photo to estimate its calories.
+        NSCameraUsageDescription: Vector uses the camera to photograph meals for AI calorie estimates, to scan food barcodes and to take progress photos, which stay on your iPhone.
+        NSPhotoLibraryUsageDescription: Choose a meal photo to estimate its calories, or a progress photo to keep on your iPhone.
         NSHealthShareUsageDescription: Vector reads your body weight to track your trend.
         NSHealthUpdateUsageDescription: Vector saves your strength workouts and weigh-ins to Apple Health.
         NSSupportsLiveActivities: true
