@@ -104,7 +104,6 @@ private struct TodayTrainingCard: View {
         let last = model.lastSession(for: template)
         let muscles = template.primaryMuscles(catalog: model.catalog).map(\.displayName)
         let main = template.exercises.first
-        let rec = main.flatMap { model.recommendation(for: $0.exerciseID, repRange: $0.repRange, sets: $0.sets) }
 
         return VStack(alignment: .leading, spacing: Space.md) {
             CategoryHeader(symbol: Icon.train, title: "Training", tint: VColor.training, detail: "Program") { model.selectedTab = .train }
@@ -137,24 +136,6 @@ private struct TodayTrainingCard: View {
                            value: last.map { Format.volume($0.volume, unit: model.unit) } ?? "—",
                            font: VFont.metricSmall)
                 Spacer()
-            }
-
-            if let rec, let exercise = main.flatMap({ model.catalog[$0.exerciseID] }), rec.action.isProgression, let weight = rec.weight {
-                Button {
-                    model.sheet = .exercise(exercise.id)
-                } label: {
-                    HStack(spacing: Space.xs) {
-                        Image(systemName: Icon.recommendation).foregroundStyle(VColor.accentText)
-                        (Text("\(exercise.name): ").foregroundStyle(VColor.textSecondary)
-                         + Text("\(Format.weight(weight, unit: model.unit)) × \(rec.reps)").foregroundStyle(VColor.textPrimary).bold())
-                            .font(VFont.secondary)
-                        Spacer()
-                        Text("Why?").font(VFont.captionEmphasized).foregroundStyle(VColor.accentText)
-                    }
-                    .frame(minHeight: Size.minTouch)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Recommended \(exercise.name), \(Format.weight(weight, unit: model.unit)) for \(rec.reps) reps. Show reasoning.")
             }
 
             PrimaryButton("Start Workout", symbol: "play.fill") { model.startWorkout(template) }

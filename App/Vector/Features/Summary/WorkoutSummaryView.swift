@@ -66,9 +66,6 @@ struct WorkoutSummaryView: View {
                     .opacity(appeared ? 1 : 0)
             }
             .accessibilityHidden(true)
-            Text("Workout complete")
-                .font(VFont.sectionHeading)
-                .foregroundStyle(VColor.success)
             Text(summary.session.name)
                 .font(VFont.largeTitle)
                 .foregroundStyle(VColor.textPrimary)

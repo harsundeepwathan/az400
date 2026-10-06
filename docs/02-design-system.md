@@ -4,6 +4,7 @@
 > - **Category colours:** each cell starts with a tinted category header (`CategoryHeader`): Coach and Training green, Nutrition orange, Body indigo. Macros stay blue / teal / amber, and the calorie ring is orange.
 > - **Type:** large "Today" title, sentence-case section titles (no uppercase eyebrows), metrics in SF Pro Rounded bold.
 > - **No sparkle icons:** recommendations use a trend arrow, because they come from rules, not magic.
+> Provenance: Impeccable direction round, seed key 3bffb586 (operate mode); the owner took the standing exit (category standard).
 > The Ink notes below remain for history; where they conflict, this block wins.
 
 # 2. Design system: Vector

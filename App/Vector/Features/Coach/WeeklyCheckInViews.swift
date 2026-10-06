@@ -42,11 +42,17 @@ struct VectorCoachCard: View {
     @ViewBuilder private var action: some View {
         switch coaching.focus {
         case .progression(let rec):
-            Button("Why?") { model.sheet = .exercise(rec.exerciseID) }
-                .buttonStyle(.secondary(compact: true))
+            Button("See the evidence") { model.sheet = .exercise(rec.exerciseID) }
+                .buttonStyle(.plain)
+                .font(VFont.secondaryEmphasized)
+                .foregroundStyle(VColor.accentText)
+                .frame(minHeight: Size.minTouch)
         case .learningBaseline(let items) where items.contains(where: { $0.label == "weigh-ins" && !$0.isComplete }):
             Button("Log Weight") { model.sheet = .bodyWeight }
-                .buttonStyle(.secondary(compact: true))
+                .buttonStyle(.plain)
+                .font(VFont.secondaryEmphasized)
+                .foregroundStyle(VColor.accentText)
+                .frame(minHeight: Size.minTouch)
         default:
             EmptyView()
         }
@@ -85,11 +91,16 @@ struct WeeklyCheckInCard: View {
         VStack(alignment: .leading, spacing: Space.md) {
             CategoryHeader(symbol: "arrow.triangle.2.circlepath", title: "Weekly Check-In", tint: VColor.coach,
                            detail: review.confidence.title)
-            sections
-            Hairline()
             if model.isPro {
+                // Decide, then explain: the decision leads, the week follows.
                 decision
+                Hairline()
+                Text("Your week").font(VFont.headline).foregroundStyle(VColor.textPrimary)
+                sections
             } else {
+                // Free: the week in numbers is the value; Pro is offered after it.
+                sections
+                Hairline()
                 locked
             }
         }

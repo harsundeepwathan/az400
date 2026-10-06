@@ -446,9 +446,6 @@ private struct PlanReadyStep: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text("Your plan is ready")
-                            .font(VFont.sectionHeading)
-                            .foregroundStyle(VColor.success)
                         Text("Here's where you start, \(plan.profile.name.isEmpty ? "athlete" : plan.profile.name).")
                             .font(VFont.largeTitle)
                             .foregroundStyle(VColor.textPrimary)

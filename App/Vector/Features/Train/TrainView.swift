@@ -125,9 +125,6 @@ struct TrainView: View {
 
     private func programHeader(_ program: TrainingProgram) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Current program")
-                .font(VFont.sectionHeading)
-                .foregroundStyle(VColor.textSecondary)
             Text(program.name)
                 .font(VFont.title3)
                 .foregroundStyle(VColor.textPrimary)
