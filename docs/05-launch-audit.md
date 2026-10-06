@@ -127,7 +127,7 @@ Done by the agent team (`docs/06-team.md`); details and evidence per task in `do
 
 | P1 item | Status |
 |---|---|
-| App Store Server Notifications → subscriptions | Done (backend, tested on PostgreSQL with a test certificate chain). Not yet exercised with real Apple payloads. |
+| App Store Server Notifications → subscriptions | Done (backend, 59 backend tests on PostgreSQL with a test certificate chain). Not yet exercised with real Apple payloads. |
 | Cost dashboard SQL views | Done (tested). |
 | Claude-written coach summary (cached daily) | Done: backend tested with a fake Claude client; iOS digest tested; card UI unverified. |
 | Measurements and progress photos (on device) | Core done and tested; UI unverified. |

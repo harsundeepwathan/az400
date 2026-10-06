@@ -36,6 +36,12 @@ export interface NotificationDeps {
   now?: () => Date;
 }
 
+/** apple_notifications rows older than this are deleted (they only serve debugging and idempotency). */
+export const NOTIFICATION_RETENTION_DAYS = 90;
+/** The handler prunes at most this often per process and database. */
+export const PRUNE_INTERVAL_MS = 60 * 60_000;
+const lastPrune = new WeakMap<Db, number>();
+
 export type NotificationOutcome = "applied" | "unlinked" | "ignored" | "duplicate";
 
 const Environment = z.enum(["Production", "Sandbox", "Xcode", "LocalTesting"]);
@@ -51,6 +57,20 @@ const NotificationPayload = z.object({
       environment: Environment.optional(),
       signedTransactionInfo: z.string().optional(),
       signedRenewalInfo: z.string().optional(),
+    })
+    .optional(),
+  // Summary notifications (RENEWAL_EXTENSION) and external purchase token
+  // notifications carry their bundle id here instead of in `data`.
+  summary: z
+    .object({
+      bundleId: z.string().optional(),
+      environment: Environment.optional(),
+    })
+    .optional(),
+  externalPurchaseToken: z
+    .object({
+      bundleId: z.string().optional(),
+      externalPurchaseId: z.string().optional(),
     })
     .optional(),
 });
@@ -96,8 +116,16 @@ export async function handleNotification(deps: NotificationDeps, signedPayload: 
 
   const notification = shape(NotificationPayload, await verifyAppleJws(signedPayload, root, now, "invalid_notification"), "payload");
   const data = notification.data;
-  if (data?.bundleId !== undefined && data.bundleId !== deps.bundleId) reject("bundle");
-  if (data?.environment !== undefined && data.environment !== "Production" && !deps.allowSandbox) reject("environment");
+  // Every V2 notification names its app in data, summary or
+  // externalPurchaseToken. One that names none (or another app) is rejected,
+  // so a validly signed payload for a different app can't be replayed here.
+  const bundleId = data?.bundleId ?? notification.summary?.bundleId ?? notification.externalPurchaseToken?.bundleId;
+  if (bundleId !== deps.bundleId) reject("bundle");
+  // externalPurchaseToken has no environment field; Apple prefixes sandbox ids with "SANDBOX".
+  const token = notification.externalPurchaseToken;
+  const environment = data?.environment ?? notification.summary?.environment
+    ?? (token ? (token.externalPurchaseId?.startsWith("SANDBOX") ? "Sandbox" : "Production") : undefined);
+  if (environment === undefined || (environment !== "Production" && !deps.allowSandbox)) reject("environment");
 
   let tx: TransactionPayload | undefined;
   let renewal: RenewalState | undefined;
@@ -114,8 +142,9 @@ export async function handleNotification(deps: NotificationDeps, signedPayload: 
         signedAt: new Date(info.signedDate ?? notification.signedDate),
       };
     }
-    // A refund or revocation always ends access, even if Apple's transaction
-    // info were to arrive without a revocation date.
+    // A refund or revocation of the current period ends access, even if
+    // Apple's transaction info were to arrive without a revocation date
+    // (upsertSubscription ignores it for an earlier period).
     if ((notification.notificationType === "REFUND" || notification.notificationType === "REVOKE") && !tx.revocationDate) {
       tx = { ...tx, revocationDate: notification.signedDate };
     }
@@ -134,7 +163,7 @@ export async function handleNotification(deps: NotificationDeps, signedPayload: 
         notification.notificationUUID,
         notification.notificationType,
         notification.subtype ?? null,
-        data?.environment ?? null,
+        environment ?? null,
         tx?.originalTransactionId ?? null,
         applicable ? "applied" : "ignored",
         new Date(notification.signedDate),
@@ -152,11 +181,20 @@ export async function handleNotification(deps: NotificationDeps, signedPayload: 
       userId = rows[0]?.id ?? null;
     }
     const row = await upsertSubscription(client, tx!, userId, { now, renewal, forceOwner: true });
+    if (tx!.revocationDate && row && !row.revoked_at) {
+      // A refund of an earlier period (e.g. last month's renewal) while a
+      // newer period is active: the current period stays paid for.
+      deps.log.info("apple_notification_revocation_kept_current_period", {
+        type: notification.notificationType,
+        original_transaction_id: tx!.originalTransactionId,
+      });
+    }
     if (row?.user_id) return "applied" as const;
     await client.query("update apple_notifications set outcome = 'unlinked' where notification_uuid = $1", [notification.notificationUUID]);
     return "unlinked" as const;
   });
 
+  await pruneNotifications(deps, now);
   deps.log.info("apple_notification", {
     type: notification.notificationType,
     subtype: notification.subtype,
@@ -164,4 +202,28 @@ export async function handleNotification(deps: NotificationDeps, signedPayload: 
     handled: (HANDLED_TYPES as readonly string[]).includes(notification.notificationType),
   });
   return outcome;
+}
+
+/**
+ * Deletes apple_notifications rows past NOTIFICATION_RETENTION_DAYS, at most
+ * once per PRUNE_INTERVAL_MS per process (an indexed delete on received_at).
+ * Best effort: a failure is logged and never fails the notification.
+ */
+export async function pruneNotifications(deps: Pick<NotificationDeps, "db" | "log">, now: Date): Promise<number | null> {
+  const last = lastPrune.get(deps.db);
+  if (last !== undefined && now.getTime() - last < PRUNE_INTERVAL_MS) return null;
+  lastPrune.set(deps.db, now.getTime());
+  try {
+    const cutoff = new Date(now.getTime() - NOTIFICATION_RETENTION_DAYS * 86_400_000);
+    const { rowCount } = await deps.db.query(
+      `delete from apple_notifications where notification_uuid in (
+         select notification_uuid from apple_notifications where received_at < $1 limit 10000)`,
+      [cutoff],
+    );
+    if (rowCount) deps.log.info("apple_notifications_pruned", { rows: rowCount });
+    return rowCount ?? 0;
+  } catch (error) {
+    deps.log.error("apple_notifications_prune_failed", { message: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
 }

@@ -1,12 +1,12 @@
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { CoachDigest, numbersIn, rejectSummary } from "../src/coach.js";
+import { CoachDigest, MAX_COACH_CALLS_PER_DAY, numbersIn, PENDING_WINDOW_MS, rejectSummary } from "../src/coach.js";
 import { PRO_PRODUCT, startApp, type TestApp } from "./helpers.js";
 
 let app: TestApp;
 before(async () => { app = await startApp(); });
 after(async () => { await app.close(); });
-beforeEach(() => { app.claude.reply = summaryReply(GOOD); app.claude.calls.length = 0; });
+beforeEach(() => { app.claude.reply = summaryReply(GOOD); app.claude.calls.length = 0; app.claude.options.length = 0; });
 
 /** The example digest from the shared contract in docs/tasks/p1-tasklist.md. */
 const digest = () => ({
@@ -94,7 +94,7 @@ test("invalid digests are rejected with 400 before any model call", async () => 
   assert.equal(app.claude.calls.length, 0);
 });
 
-test("a summary is generated once, with usage and cost recorded, then served from cache the same day", async () => {
+test("a summary is generated once, with usage and cost recorded, then served from cache the same day without new cost rows", async () => {
   const { access_token, user_id } = await proUser();
   const first = await summarize(access_token);
   assert.equal(first.status, 200);
@@ -104,6 +104,9 @@ test("a summary is generated once, with usage and cost recorded, then served fro
 
   const call = app.claude.calls[0];
   assert.equal(call.model, "claude-opus-5-5");
+  assert.equal(call.max_tokens, 1024);
+  assert.deepEqual(app.claude.options[0], { timeout: 30_000, maxRetries: 0 }, "no hidden SDK retries");
+  assert.ok(PENDING_WINDOW_MS > 2 * 30_000, "pending window outlasts two attempts");
   assert.deepEqual(call.betas, ["server-side-fallback-2026-07-01"]);
   assert.equal(call.fallbacks, "default");
   assert.equal(call.output_config.format.type, "json_schema");
@@ -126,7 +129,8 @@ test("a summary is generated once, with usage and cost recorded, then served fro
   assert.equal(second.json.summary, GOOD);
   assert.equal(second.json.generated_at, first.json.generated_at);
   assert.equal(app.claude.calls.length, 1, "no second model call the same day");
-  assert.deepEqual((await requests(user_id)).map((r) => r.status).sort(), ["cached", "ok"]);
+  for (let i = 0; i < 3; i++) assert.equal((await summarize(access_token)).json.cached, true);
+  assert.deepEqual((await requests(user_id)).map((r) => r.status), ["ok"], "cache hits write no ai_requests rows");
   const { rows } = await app.db.query("select count(*)::int as n from coach_summaries where user_id = $1", [user_id]);
   assert.equal(rows[0].n, 1);
 });
@@ -204,4 +208,22 @@ test("parallel first requests make one model call", async () => {
   assert.equal(results.filter((r) => r.status === 200 && r.json.cached === false).length, 1);
   const { rows } = await app.db.query("select count(*)::int as n from coach_summaries where user_id = $1", [user_id]);
   assert.equal(rows[0].n, 1);
+});
+
+test("the retry after a rejected draft respects the daily call cap", async () => {
+  const { access_token, user_id } = await proUser();
+  // Three paid calls already today: the first attempt is call 4 of 4, so its retry would be call 5.
+  for (let i = 0; i < MAX_COACH_CALLS_PER_DAY - 1; i++) {
+    await app.db.query("insert into ai_requests (user_id, kind, status, tier, error_code) values ($1, 'coach_summary', 'error', 'pro', 'invented_number')", [user_id]);
+  }
+  app.claude.reply = [summaryReply(INVENTED), summaryReply(GOOD)];
+  const res = await summarize(access_token);
+  assert.equal(res.status, 503);
+  assert.equal(res.json.error, "busy");
+  assert.equal(app.claude.calls.length, 1, "no retry past the cap");
+  const rows = await requests(user_id);
+  assert.equal(rows.length, MAX_COACH_CALLS_PER_DAY);
+  assert.ok(rows.every((r) => r.status !== "pending"), "no reservation left behind");
+  assert.equal((await summarize(access_token)).status, 429);
+  assert.equal(app.claude.calls.length, 1);
 });

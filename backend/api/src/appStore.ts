@@ -3,6 +3,8 @@ import { compactVerify, decodeProtectedHeader, importX509 } from "jose";
 import type { Db, Queryable } from "./db.js";
 import { HttpError } from "./http.js";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /** Apple marks its App Store receipt-signing certificates with these extension OIDs. */
 const LEAF_OID = Buffer.from([0x06, 0x0a, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x63, 0x64, 0x06, 0x0b, 0x01]); // 1.2.840.113635.100.6.11.1
 const INTERMEDIATE_OID = Buffer.from([0x06, 0x0a, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x63, 0x64, 0x06, 0x02, 0x01]); // 1.2.840.113635.100.6.2.1
@@ -99,7 +101,10 @@ export interface RenewalState {
 /**
  * Inserts or updates a subscription from a verified transaction. Expiry only
  * moves forward; product and revocation come from the newest-signed
- * transaction, so out-of-order or stale JWSs can't undo a refund. An unlinked
+ * transaction, so out-of-order or stale JWSs can't undo a refund. Revocation
+ * is only taken from a transaction for the current period (its expiry at or
+ * after the stored one): a refund of an earlier renewal neither ends the
+ * current period nor clears a revocation. An unlinked
  * row (user_id null) is claimed by the first user who posts it. With
  * `forceOwner` false (purchases), a row linked to another user is left
  * untouched and null is returned; notifications pass true and never change
@@ -110,10 +115,12 @@ export async function upsertSubscription(
   tx: TransactionPayload,
   userId: string | null,
   options: { now: Date; renewal?: RenewalState; forceOwner: boolean },
-): Promise<{ user_id: string | null } | null> {
+): Promise<{ user_id: string | null; revoked_at: Date | null } | null> {
   const newer = "excluded.last_signed_at >= coalesce(subscriptions.last_signed_at, '-infinity'::timestamptz)";
   const newerRenewal = "excluded.renewal_signed_at is not null and excluded.renewal_signed_at >= coalesce(subscriptions.renewal_signed_at, '-infinity'::timestamptz)";
-  const { rows } = await db.query<{ user_id: string | null }>(
+  // A transaction without an expiry (non-renewing) or a row without one counts as current.
+  const currentPeriod = "(excluded.expires_at is null or subscriptions.expires_at is null or excluded.expires_at >= subscriptions.expires_at)";
+  const { rows } = await db.query<{ user_id: string | null; revoked_at: Date | null }>(
     `insert into subscriptions (original_transaction_id, user_id, product_id, environment, purchased_at, expires_at, revoked_at,
                                 last_signed_at, auto_renew, grace_period_expires_at, renewal_signed_at, updated_at)
      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
@@ -121,14 +128,14 @@ export async function upsertSubscription(
        user_id = coalesce(subscriptions.user_id, excluded.user_id),
        product_id = case when ${newer} then excluded.product_id else subscriptions.product_id end,
        expires_at = greatest(subscriptions.expires_at, excluded.expires_at),
-       revoked_at = case when ${newer} then excluded.revoked_at else subscriptions.revoked_at end,
+       revoked_at = case when ${newer} and ${currentPeriod} then excluded.revoked_at else subscriptions.revoked_at end,
        last_signed_at = greatest(subscriptions.last_signed_at, excluded.last_signed_at),
        auto_renew = case when ${newerRenewal} then excluded.auto_renew else subscriptions.auto_renew end,
        grace_period_expires_at = case when ${newerRenewal} then excluded.grace_period_expires_at else subscriptions.grace_period_expires_at end,
        renewal_signed_at = greatest(subscriptions.renewal_signed_at, excluded.renewal_signed_at),
        updated_at = now()
      where $12 or subscriptions.user_id is null or subscriptions.user_id = excluded.user_id
-     returning user_id`,
+     returning user_id, revoked_at`,
     [
       tx.originalTransactionId,
       userId,
@@ -163,9 +170,16 @@ export async function recordTransaction(deps: StoreKitDeps, userId: string, jws:
   if (!deps.proProductIds.has(tx.productId)) throw new HttpError(400, "invalid_transaction", { reason: "product" });
   if (tx.environment !== "Production" && !deps.allowSandbox) throw new HttpError(400, "invalid_transaction", { reason: "environment" });
   // The app sets appAccountToken to the user id when purchasing, so a
-  // transaction can't be replayed onto another account.
+  // transaction can't be replayed onto another account. If the account it
+  // names was deleted, the transaction belongs to nobody: the current user
+  // may claim it (a deleted account's row is unlinked, user_id null), so the
+  // same Apple ID signing in again isn't locked out of a paid subscription.
   if (tx.appAccountToken && tx.appAccountToken.toLowerCase() !== userId.toLowerCase()) {
-    throw new HttpError(403, "transaction_belongs_to_another_account");
+    const token = tx.appAccountToken.toLowerCase();
+    const named = UUID.test(token)
+      ? (await deps.db.query("select 1 from users where id = $1", [token])).rowCount
+      : 1; // StoreKit only accepts UUIDs; anything else is never claimable.
+    if (named) throw new HttpError(403, "transaction_belongs_to_another_account");
   }
 
   const row = await upsertSubscription(deps.db, tx, userId, { now, forceOwner: false });

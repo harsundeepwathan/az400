@@ -123,3 +123,13 @@ test("ai_daily_cost counts only meal scans as scans", async () => {
   assert.equal(Number(rows[0].scans), 0);
   assert.equal(Number(rows[0].cost_usd), 0.05);
 });
+
+test("cost views run with the caller's privileges (security_invoker) and ai_top_users_30d is marked pseudonymous", async () => {
+  const { rows } = await db.query(
+    `select c.relname, c.reloptions, obj_description(c.oid, 'pg_class') as comment
+     from pg_class c where c.relkind = 'v' and c.relnamespace = current_schema()::regnamespace order by 1`,
+  );
+  assert.deepEqual(rows.map((r) => r.relname), ["ai_cost_by_month", "ai_cost_per_active_user_30d", "ai_daily_cost", "ai_scan_quality_30d", "ai_top_users_30d"]);
+  for (const row of rows) assert.deepEqual(row.reloptions, ["security_invoker=true"], row.relname);
+  assert.match(rows.find((r) => r.relname === "ai_top_users_30d").comment, /^Pseudonymous/);
+});

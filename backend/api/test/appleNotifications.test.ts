@@ -1,7 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { BUNDLE_ID, startApp, storeKitChain, transactionPayload, type TestApp } from "./helpers.js";
+import { BUNDLE_ID, PRO_PRODUCT, startApp, storeKitChain, transactionPayload, type TestApp } from "./helpers.js";
 
 const chain = storeKitChain();
 const impostor = storeKitChain();
@@ -23,6 +23,8 @@ interface NotifyOptions {
   transactionSigner?: ReturnType<typeof storeKitChain>;
   signedDate?: number;
   data?: Record<string, unknown> | null;
+  /** Extra top-level fields, e.g. `summary` or `externalPurchaseToken`. */
+  extra?: Record<string, unknown>;
 }
 
 /** Builds an App Store Server Notification V2 exactly like Apple: a JWS whose data holds nested JWSs. */
@@ -54,6 +56,7 @@ async function notify(type: string, tx: Record<string, unknown> | null, options:
     version: "2.0",
     signedDate,
     data,
+    ...options.extra,
   });
   return app.request("POST", "/v1/apple/notifications", { body: { signedPayload } });
 }
@@ -205,8 +208,11 @@ test("notifications without a Pro transaction are acknowledged and not applied",
   const testPing = await notify("TEST", null);
   assert.equal(testPing.status, 200);
   assert.equal(testPing.json.status, "ignored");
-  const noData = await notify("RENEWAL_EXTENSION", null, { data: null });
-  assert.equal(noData.json.status, "ignored");
+  const summary = await notify("RENEWAL_EXTENSION", null, {
+    data: null, subtype: "SUMMARY", extra: { summary: { bundleId: BUNDLE_ID, environment: "Production", succeededCount: 3, failedCount: 0 } },
+  });
+  assert.equal(summary.status, 200);
+  assert.equal(summary.json.status, "ignored");
   const otherProduct = await notify("SUBSCRIBED", { originalTransactionId: "n-coins", productId: "app.vector.coins" });
   assert.equal(otherProduct.json.status, "ignored");
   assert.equal(await subscription("n-coins"), undefined);
@@ -220,5 +226,117 @@ test("without a configured root, notifications are not accepted unverified", asy
     assert.equal(res.status, 503);
   } finally {
     await unconfigured.close();
+  }
+});
+
+test("a notification without data must name this app in summary or externalPurchaseToken", async () => {
+  const none = await notify("TEST", null, { data: null });
+  assert.equal(none.status, 400);
+  assert.equal(none.json.reason, "bundle");
+
+  const otherApp = await notify("RENEWAL_EXTENSION", null, { data: null, extra: { summary: { bundleId: "com.other.app", environment: "Production" } } });
+  assert.equal(otherApp.status, 400);
+  assert.equal(otherApp.json.reason, "bundle");
+
+  const sandboxSummary = await notify("RENEWAL_EXTENSION", null, { data: null, extra: { summary: { bundleId: BUNDLE_ID, environment: "Sandbox" } } });
+  assert.equal(sandboxSummary.status, 400);
+  assert.equal(sandboxSummary.json.reason, "environment");
+
+  const noEnvironment = await notify("RENEWAL_EXTENSION", null, { data: null, extra: { summary: { bundleId: BUNDLE_ID } } });
+  assert.equal(noEnvironment.status, 400);
+  assert.equal(noEnvironment.json.reason, "environment");
+
+  const token = (externalPurchaseId: string, bundleId = BUNDLE_ID) =>
+    ({ data: null, extra: { externalPurchaseToken: { externalPurchaseId, tokenCreationDate: Date.now(), appAppleId: 1234, bundleId } } });
+  const external = await notify("EXTERNAL_PURCHASE_TOKEN", null, { subtype: "UNREPORTED", ...token("ext-1") });
+  assert.equal(external.status, 200);
+  assert.equal(external.json.status, "ignored");
+  assert.equal((await notify("EXTERNAL_PURCHASE_TOKEN", null, token("SANDBOX_ext-2"))).json.reason, "environment");
+  assert.equal((await notify("EXTERNAL_PURCHASE_TOKEN", null, token("ext-3", "com.other.app"))).json.reason, "bundle");
+
+  const { rows } = await app.db.query("select environment from apple_notifications where notification_type = 'EXTERNAL_PURCHASE_TOKEN'");
+  assert.deepEqual(rows.map((r) => r.environment), ["Production"]);
+});
+
+test("a refund of an earlier period keeps the current paid period; a refund of the current one ends Pro", async () => {
+  const { access_token, user_id } = await app.signIn();
+  const id = "n-old-refund";
+  const firstExpiry = Date.now() + 2 * DAY;
+  await purchase(access_token, { originalTransactionId: id, transactionId: "old-1", expiresDate: firstExpiry, signedDate: chainBorn });
+  const t0 = Date.now();
+  const currentExpiry = Date.now() + 32 * DAY;
+  const renewed = await notify("DID_RENEW", { originalTransactionId: id, transactionId: "old-2", expiresDate: currentExpiry, appAccountToken: user_id }, { signedDate: t0 });
+  assert.equal(renewed.json.status, "applied");
+
+  // Apple refunds the first period's transaction later: it is the newest-signed JWS but for an older period.
+  const oldRefund = await notify("REFUND", { originalTransactionId: id, transactionId: "old-1", expiresDate: firstExpiry, revocationDate: t0 + 500 }, { signedDate: t0 + 1000 });
+  assert.equal(oldRefund.status, 200);
+  assert.equal(oldRefund.json.status, "applied");
+  const kept = await me(access_token);
+  assert.equal(kept.tier, "pro");
+  assert.equal(kept.product_id, PRO_PRODUCT);
+  assert.equal(Date.parse(kept.expires_at), currentExpiry);
+  assert.equal((await subscription(id)).revoked_at, null);
+
+  const currentRefund = await notify("REFUND", { originalTransactionId: id, transactionId: "old-2", expiresDate: currentExpiry, revocationDate: t0 + 1500 }, { signedDate: t0 + 2000 });
+  assert.equal(currentRefund.json.status, "applied");
+  assert.equal((await me(access_token)).tier, "free");
+  assert.ok((await subscription(id)).revoked_at);
+});
+
+test("a deleted account's renewed subscription can be claimed by the next account that posts it", async () => {
+  const buyerA = await app.signIn("apple-person-relink");
+  const id = "n-relink";
+  const bought = await purchase(buyerA.access_token, { originalTransactionId: id, appAccountToken: buyerA.user_id, signedDate: chainBorn });
+  assert.equal(bought.json.tier, "pro");
+  assert.equal((await app.request("DELETE", "/v1/me", { token: buyerA.access_token })).status, 204);
+  assert.equal(await subscription(id), undefined, "the subscription row goes with the account");
+
+  // The renewal still carries A's id as appAccountToken; A no longer exists, so the row is recreated unlinked.
+  const renewal = await notify("DID_RENEW", { originalTransactionId: id, transactionId: "n-relink-2", appAccountToken: buyerA.user_id, expiresDate: Date.now() + 40 * DAY });
+  assert.equal(renewal.json.status, "unlinked");
+  assert.equal((await subscription(id)).user_id, null);
+
+  // The same person signs in again (a new account B) and the app posts the transaction.
+  const userB = await app.signIn("apple-person-relink");
+  assert.notEqual(userB.user_id, buyerA.user_id);
+  const claimed = await purchase(userB.access_token, { originalTransactionId: id, transactionId: "n-relink-2", appAccountToken: buyerA.user_id, expiresDate: Date.now() + 40 * DAY });
+  assert.equal(claimed.status, 200);
+  assert.equal(claimed.json.tier, "pro");
+  assert.equal((await subscription(id)).user_id, userB.user_id);
+
+  // Once B holds it, a third account can't take it, token or not.
+  const userC = await app.signIn();
+  assert.equal((await purchase(userC.access_token, { originalTransactionId: id, appAccountToken: buyerA.user_id })).status, 403);
+});
+
+test("apple_notifications rows older than 90 days are pruned, at most once an hour", async () => {
+  const fresh = await startApp({ appleRootCertificate: chain.root });
+  try {
+    const old = async (uuid: string, age: string) =>
+      fresh.db.query(
+        `insert into apple_notifications (notification_uuid, notification_type, outcome, signed_at, received_at)
+         values ($1, 'TEST', 'ignored', now() - $2::interval, now() - $2::interval)`,
+        [uuid, age],
+      );
+    const expired = randomUUID();
+    const recent = randomUUID();
+    await old(expired, "91 days");
+    await old(recent, "89 days");
+    const ping = async () => {
+      const signedPayload = await chain.sign({ notificationType: "TEST", notificationUUID: randomUUID(), signedDate: Date.now(), data: { bundleId: BUNDLE_ID, environment: "Production" } });
+      return fresh.request("POST", "/v1/apple/notifications", { body: { signedPayload } });
+    };
+    assert.equal((await ping()).json.status, "ignored");
+    const left = async () => (await fresh.db.query("select notification_uuid from apple_notifications where received_at < now() - interval '1 day' order by received_at")).rows.map((r) => r.notification_uuid);
+    assert.deepEqual(await left(), [recent]);
+
+    // Within the hour, the next notification doesn't run the delete again.
+    const later = randomUUID();
+    await old(later, "100 days");
+    assert.equal((await ping()).json.status, "ignored");
+    assert.deepEqual(await left(), [later, recent]);
+  } finally {
+    await fresh.close();
   }
 });

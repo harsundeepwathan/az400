@@ -16,8 +16,14 @@ import { cost } from "./mealScan.js";
 export const MAX_SUMMARY_CHARS = 600;
 /** Model calls per user per UTC day, including the one retry after a rejected draft. */
 export const MAX_COACH_CALLS_PER_DAY = 4;
-/** A generation still in flight blocks a parallel one for this long. */
-const PENDING_WINDOW_MS = 2 * 60_000;
+/** Per-call timeout. The SDK's own retries are off (`maxRetries: 0`), so one call costs at most this long. */
+const CALL_TIMEOUT_MS = 30_000;
+/**
+ * A generation still in flight blocks a parallel one for this long. It must
+ * exceed the worst case of one request: two attempts × CALL_TIMEOUT_MS, plus
+ * database time, so a slow request is never overtaken by a parallel one.
+ */
+export const PENDING_WINDOW_MS = 3 * 60_000;
 /** The digest's own windows (workouts_last_7d, prs_last_14d, e1rm_30d_ago); the summary may name them. */
 const WINDOW_DAYS = [7, 14, 30];
 
@@ -104,7 +110,8 @@ export async function writeCoachSummary(
   const text = `Digest:\n${JSON.stringify(digest)}` + (options.feedback ? `\n\n${options.feedback}` : "");
   const response = await client.beta.messages.create({
     model: options.model ?? "claude-opus-5-5",
-    max_tokens: 4000,
+    // A 600-character JSON summary is well under 300 tokens; 1024 bounds a runaway output.
+    max_tokens: 1024,
     // Server-side fallback keeps a classifier false positive from failing the summary.
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
@@ -115,7 +122,12 @@ export async function writeCoachSummary(
     },
     system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: [{ type: "text", text }] }],
-  }, { timeout: 30_000 });
+  }, {
+    timeout: CALL_TIMEOUT_MS,
+    // No SDK retries: a retry here would be a second paid call outside the daily
+    // cap and the pending window. The one deliberate retry is in coachSummary.
+    maxRetries: 0,
+  });
 
   const usage: Usage = {
     input_tokens: response.usage?.input_tokens ?? 0,
@@ -194,12 +206,21 @@ export async function coachSummary(deps: CoachDeps, userId: string, body: unknow
       "select summary, created_at from coach_summaries where user_id = $1 and day = $2",
       [userId, day],
     )).rows[0];
-  const cachedResponse = async (row: { summary: string; created_at: Date }): Promise<CoachSummaryResponse> => {
-    await deps.db.query(
-      "insert into ai_requests (user_id, kind, status, tier, created_at) values ($1, 'coach_summary', 'cached', 'pro', $2)",
-      [userId, now],
+  // Cache hits are not written to ai_requests: they cost nothing, and a row per
+  // screen open would be an unbounded write per user. coach_summaries already
+  // records the one generation per day.
+  const cachedResponse = (row: { summary: string; created_at: Date }): CoachSummaryResponse =>
+    ({ summary: row.summary, cached: true, generated_at: row.created_at.toISOString() });
+
+  /** Coach calls in flight, and model calls made today (cache hits never count). */
+  const usage = async (client: Pick<Db, "query">) => {
+    const { rows } = await client.query<{ pending: string; calls: string }>(
+      `select count(*) filter (where status = 'pending' and created_at > $2) as pending,
+              count(*) filter (where status <> 'cached' and created_at >= $3) as calls
+       from ai_requests where user_id = $1 and kind = 'coach_summary'`,
+      [userId, new Date(now.getTime() - PENDING_WINDOW_MS), dayStart],
     );
-    return { summary: row.summary, cached: true, generated_at: row.created_at.toISOString() };
+    return { pending: Number(rows[0].pending), calls: Number(rows[0].calls) };
   };
 
   const hit = await existing(deps.db);
@@ -211,14 +232,9 @@ export async function coachSummary(deps: CoachDeps, userId: string, body: unknow
     await client.query("select pg_advisory_xact_lock(hashtextextended($1, 1))", [userId]);
     const raced = await existing(client);
     if (raced) return { hit: raced } as const;
-    const { rows } = await client.query<{ pending: string; calls: string }>(
-      `select count(*) filter (where status = 'pending' and created_at > $2) as pending,
-              count(*) filter (where status <> 'cached' and created_at >= $3) as calls
-       from ai_requests where user_id = $1 and kind = 'coach_summary'`,
-      [userId, new Date(now.getTime() - PENDING_WINDOW_MS), dayStart],
-    );
-    if (Number(rows[0].pending) > 0) throw new HttpError(429, "rate_limited", { retry_after_seconds: 30 });
-    if (Number(rows[0].calls) >= MAX_COACH_CALLS_PER_DAY) {
+    const { pending, calls } = await usage(client);
+    if (pending > 0) throw new HttpError(429, "rate_limited", { retry_after_seconds: 30 });
+    if (calls >= MAX_COACH_CALLS_PER_DAY) {
       const tomorrow = new Date(dayStart.getTime() + 86_400_000);
       throw new HttpError(429, "rate_limited", { retry_after_seconds: Math.ceil((tomorrow.getTime() - now.getTime()) / 1000) });
     }
@@ -243,33 +259,54 @@ export async function coachSummary(deps: CoachDeps, userId: string, body: unknow
     const rejection = result.status === "ok" ? rejectSummary(result.summary, digest) : { code: "refused" };
     const status = result.status === "refused" ? "refused" : rejection ? "error" : "ok";
     const dollars = cost(result.usage, deps.pricing);
-    await deps.db.query(
-      `update ai_requests set status = $2, model = $3, input_tokens = $4, output_tokens = $5,
-         cache_read_tokens = $6, cache_write_tokens = $7, cost_usd = $8, latency_ms = $9, error_code = $10
-       where id = $1`,
-      [
-        requestId, status, result.model, result.usage.input_tokens, result.usage.output_tokens,
-        result.usage.cache_read_input_tokens, result.usage.cache_creation_input_tokens, dollars, Date.now() - started,
-        rejection && status === "error" ? rejection.code : null,
-      ],
-    );
-    deps.log.info("coach_summary", { user_id: userId, status, attempt, reason: rejection?.code, model: result.model, cost_usd: dollars, ms: Date.now() - started });
-
-    if (result.status === "ok" && !rejection) {
-      const { rows } = await deps.db.query<{ summary: string; created_at: Date }>(
+    const accepted = result.status === "ok" && !rejection;
+    // Recording the call and storing an accepted summary happen in one
+    // transaction: otherwise a parallel request could run in the gap (row no
+    // longer pending, summary not yet stored) and pay for a second call.
+    // Under the per-user lock, so the reservation checks see both writes or neither.
+    const stored = await transaction(deps.db, async (client) => {
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1, 1))", [userId]);
+      await client.query(
+        `update ai_requests set status = $2, model = $3, input_tokens = $4, output_tokens = $5,
+           cache_read_tokens = $6, cache_write_tokens = $7, cost_usd = $8, latency_ms = $9, error_code = $10
+         where id = $1`,
+        [
+          requestId, status, result.model, result.usage.input_tokens, result.usage.output_tokens,
+          result.usage.cache_read_input_tokens, result.usage.cache_creation_input_tokens, dollars, Date.now() - started,
+          rejection && status === "error" ? rejection.code : null,
+        ],
+      );
+      if (!accepted) return null;
+      const { rows } = await client.query<{ summary: string; created_at: Date }>(
         `insert into coach_summaries (user_id, day, summary, request_id, created_at) values ($1, $2, $3, $4, $5)
          on conflict (user_id, day) do nothing returning summary, created_at`,
-        [userId, day, result.summary, requestId, now],
+        [userId, day, (result as { summary: string }).summary, requestId, now],
       );
-      const stored = rows[0] ?? (await existing(deps.db));
-      return { summary: stored.summary, cached: rows.length === 0, generated_at: stored.created_at.toISOString() };
-    }
+      return rows[0] ? { row: rows[0], cached: false } : { row: (await existing(client))!, cached: true };
+    });
+    deps.log.info("coach_summary", { user_id: userId, status, attempt, reason: rejection?.code, model: result.model, cost_usd: dollars, ms: Date.now() - started });
+    if (stored) return { summary: stored.row.summary, cached: stored.cached, generated_at: stored.row.created_at.toISOString() };
     if (result.status === "refused" || attempt === 2) break;
     // One retry, telling the model what was wrong with the draft.
     feedback = rejection!.code === "invented_number"
       ? `Your previous draft used numbers that are not in the digest (${rejection!.invented!.join(", ")}). Rewrite it using only numbers from the digest.`
       : `Your previous draft was too long. Rewrite it in at most ${MAX_SUMMARY_CHARS} characters.`;
-    requestId = await reserve(deps.db, userId, now);
+    // The retry is a new model call: reserve it under the same per-user lock
+    // and re-check the daily cap, so a retry can never be call 5 of 4.
+    const retry = await transaction(deps.db, async (client) => {
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1, 1))", [userId]);
+      const raced = await existing(client);
+      if (raced) return { hit: raced } as const;
+      const { pending, calls } = await usage(client);
+      if (pending > 0 || calls >= MAX_COACH_CALLS_PER_DAY) return { skipped: calls >= MAX_COACH_CALLS_PER_DAY ? "daily_cap" : "pending" } as const;
+      return { requestId: await reserve(client, userId, now) } as const;
+    });
+    if ("hit" in retry) return cachedResponse(retry.hit!);
+    if ("skipped" in retry) {
+      deps.log.info("coach_summary_retry_skipped", { user_id: userId, reason: retry.skipped });
+      break;
+    }
+    requestId = retry.requestId;
   }
   throw new HttpError(503, "busy");
 }

@@ -106,7 +106,12 @@ export async function analyzeMeal(
         ],
       },
     ],
-  }, { timeout: 45_000 });
+  }, {
+    timeout: 45_000,
+    // No SDK retries: the user is waiting on the camera screen, and each hidden
+    // retry would be another paid call behind the one reserved quota slot.
+    maxRetries: 0,
+  });
 
   const usage: Usage = {
     input_tokens: response.usage?.input_tokens ?? 0,

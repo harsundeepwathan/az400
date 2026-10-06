@@ -31,6 +31,7 @@ test("scans return the app's contract, log usage and cost, and store no image", 
   assert.equal(request.fallbacks, "default");
   assert.deepEqual(request.betas, ["server-side-fallback-2026-07-01"]);
   assert.equal(request.output_config.format.type, "json_schema");
+  assert.deepEqual(app.claude.options[0], { timeout: 45_000, maxRetries: 0 }, "no hidden SDK retries");
 
   const { rows } = await app.db.query("select * from ai_requests where user_id = $1", [user_id]);
   assert.equal(rows.length, 1);

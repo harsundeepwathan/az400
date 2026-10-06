@@ -90,11 +90,25 @@ function send(res: ServerResponse, status: number, body: unknown, requestId: str
   res.end(JSON.stringify(body));
 }
 
-/** Behind a load balancer, set TRUST_PROXY=true so the client address comes from X-Forwarded-For. */
-function clientIp(raw: IncomingMessage): string {
-  if (process.env.TRUST_PROXY === "true") {
-    const forwarded = String(raw.headers["x-forwarded-for"] ?? "").split(",")[0].trim();
-    if (forwarded) return forwarded;
+/**
+ * Behind a load balancer, set TRUST_PROXY=true so the client address comes
+ * from X-Forwarded-For. Each proxy appends the address it received the
+ * request from, so only the rightmost TRUSTED_PROXY_HOPS entries (default 1:
+ * one load balancer) were written by proxies we run; everything to their left
+ * is client-controlled. The client address is the entry the outermost trusted
+ * proxy added: the TRUSTED_PROXY_HOPS-th from the right.
+ */
+export function clientIp(raw: Pick<IncomingMessage, "headers" | "socket">, env: NodeJS.ProcessEnv = process.env): string {
+  if (env.TRUST_PROXY === "true") {
+    const header = raw.headers["x-forwarded-for"];
+    const entries = (Array.isArray(header) ? header.join(",") : String(header ?? ""))
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    const hops = Number(env.TRUSTED_PROXY_HOPS ?? 1);
+    const trusted = Number.isInteger(hops) && hops >= 1 ? hops : 1;
+    // Fewer entries than trusted hops: the leftmost is still proxy-written.
+    if (entries.length) return entries[Math.max(0, entries.length - trusted)];
   }
   return raw.socket.remoteAddress ?? "unknown";
 }
@@ -129,17 +143,31 @@ export const jsonLogger: Logger = {
 
 export const silentLogger: Logger = { info: () => {}, error: () => {} };
 
-/** Fixed-window limiter for unauthenticated endpoints (per instance). */
+/**
+ * Fixed-window limiter for unauthenticated endpoints (per instance). Memory
+ * is hard-capped at `maxKeys` addresses: when full, expired windows are
+ * pruned, and if it is still full a new address is rejected with 429 rather
+ * than growing the map (addresses already tracked keep working).
+ */
 export class IpRateLimiter {
   private hits = new Map<string, { windowStart: number; count: number }>();
+  private prunedAt = -Infinity;
 
-  constructor(private readonly max: number, private readonly windowMs: number) {}
+  constructor(private readonly max: number, private readonly windowMs: number, private readonly maxKeys = 50_000) {}
+
+  get size() {
+    return this.hits.size;
+  }
 
   check(key: string, now = Date.now()) {
     const entry = this.hits.get(key);
     if (!entry || now - entry.windowStart >= this.windowMs) {
+      if (!entry && this.hits.size >= this.maxKeys) {
+        // A full prune is O(maxKeys): at most once a second, so a flood of new addresses can't make every request pay for it.
+        if (now - this.prunedAt >= 1000) this.prune(now);
+        if (this.hits.size >= this.maxKeys) throw new HttpError(429, "rate_limited", { retry_after_seconds: Math.ceil(this.windowMs / 1000) });
+      }
       this.hits.set(key, { windowStart: now, count: 1 });
-      if (this.hits.size > 50_000) this.prune(now);
       return;
     }
     entry.count += 1;
@@ -147,6 +175,7 @@ export class IpRateLimiter {
   }
 
   private prune(now: number) {
+    this.prunedAt = now;
     for (const [key, entry] of this.hits) if (now - entry.windowStart >= this.windowMs) this.hits.delete(key);
   }
 }

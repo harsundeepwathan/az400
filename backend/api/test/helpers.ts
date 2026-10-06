@@ -58,17 +58,21 @@ export async function appleSigner() {
 
 export interface FakeClaude extends MessagesClient {
   calls: any[];
+  /** The per-request options (timeout, maxRetries) passed with each call. */
+  options: any[];
   reply: any;
 }
 
 export function fakeClaude(reply: any = plateReply()): FakeClaude {
   const fake: FakeClaude = {
     calls: [],
+    options: [],
     reply,
     beta: {
       messages: {
-        create: (async (request: any) => {
+        create: (async (request: any, options?: any) => {
           fake.calls.push(request);
+          fake.options.push(options);
           // An array is a queue of replies, one per call (the last one repeats).
           const reply = Array.isArray(fake.reply) ? (fake.reply.length > 1 ? fake.reply.shift() : fake.reply[0]) : fake.reply;
           if (reply instanceof Error) throw reply;
