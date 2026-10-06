@@ -2,7 +2,10 @@ import SwiftUI
 import VectorCore
 
 struct ProfileView: View {
+    /// Opened from the avatar on Today (it is no longer a tab).
+    var isSheet = false
     @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
     @State private var showsTargets = false
     @State private var showsResetConfirm = false
     @State private var exportURL: URL?
@@ -179,6 +182,11 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Profile")
+            .toolbar {
+                if isSheet {
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                }
+            }
             .sheet(isPresented: $showsTargets) { TargetsEditor() }
             .confirmationDialog("Reset all data?", isPresented: $showsResetConfirm, titleVisibility: .visible) {
                 Button("Reset Everything", role: .destructive) { model.resetAll() }

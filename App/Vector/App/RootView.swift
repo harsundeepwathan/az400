@@ -37,7 +37,6 @@ struct MainTabView: View {
             tab(.train) { TrainView() }
             tab(.nutrition) { NutritionView() }
             tab(.progress) { ProgressDashboardView() }
-            tab(.profile) { ProfileView() }
         }
         .sensoryFeedback(.selection, trigger: model.selectedTab)
     }
@@ -87,6 +86,8 @@ struct RootSheetContent: View {
                 .presentationDetents([.height(320)])
         case .paywall(let trigger):
             PaywallView(trigger: trigger)
+        case .profile:
+            ProfileView(isSheet: true)
         }
     }
 }

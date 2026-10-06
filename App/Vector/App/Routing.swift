@@ -1,8 +1,10 @@
 import Foundation
 import VectorCore
 
+/// Four tabs, like Apple Fitness and Health: sections, never settings.
+/// Profile and settings open from the avatar on Today.
 enum AppTab: String, Hashable, CaseIterable {
-    case today, train, nutrition, progress, profile
+    case today, train, nutrition, progress
 
     var title: String { rawValue.capitalized }
 
@@ -12,7 +14,6 @@ enum AppTab: String, Hashable, CaseIterable {
         case .train: Icon.train
         case .nutrition: Icon.nutrition
         case .progress: Icon.progress
-        case .profile: Icon.profile
         }
     }
 }
@@ -35,6 +36,7 @@ enum RootSheet: Identifiable, Hashable {
     case recommendations
     case bodyWeight
     case paywall(PaywallTrigger)
+    case profile
 
     var id: String {
         switch self {
@@ -47,6 +49,7 @@ enum RootSheet: Identifiable, Hashable {
         case .recommendations: "recommendations"
         case .bodyWeight: "body-weight"
         case .paywall(let trigger): "paywall-\(trigger.rawValue)"
+        case .profile: "profile"
         }
     }
 }

@@ -85,7 +85,6 @@ struct ExerciseLogCard: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(VColor.accentText)
-                .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
 
                 Button(action: onEditRest) {
                     Label(Format.clock(TimeInterval(log.restSeconds)), systemImage: Icon.timer)
@@ -95,15 +94,10 @@ struct ExerciseLogCard: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(VColor.textSecondary)
-                .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
                 .accessibilityLabel("Rest time \(Format.duration(TimeInterval(log.restSeconds))). Change.")
             }
         }
         .card(padding: Space.md)
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
-                .strokeBorder(isCurrent && !log.isComplete ? VColor.accentText.opacity(0.5) : .clear, lineWidth: 1.5)
-        }
         .animation(Motion.smooth, value: isCurrent)
         .sheet(isPresented: $reportsDiscomfort) {
             DiscomfortReportSheet(exerciseID: log.exerciseID, exerciseName: exercise?.name)
@@ -194,9 +188,6 @@ struct ExerciseLogCard: View {
             }
             Spacer()
         }
-        .padding(.horizontal, Space.sm)
-        .padding(.vertical, Space.xs)
-        .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Last time \(lastTopSet ?? "not logged"). Today \(todayTarget(first)).")
     }
@@ -235,14 +226,13 @@ private struct SetTableHeader: View {
 
     var body: some View {
         HStack(spacing: Space.xs) {
-            Text("SET").frame(width: SetRow.setColumn)
-            Text("PREVIOUS").frame(maxWidth: .infinity, alignment: .leading)
-            Text(unit.symbol.uppercased()).frame(width: SetRow.fieldColumn)
-            Text("REPS").frame(width: SetRow.fieldColumn)
-            Image(systemName: Icon.check).frame(width: SetRow.checkColumn)
+            Text("Set").frame(width: SetRow.setColumn)
+            Text("Previous").frame(maxWidth: .infinity, alignment: .leading)
+            Text(unit.symbol).frame(width: SetRow.fieldColumn)
+            Text("Reps").frame(width: SetRow.fieldColumn)
+            Color.clear.frame(width: SetRow.checkColumn, height: 1)
         }
-        .font(.system(.caption2, weight: .semibold))
-        .tracking(0.4)
+        .font(VFont.caption)
         .foregroundStyle(VColor.textTertiary)
         .accessibilityHidden(true)
     }
@@ -332,6 +322,7 @@ struct SetRow: View {
                 ),
                 allowsDecimal: true,
                 isCompleted: set.isCompleted,
+                isActive: isFocused,
                 accessibilityName: "Weight in \(unit.symbol)"
             )
             .focused(focusedField, equals: .weight(position))
@@ -343,6 +334,7 @@ struct SetRow: View {
                 ),
                 allowsDecimal: false,
                 isCompleted: set.isCompleted,
+                isActive: isFocused,
                 accessibilityName: "Reps"
             )
             .focused(focusedField, equals: .reps(position))
@@ -358,13 +350,19 @@ struct SetRow: View {
                     }
                 }
             } label: {
-                Image(systemName: Icon.check)
-                    .font(.system(.body, weight: .bold))
-                    .foregroundStyle(set.isCompleted ? VColor.textOnAccent : VColor.textSecondary)
-                    .frame(width: Self.checkColumn, height: Size.minTouch)
-                    .background(set.isCompleted ? VColor.success : VColor.surfaceSunken,
-                                in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
-                    .symbolEffect(.bounce, value: set.isCompleted)
+                // A ring to tick off, filled green when done (Fitness/Strong style).
+                ZStack {
+                    Circle()
+                        .strokeBorder(set.isCompleted ? Color.clear : VColor.separator, lineWidth: 2)
+                        .background(Circle().fill(set.isCompleted ? VColor.success : Color.clear))
+                    Image(systemName: Icon.check)
+                        .font(.system(.subheadline, weight: .bold))
+                        .foregroundStyle(set.isCompleted ? VColor.textOnAccent : VColor.textTertiary)
+                        .symbolEffect(.bounce, value: set.isCompleted)
+                }
+                .frame(width: 32, height: 32)
+                .frame(width: Self.checkColumn, height: Size.minTouch)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(set.isCompleted ? "Completed. Undo" : "Complete set")
@@ -373,7 +371,8 @@ struct SetRow: View {
         .padding(.horizontal, Space.xxs)
         .background {
             RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
-                .fill(set.isCompleted ? VColor.successSoft : (isFocused ? VColor.accentSoft.opacity(0.6) : .clear))
+                // Only the set you're on is highlighted; done sets read by their green tick.
+                .fill(isFocused && !set.isCompleted ? VColor.surfaceSunken.opacity(0.6) : .clear)
         }
         .animation(Motion.snappy, value: set.isCompleted)
         .animation(Motion.celebrate, value: isPR)
@@ -396,6 +395,8 @@ struct NumericField: View {
     @Binding var value: Double
     var allowsDecimal: Bool
     var isCompleted: Bool
+    /// The row being logged: only it shows input wells, the rest read as plain numbers.
+    var isActive = false
     var accessibilityName: String
 
     var body: some View {
@@ -409,7 +410,7 @@ struct NumericField: View {
         .font(VFont.data)
         .foregroundStyle(isCompleted ? VColor.success : VColor.textPrimary)
         .frame(width: SetRow.fieldColumn, height: Size.minTouch)
-        .background(isCompleted ? Color.clear : VColor.surfaceSunken,
+        .background(isActive && !isCompleted ? VColor.surface : Color.clear,
                     in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
         .accessibilityLabel(accessibilityName)
     }

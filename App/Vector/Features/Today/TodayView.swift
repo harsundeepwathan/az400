@@ -63,7 +63,7 @@ private struct TodayHeader: View {
             }
             Spacer(minLength: Space.sm)
             Button {
-                model.selectedTab = .profile
+                model.sheet = .profile
             } label: {
                 Text(String(model.firstName.prefix(1)).uppercased())
                     .font(VFont.headline)
