@@ -14,14 +14,8 @@ struct TodayView: View {
                     if let coaching = model.todayCoaching {
                         VectorCoachCard(coaching: coaching)
                     }
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        SectionHeader("Today's training")
-                        TodayTrainingCard()
-                    }
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        SectionHeader("Daily nutrition", actionTitle: "Details") { model.selectedTab = .nutrition }
-                        TodayNutritionCard()
-                    }
+                    TodayTrainingCard()
+                    TodayNutritionCard()
                     if model.showsWeeklyCheckIn, let review = model.weeklyReview {
                         WeeklyCheckInCard(review: review)
                             .transition(.opacity.combined(with: .scale(scale: 0.97)))
@@ -59,14 +53,13 @@ private struct TodayHeader: View {
         let now = model.now()
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(Format.longDate(now, calendar: model.calendar))
+                Text(Format.longDate(now, calendar: model.calendar).uppercased())
                     .font(VFont.secondaryEmphasized)
                     .foregroundStyle(VColor.textSecondary)
-                Text("\(Format.greeting(for: now, calendar: model.calendar)), \(model.firstName)")
-                    .font(VFont.title)
+                Text("Today")
+                    .font(VFont.largeTitle)
                     .foregroundStyle(VColor.textPrimary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                    .accessibilityAddTraits(.isHeader)
             }
             Spacer(minLength: Space.sm)
             if model.proteinStreak >= 2 {
@@ -118,6 +111,7 @@ private struct TodayTrainingCard: View {
         let rec = main.flatMap { model.recommendation(for: $0.exerciseID, repRange: $0.repRange, sets: $0.sets) }
 
         return VStack(alignment: .leading, spacing: Space.md) {
+            CategoryHeader(symbol: Icon.train, title: "Training", tint: VColor.training, detail: "Program") { model.selectedTab = .train }
             NavigationLink(value: template) {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     HStack(alignment: .firstTextBaseline) {
@@ -176,6 +170,7 @@ private struct TodayTrainingCard: View {
 
     private func inProgress(_ workout: ActiveWorkout) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
+            CategoryHeader(symbol: Icon.train, title: "Training", tint: VColor.training, detail: "In progress")
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("In progress").font(VFont.captionEmphasized).foregroundStyle(VColor.accentText)
@@ -194,6 +189,7 @@ private struct TodayTrainingCard: View {
 
     private func completed(_ session: WorkoutSession) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
+            CategoryHeader(symbol: Icon.train, title: "Training", tint: VColor.training, detail: "Done")
             HStack(spacing: Space.sm) {
                 IconBadge(symbol: "checkmark", tint: VColor.success, fill: VColor.successSoft)
                 VStack(alignment: .leading, spacing: 1) {
@@ -225,6 +221,7 @@ private struct TodayNutritionCard: View {
         let day = model.nutrition(on: model.now())
         let meal = MealType.suggested(forHour: model.calendar.component(.hour, from: model.now()))
         VStack(alignment: .leading, spacing: Space.md) {
+            CategoryHeader(symbol: Icon.nutrition, title: "Nutrition", tint: VColor.nutrition, detail: "Details") { model.selectedTab = .nutrition }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(Format.integer(day.consumed.calories))
                     .font(VFont.metric)

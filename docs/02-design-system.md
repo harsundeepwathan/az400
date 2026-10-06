@@ -1,3 +1,11 @@
+> **Current direction: "Grouped" (Oct 2026).** The owner chose the category standard, played straight, measured against Apple Fitness/Health, Strong/Hevy, MacroFactor and Whoop/Oura (see `PRODUCT.md`). It replaces "Ink" below:
+> - **Surfaces:** grey grouped ground (#F2F2F7, black in dark) with white cells (#1C1C1E in dark), 14 pt corners, no strokes or shadows.
+> - **Tint:** one green for actions, selection, links and the tab bar (#008A55 fill / #007A4C text in light, #30D158 in dark, black text on it).
+> - **Category colours:** each cell starts with a tinted category header (`CategoryHeader`): Coach and Training green, Nutrition orange, Body indigo. Macros stay blue / teal / amber, and the calorie ring is orange.
+> - **Type:** large "Today" title, sentence-case section titles (no uppercase eyebrows), metrics in SF Pro Rounded bold.
+> - **No sparkle icons:** recommendations use a trend arrow, because they come from rules, not magic.
+> The Ink notes below remain for history; where they conflict, this block wins.
+
 # 2. Design system: Vector
 
 Source of truth: `App/Vector/DesignSystem/Tokens.swift` and `DesignSystem/Components/`.

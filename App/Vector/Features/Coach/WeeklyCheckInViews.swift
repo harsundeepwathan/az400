@@ -9,12 +9,10 @@ struct VectorCoachCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text("VECTOR COACH")
-                .font(VFont.captionEmphasized)
-                .tracking(1)
-                .foregroundStyle(VColor.textSecondary)
+            CategoryHeader(symbol: Icon.sparkles, title: "Coach", tint: VColor.coach,
+                           detail: coaching.focus == .checkInReady ? "Check-in ready" : "Today")
             Text(coaching.headline)
-                .font(VFont.title3)
+                .font(VFont.title.weight(.bold))
                 .foregroundStyle(VColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             if let detail = coaching.detail {
@@ -85,15 +83,8 @@ struct WeeklyCheckInCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Weekly Coach Check-In")
-                    .font(VFont.headline)
-                    .foregroundStyle(VColor.textPrimary)
-                Spacer()
-                Text(review.confidence.title)
-                    .font(VFont.caption)
-                    .foregroundStyle(VColor.textSecondary)
-            }
+            CategoryHeader(symbol: "arrow.triangle.2.circlepath", title: "Weekly Check-In", tint: VColor.coach,
+                           detail: review.confidence.title)
             sections
             Hairline()
             if model.isPro {

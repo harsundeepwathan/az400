@@ -212,7 +212,7 @@ struct NutritionSummary: View {
     var body: some View {
         HStack(alignment: .center, spacing: Space.lg) {
             ZStack {
-                ProgressRing(progress: day.calorieProgress, tint: VColor.accent, lineWidth: compact ? 9 : 12)
+                ProgressRing(progress: day.calorieProgress, tint: VColor.calories, lineWidth: compact ? 11 : 13)
                 VStack(spacing: 0) {
                     Text(Format.integer(abs(day.caloriesRemaining)))
                         .font(compact ? VFont.metric : VFont.metricHero)

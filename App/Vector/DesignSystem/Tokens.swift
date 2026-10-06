@@ -3,53 +3,62 @@ import UIKit
 
 // MARK: - Color
 
-/// Semantic color tokens ("Ink"). The interface is monochrome: buttons,
-/// links, tabs and selection are ink (black in light mode, near-white in
-/// dark). Colour appears only when it carries data meaning: macros,
-/// success, PRs/warnings and errors. Every value has a hand-tuned light and
-/// dark variant; contrast ratios are in docs/02-design-system.md (WCAG AA).
+/// Semantic color tokens ("Grouped"). The category standard set by Apple
+/// Health/Fitness, Strong, MacroFactor and Whoop: a grey grouped ground with
+/// white cells (black ground, #1C1C1E cells in dark), one green tint for
+/// actions and selection, and a fixed colour per category (coach and training
+/// green, nutrition orange, body indigo, macros blue/teal/amber). Status is
+/// always paired with an icon or label. Contrast ratios are in
+/// docs/02-design-system.md (WCAG AA).
 enum VColor {
-    // Surfaces: flat. Cards are a soft neutral on a white (or black) canvas, no shadows.
-    static let background = Color(light: 0xFFFFFF, dark: 0x000000)
-    static let surface = Color(light: 0xF5F5F7, dark: 0x141416)
-    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x1C1C1F)
-    static let surfaceSunken = Color(light: 0xEBEBEE, dark: 0x232326)
-    static let separator = Color(light: 0xE3E3E8, dark: 0x2C2C2F)
+    // Surfaces: grouped. `background` is the screen ground, `surface` the cell on it.
+    static let background = Color(light: 0xF2F2F7, dark: 0x000000)
+    static let surface = Color(light: 0xFFFFFF, dark: 0x1C1C1E)
+    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x2C2C2E)
+    /// Fills inside a cell: inputs, wells, chips.
+    static let surfaceSunken = Color(light: 0xEDEDF1, dark: 0x2C2C2E)
+    static let separator = Color(light: 0xE1E1E6, dark: 0x38383A)
 
     // Text
-    static let textPrimary = Color(light: 0x0A0A0A, dark: 0xF5F5F7)
-    static let textSecondary = Color(light: 0x5F5F64, dark: 0xA1A1A6)
+    static let textPrimary = Color(light: 0x000000, dark: 0xFFFFFF)
+    static let textSecondary = Color(light: 0x6C6C70, dark: 0xAEAEB2)
     static let textTertiary = Color(light: 0x6E6E73, dark: 0x8E8E93)
-    /// Text on ink fills: white on black in light mode, black on near-white in dark.
+    /// Text on the green tint: white in light mode, black on the brighter dark-mode green.
     static let textOnAccent = Color(light: 0xFFFFFF, dark: 0x000000)
 
-    // Ink: primary buttons, selected states, links, tab selection, focus.
-    static let accent = Color(light: 0x0A0A0A, dark: 0xF5F5F7)
-    static let accentText = Color(light: 0x0A0A0A, dark: 0xF5F5F7)
-    static let accentSoft = Color(light: 0xEBEBEE, dark: 0x232326)
+    // Tint: primary buttons, selection, links, tab selection, focus.
+    static let accent = Color(light: 0x008A55, dark: 0x30D158)
+    static let accentText = Color(light: 0x007A4C, dark: 0x30D158)
+    static let accentSoft = Color(light: 0xE2F4EA, dark: 0x0F2E1B)
 
     // Status: always paired with an icon or label, never color alone.
-    static let success = Color(light: 0x1A7F4B, dark: 0x34C77B)
-    static let successSoft = Color(light: 0xE8F3EC, dark: 0x10261A)
-    static let warning = Color(light: 0xA65A00, dark: 0xF2A93B)
-    static let warningSoft = Color(light: 0xFBF1E3, dark: 0x2A1F0E)
-    static let danger = Color(light: 0xC8261B, dark: 0xFF6B5E)
+    static let success = Color(light: 0x007A4C, dark: 0x30D158)
+    static let successSoft = Color(light: 0xE2F4EA, dark: 0x0F2E1B)
+    static let warning = Color(light: 0xA65A00, dark: 0xFFB340)
+    static let warningSoft = Color(light: 0xFDF0DE, dark: 0x33240C)
+    static let danger = Color(light: 0xD70015, dark: 0xFF6961)
     static let dangerSoft = Color(light: 0xFDECEA, dark: 0x3A1714)
 
+    // Categories: the colour of a section header tells you where you are.
+    static let coach = accent
+    static let training = accentText
+    static let nutrition = Color(light: 0xE5521A, dark: 0xFF8A3D)
+    static let body = Color(light: 0x5E5CE6, dark: 0x8E8CFF)
+
     // Macros: validated as a categorical set (CVD-separable, always direct-labeled).
-    static let protein = Color(light: 0x1F62FF, dark: 0x4D8BFF)
-    static let carbs = Color(light: 0x0E9F8E, dark: 0x1FA896)
-    static let fat = Color(light: 0xE08A00, dark: 0xC97D14)
-    static let calories = textPrimary
+    static let protein = Color(light: 0x0A6CFF, dark: 0x409CFF)
+    static let carbs = Color(light: 0x00A0A0, dark: 0x40C8C8)
+    static let fat = Color(light: 0xE89B00, dark: 0xFFD60A)
+    static let calories = Color(light: 0xFF5F1F, dark: 0xFF8A3D)
 
     // Data visualization
-    static let chartPrimary = accentText
-    static let chartMuted = Color(light: 0xD4D4D9, dark: 0x3A3A3E)
+    static let chartPrimary = accent
+    static let chartMuted = Color(light: 0xD8D8DE, dark: 0x3A3A3C)
     static let chartGrid = separator
-    static let chartTarget = Color(light: 0xDDEFE4, dark: 0x14301F)
+    static let chartTarget = Color(light: 0xDDF1E5, dark: 0x12301D)
 
     // Pro
-    static let pro = textPrimary
+    static let pro = accent
 }
 
 extension Color {
@@ -94,7 +103,8 @@ enum Radius {
     static let xs: CGFloat = 6
     static let sm: CGFloat = 10
     static let md: CGFloat = 16
-    static let lg: CGFloat = 22
+    /// Grouped cells.
+    static let lg: CGFloat = 14
     static let xl: CGFloat = 28
 }
 
@@ -130,10 +140,10 @@ enum VFont {
     static let captionEmphasized = Font.system(.caption, design: .default, weight: .semibold)
 
     /// Hero number (workout clock, rest countdown): light weight, large, tabular.
-    static let metricHero = Font.system(.largeTitle, design: .default, weight: .light).monospacedDigit()
+    static let metricHero = Font.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit()
     /// Card metric (volume, workouts).
-    static let metric = Font.system(.title2, design: .default, weight: .semibold).monospacedDigit()
-    static let metricSmall = Font.system(.headline, design: .default, weight: .semibold).monospacedDigit()
+    static let metric = Font.system(.title2, design: .rounded, weight: .bold).monospacedDigit()
+    static let metricSmall = Font.system(.headline, design: .rounded, weight: .bold).monospacedDigit()
     /// Inline data in tables and rows.
     static let data = Font.system(.body, design: .default, weight: .semibold).monospacedDigit()
     static let dataSecondary = Font.system(.subheadline, design: .default, weight: .regular).monospacedDigit()
@@ -197,7 +207,9 @@ enum Icon {
     static let barcode = "barcode.viewfinder"
     static let quickAdd = "plus.forwardslash.minus"
     static let meal = "square.stack"
-    static let sparkles = "sparkles"
+    /// "What Vector recommends" marker. Deliberately not a sparkle: Vector's
+    /// recommendations come from rules, not magic.
+    static let sparkles = "arrow.up.right"
     static let check = "checkmark"
     static let timer = "timer"
     static let swap = "arrow.triangle.swap"

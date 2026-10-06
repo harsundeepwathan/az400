@@ -15,12 +15,6 @@ struct CardModifier: ViewModifier {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay {
-                if colorScheme == .dark && elevation != .flat {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(VColor.separator, lineWidth: 0.5)
-                }
-            }
             .shadow(color: colorScheme == .dark ? .clear : shadow.color, radius: shadow.radius, y: shadow.y)
     }
 }
@@ -37,8 +31,8 @@ extension View {
     }
 }
 
-/// Uppercase eyebrow with an optional trailing action. Used to label
-/// dashboard sections ("TODAY'S TRAINING").
+/// Sentence-case section title with an optional trailing action, as in
+/// Health's "Highlights".
 struct SectionHeader: View {
     var title: String
     var actionTitle: String?
@@ -52,10 +46,9 @@ struct SectionHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title.uppercased())
-                .font(VFont.sectionHeading)
-                .tracking(0.6)
-                .foregroundStyle(VColor.textSecondary)
+            Text(title)
+                .font(VFont.title3.weight(.bold))
+                .foregroundStyle(VColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             if let actionTitle, let action {
@@ -131,7 +124,7 @@ struct ProBadge: View {
         Text("PRO")
             .font(.system(.caption2, design: .rounded, weight: .heavy))
             .tracking(0.8)
-            .foregroundStyle(VColor.surface)
+            .foregroundStyle(VColor.textOnAccent)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(VColor.pro, in: Capsule())
@@ -163,6 +156,42 @@ struct AdaptiveStack<Content: View>: View {
             VStack(alignment: .leading, spacing: spacing) { content() }
         } else {
             HStack(alignment: alignment, spacing: spacing) { content() }
+        }
+    }
+}
+
+/// Category header inside a cell ("Coach", "Nutrition"): a tinted symbol and
+/// label, with optional trailing detail. The tint says which area this is.
+struct CategoryHeader: View {
+    var symbol: String
+    var title: String
+    var tint: Color
+    var detail: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(VFont.secondaryEmphasized)
+                .foregroundStyle(tint)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: Space.sm)
+            if let detail {
+                if let action {
+                    Button(action: action) {
+                        HStack(spacing: 2) {
+                            Text(detail)
+                            Image(systemName: Icon.chevron).font(.caption.weight(.semibold))
+                        }
+                        .frame(minHeight: Size.minTouch)
+                    }
+                    .buttonStyle(.plain)
+                    .font(VFont.secondary)
+                    .foregroundStyle(VColor.textSecondary)
+                } else {
+                    Text(detail).font(VFont.secondary).foregroundStyle(VColor.textSecondary)
+                }
+            }
         }
     }
 }

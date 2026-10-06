@@ -68,7 +68,7 @@ enum NutritionMetric: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// Calories are ink (`VColor.calories`); protein keeps its macro colour.
+    /// Calories are orange (`VColor.calories`); protein keeps its macro colour.
     var color: Color {
         switch self {
         case .calories: VColor.calories
