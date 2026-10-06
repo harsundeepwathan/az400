@@ -392,3 +392,29 @@ extension UIImage {
         return UIGraphicsImageRenderer(size: target).image { _ in draw(in: CGRect(origin: .zero, size: target)) }
     }
 }
+
+/// Shown instead of the scanner when no meal-scan service is configured, so
+/// the app never pretends to analyse a photo.
+struct ScanUnavailableView: View {
+    var meal: MealType
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: Space.lg) {
+                Spacer()
+                ErrorStateView(title: "Meal scanning is unavailable",
+                               message: "AI meal scanning isn't set up in this build. You can still search, scan barcodes or quick add.",
+                               retryTitle: "Search Food Instead") {
+                    dismiss()
+                    model.sheet = .foodSearch(meal)
+                }
+                Spacer()
+            }
+            .padding(Space.gutter)
+            .screenBackground()
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+        }
+    }
+}

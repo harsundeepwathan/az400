@@ -12,28 +12,35 @@ struct VectorApp: App {
         // Room for exercise demonstration photos so they load once and work offline afterwards.
         URLCache.shared = URLCache(memoryCapacity: 32 * 1024 * 1024, diskCapacity: 300 * 1024 * 1024)
         let store: DataStore = (try? JSONFileStore.applicationSupport()) ?? InMemoryStore()
-        let recognizer: MealRecognizing
-        if let endpoint = Bundle.main.object(forInfoDictionaryKey: "VectorMealScanEndpoint") as? String,
-           let url = URL(string: endpoint), !endpoint.isEmpty {
-            let key = Bundle.main.object(forInfoDictionaryKey: "VectorMealScanKey") as? String
-            recognizer = RemoteMealRecognizer(endpoint: url, appKey: key)
-        } else {
-            // No backend configured (local builds, previews): use the on-device demo recognizer.
-            recognizer = DemoMealRecognizer()
-        }
         let arguments = ProcessInfo.processInfo.arguments
+        #if DEBUG
         let uiTesting = arguments.contains("-uiTesting")
+        #else
+        let uiTesting = false
+        #endif
+        var recognizer: MealRecognizing?
+        if let endpoint = AppConfig.mealScanEndpoint {
+            let key = Bundle.main.object(forInfoDictionaryKey: "VectorMealScanKey") as? String
+            recognizer = RemoteMealRecognizer(endpoint: endpoint, appKey: key)
+        }
+        #if DEBUG
+        // Debug builds without a backend use the offline recognizer so the review flow can be exercised.
+        // Release builds never do: the scanner reports that it's unavailable instead.
+        if recognizer == nil || uiTesting { recognizer = DemoMealRecognizer(latency: .milliseconds(uiTesting ? 300 : 2000)) }
+        #endif
         let syncEnabled = UserDefaults.standard.object(forKey: CloudSyncPreference.key) as? Bool ?? true
         let model = AppModel(
             store: uiTesting ? InMemoryStore() : store,
-            recognizer: uiTesting ? DemoMealRecognizer(latency: .milliseconds(300)) : recognizer,
+            recognizer: recognizer,
             remoteFoods: uiTesting ? nil : OpenFoodFactsClient(),
             sync: uiTesting || !syncEnabled ? nil : ICloudDocumentSync(),
             notifications: NotificationScheduler(),
             liveActivity: LiveActivityController(),
             health: HealthKitService()
         )
+        #if DEBUG
         if arguments.contains("-sampleData") { model.loadSampleData() }
+        #endif
         _model = State(initialValue: model)
     }
 

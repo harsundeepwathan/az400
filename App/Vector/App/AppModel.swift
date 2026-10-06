@@ -31,7 +31,9 @@ final class AppModel {
 
     let catalog: ExerciseCatalog
     let foods: FoodDatabase
-    let recognizer: MealRecognizing
+    /// Nil when no meal-scan backend is configured; the scanner then says so
+    /// instead of returning made-up results.
+    let recognizer: MealRecognizing?
     /// Open Food Facts (or any remote catalogue). Nil in previews and tests.
     let remoteFoods: RemoteFoodSearching?
     @ObservationIgnored let sync: CloudSync?
@@ -57,7 +59,7 @@ final class AppModel {
 
     init(
         store: DataStore,
-        recognizer: MealRecognizing,
+        recognizer: MealRecognizing?,
         remoteFoods: RemoteFoodSearching? = nil,
         sync: CloudSync? = nil,
         catalog: ExerciseCatalog = .standard,
@@ -89,12 +91,14 @@ final class AppModel {
         if data.activeWorkout != nil { cover = .workout }
     }
 
+    #if DEBUG
     /// In-memory model populated with realistic sample data, for previews.
     static func preview(pro: Bool = false, empty: Bool = false) -> AppModel {
         var data = empty ? AppData(profile: SampleData.appData().profile, program: SampleData.appData().program) : SampleData.appData()
         data.tier = pro ? .pro : .free
         return AppModel(store: InMemoryStore(data), recognizer: DemoMealRecognizer(latency: .milliseconds(1500)))
     }
+    #endif
 
     // MARK: Persistence
 
@@ -390,12 +394,14 @@ final class AppModel {
         showToast("checkmark.circle.fill", "Program updated", subtitle: program.name)
     }
 
+    #if DEBUG
     func loadSampleData() {
         let tier = data.tier
         var sample = SampleData.appData(now: now(), calendar: calendar)
         sample.tier = tier
         commit { $0 = sample }
     }
+    #endif
 
     func resetAll() {
         liveActivity?.end()

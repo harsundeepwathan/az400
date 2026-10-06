@@ -147,12 +147,12 @@ struct ProfileView: View {
                         } else {
                             Button("Prepare data export") { exportURL = model.exportData() }
                         }
-                        Button("Load sample data") { model.loadSampleData() }
                         Button("Reset all data", role: .destructive) { showsResetConfirm = true }
                     }
 
                     #if DEBUG
                     Section("Developer") {
+                        Button("Load sample data") { model.loadSampleData() }
                         Toggle("Simulate Pro", isOn: Binding(get: { model.isPro }, set: { model.setTier($0 ? .pro : .free) }))
                         Button("Show paywall") { model.presentPaywall(.profile) }
                     }

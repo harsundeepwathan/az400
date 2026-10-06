@@ -60,11 +60,11 @@ targets:
             NSUbiquitousContainerName: Vector
             NSUbiquitousContainerSupportedFolderLevels: None
         ITSAppUsesNonExemptEncryption: false
-        # Backend endpoint that proxies the meal-recognition model. Leave empty
-        # to use the on-device demo recognizer.
-        VectorMealScanEndpoint: ""
-        # Shared secret for backend/meal-scan (replace with App Attest for production).
-        VectorMealScanKey: ""
+        # Base URL of backend/api. Empty disables sign-in, AI meal scanning and analytics upload.
+        VectorAPIBaseURL: ""
+        # Public pages required by App Review (subscription terms and privacy policy).
+        VectorTermsURL: ""
+        VectorPrivacyURL: ""
         CFBundleURLTypes:
           - CFBundleURLName: app.vector.ios
             CFBundleURLSchemes: [vector]

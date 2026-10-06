@@ -98,7 +98,11 @@ struct RootCoverContent: View {
         case .workout:
             ActiveWorkoutView()
         case .scanner(let meal):
-            MealScannerFlow(meal: meal, recognizer: model.recognizer)
+            if let recognizer = model.recognizer {
+                MealScannerFlow(meal: meal, recognizer: recognizer)
+            } else {
+                ScanUnavailableView(meal: meal)
+            }
         case .summary:
             if let summary = model.lastSummary {
                 WorkoutSummaryView(summary: summary)

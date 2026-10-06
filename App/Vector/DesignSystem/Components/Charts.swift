@@ -176,22 +176,3 @@ struct ChartTooltip: View {
         .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
     }
 }
-
-/// Small inline sparkline for rows (exercise history, PR list).
-struct Sparkline: View {
-    var values: [Double]
-    var tint: Color = VColor.chartPrimary
-
-    var body: some View {
-        Chart(Array(values.enumerated()), id: \.offset) { item in
-            LineMark(x: .value("i", item.offset), y: .value("v", item.element))
-                .foregroundStyle(tint)
-                .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                .interpolationMethod(.monotone)
-        }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartYScale(domain: .automatic(includesZero: false))
-        .accessibilityHidden(true)
-    }
-}

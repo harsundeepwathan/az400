@@ -194,8 +194,8 @@ struct PaywallView: View {
                 .font(VFont.caption)
                 .foregroundStyle(VColor.textSecondary)
             HStack(spacing: Space.md) {
-                Link("Terms", destination: URL(string: "https://vector.app/terms")!)
-                Link("Privacy", destination: URL(string: "https://vector.app/privacy")!)
+                Link("Terms", destination: AppConfig.termsURL)
+                Link("Privacy", destination: AppConfig.privacyURL)
             }
             .font(VFont.caption)
         }
