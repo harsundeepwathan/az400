@@ -9,6 +9,8 @@ public enum Tombstone {
     public static func bodyWeight(_ id: UUID) -> String { "weight:\(id)" }
     public static func exercise(_ id: String) -> String { "exercise:\(id)" }
     public static func measurement(_ id: UUID) -> String { "measurement:\(id)" }
+    public static func decision(_ id: UUID) -> String { "decision:\(id)" }
+    public static func discomfort(_ id: UUID) -> String { "discomfort:\(id)" }
     /// Reserved. Photo metadata is device-local (see `SyncMerge`), so deleting
     /// a photo doesn't need a tombstone today; use this if that ever changes.
     public static func photo(_ id: UUID) -> String { "photo:\(id)" }
@@ -23,6 +25,8 @@ public enum Tombstone {
         data.bodyWeights.forEach { result.insert(bodyWeight($0.id)) }
         data.customExercises?.forEach { result.insert(exercise($0.id)) }
         data.bodyMeasurements?.forEach { result.insert(measurement($0.id)) }
+        data.coachDecisions?.forEach { result.insert(decision($0.id)) }
+        data.discomfortNotes?.forEach { result.insert(discomfort($0.id)) }
         return result
     }
 }
@@ -35,7 +39,8 @@ public enum Tombstone {
 ///   When both sides have the same record, the newer document's copy wins.
 /// - Settings-like fields (profile, program, tier, targets) come from the
 ///   newer document.
-/// - Body measurements are unioned like weigh-ins.
+/// - Body measurements, coaching decisions and discomfort notes are unioned
+///   like weigh-ins.
 /// - The in-progress workout and rest timer never sync: they belong to the
 ///   device you're training on.
 /// - Progress photo metadata never syncs either: the images exist only on the
@@ -75,6 +80,12 @@ public enum SyncMerge {
         let measurements = union(newer.bodyMeasurements ?? [], older.bodyMeasurements ?? [],
                                  key: { Tombstone.measurement($0.id) }).sorted { $0.date < $1.date }
         merged.bodyMeasurements = measurements.isEmpty ? nil : measurements
+        let decisions = union(newer.coachDecisions ?? [], older.coachDecisions ?? [],
+                              key: { Tombstone.decision($0.id) }).sorted { $0.date < $1.date }
+        merged.coachDecisions = decisions.isEmpty ? nil : decisions
+        let notes = union(newer.discomfortNotes ?? [], older.discomfortNotes ?? [],
+                          key: { Tombstone.discomfort($0.id) }).sorted { $0.date < $1.date }
+        merged.discomfortNotes = notes.isEmpty ? nil : notes
         merged.progressPhotos = local.progressPhotos
         merged.scanDates = Array(Set(local.scanDates + remote.scanDates)).sorted()
         merged.dismissedInsightIDs = local.dismissedInsightIDs.union(remote.dismissedInsightIDs)

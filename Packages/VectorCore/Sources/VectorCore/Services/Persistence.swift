@@ -52,6 +52,10 @@ public struct AppData: Codable, Hashable, Sendable {
     /// Progress photo metadata. Device-local: never merged from or written to
     /// iCloud (`SyncMerge`), and the images themselves stay in the app container.
     public var progressPhotos: [ProgressPhoto]?
+    /// Every weekly coaching decision (applied, kept or rejected), oldest first.
+    public var coachDecisions: [CoachDecision]?
+    /// The user's own discomfort notes. Never sent to the backend or the AI.
+    public var discomfortNotes: [DiscomfortNote]?
 
     public init(
         schemaVersion: Int = AppData.currentSchemaVersion,
@@ -77,7 +81,9 @@ public struct AppData: Codable, Hashable, Sendable {
         restPreferences: [String: Int]? = nil,
         checkIns: [NutritionCheckIn]? = nil,
         bodyMeasurements: [BodyMeasurementEntry]? = nil,
-        progressPhotos: [ProgressPhoto]? = nil
+        progressPhotos: [ProgressPhoto]? = nil,
+        coachDecisions: [CoachDecision]? = nil,
+        discomfortNotes: [DiscomfortNote]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.profile = profile
@@ -103,6 +109,8 @@ public struct AppData: Codable, Hashable, Sendable {
         self.checkIns = checkIns
         self.bodyMeasurements = bodyMeasurements
         self.progressPhotos = progressPhotos
+        self.coachDecisions = coachDecisions
+        self.discomfortNotes = discomfortNotes
     }
 
     public var hasCompletedOnboarding: Bool { profile != nil }

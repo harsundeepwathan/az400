@@ -5,7 +5,7 @@ import Foundation
 public enum Format {
     nonisolated(unsafe) public static var locale: Locale = .current
 
-    private static func number(_ value: Double, maxFraction: Int, minFraction: Int = 0, grouping: Bool = true) -> String {
+    static func number(_ value: Double, maxFraction: Int, minFraction: Int = 0, grouping: Bool = true) -> String {
         let formatter = NumberFormatter()
         formatter.locale = locale
         formatter.numberStyle = .decimal
