@@ -140,7 +140,7 @@ enum VFont {
     static let caption = Font.system(.caption, design: .default, weight: .medium)
     static let captionEmphasized = Font.system(.caption, design: .default, weight: .semibold)
 
-    /// Hero number (workout clock, rest countdown): light weight, large, tabular.
+    /// Hero number (rest countdown, the weekly decision): rounded bold, large, tabular.
     static let metricHero = Font.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit()
     /// Card metric (volume, workouts).
     static let metric = Font.system(.title2, design: .rounded, weight: .bold).monospacedDigit()
