@@ -28,7 +28,7 @@ struct CoachView: View {
                                 .skeleton(true)
                         }
                     } else if model.visibleInsights.isEmpty {
-                        EmptyStateView(symbol: Icon.sparkles, title: "Nothing to flag right now",
+                        EmptyStateView(symbol: Icon.recommendation, title: "Nothing to flag right now",
                                        message: "Keep logging workouts and meals. Insights appear as soon as there's a pattern worth acting on.")
                     }
 

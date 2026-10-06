@@ -250,9 +250,8 @@ struct ProgramDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(profile.level.uppercased())
+                        Text(profile.level)
                             .font(VFont.sectionHeading)
-                            .tracking(0.6)
                             .foregroundStyle(VColor.textSecondary)
                         Text(program.name.components(separatedBy: " — ").first ?? program.name)
                             .font(VFont.largeTitle)

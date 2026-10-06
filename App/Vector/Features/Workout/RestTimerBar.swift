@@ -14,9 +14,8 @@ struct RestTimerBar: View {
                 VStack(spacing: Space.sm) {
                     HStack(alignment: .center) {
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("REST")
+                            Text("Rest")
                                 .font(VFont.sectionHeading)
-                                .tracking(0.8)
                                 .foregroundStyle(VColor.textSecondary)
                             Text(Format.clock(remaining.rounded(.up)))
                                 .font(VFont.metricHero)

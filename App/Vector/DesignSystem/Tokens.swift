@@ -130,6 +130,7 @@ enum VFont {
     static let title = Font.system(.title2, design: .default, weight: .bold)
     static let title3 = Font.system(.title3, design: .default, weight: .semibold)
     /// Uppercase eyebrow used for dashboard section labels.
+    /// Small sentence-case label (never uppercased or tracked: no eyebrows).
     static let sectionHeading = Font.system(.footnote, design: .default, weight: .semibold)
     static let headline = Font.system(.headline, design: .default, weight: .semibold)
     static let body = Font.system(.body)
@@ -209,7 +210,7 @@ enum Icon {
     static let meal = "square.stack"
     /// "What Vector recommends" marker. Deliberately not a sparkle: Vector's
     /// recommendations come from rules, not magic.
-    static let sparkles = "arrow.up.right"
+    static let recommendation = "scope"
     static let check = "checkmark"
     static let timer = "timer"
     static let swap = "arrow.triangle.swap"

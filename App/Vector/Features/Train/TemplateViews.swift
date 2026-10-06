@@ -62,7 +62,7 @@ struct TemplateDetailView: View {
                         .foregroundStyle(VColor.textSecondary)
                     if let rec, let weight = rec.weight {
                         HStack(spacing: 4) {
-                            Image(systemName: showsSmartTarget ? Icon.sparkles : "clock.arrow.circlepath")
+                            Image(systemName: showsSmartTarget ? Icon.recommendation : "clock.arrow.circlepath")
                             Text(showsSmartTarget
                                  ? "Target \(Format.weight(weight, unit: model.unit)) × \(rec.reps)"
                                  : "Last: \(model.history(for: exercise.id).first?.summary(unit: model.unit) ?? "—")")

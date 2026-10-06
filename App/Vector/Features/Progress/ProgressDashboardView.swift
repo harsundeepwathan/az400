@@ -46,7 +46,7 @@ struct ProgressDashboardView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { model.sheet = .coach } label: {
-                        Label("Coach", systemImage: Icon.sparkles)
+                        Label("Coach", systemImage: Icon.recommendation)
                     }
                 }
             }

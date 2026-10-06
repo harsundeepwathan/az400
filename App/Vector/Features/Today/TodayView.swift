@@ -53,19 +53,15 @@ private struct TodayHeader: View {
         let now = model.now()
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(Format.longDate(now, calendar: model.calendar).uppercased())
-                    .font(VFont.secondaryEmphasized)
-                    .foregroundStyle(VColor.textSecondary)
                 Text("Today")
                     .font(VFont.largeTitle)
                     .foregroundStyle(VColor.textPrimary)
                     .accessibilityAddTraits(.isHeader)
+                Text(Format.longDate(now, calendar: model.calendar))
+                    .font(VFont.secondary)
+                    .foregroundStyle(VColor.textSecondary)
             }
             Spacer(minLength: Space.sm)
-            if model.proteinStreak >= 2 {
-                Chip(text: "\(model.proteinStreak)", symbol: Icon.flame, tint: VColor.warning, fill: VColor.warningSoft)
-                    .accessibilityLabel("Protein target streak, \(model.proteinStreak) days")
-            }
             Button {
                 model.selectedTab = .profile
             } label: {
@@ -142,15 +138,13 @@ private struct TodayTrainingCard: View {
                            font: VFont.metricSmall)
                 Spacer()
             }
-            .padding(Space.sm)
-            .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
 
             if let rec, let exercise = main.flatMap({ model.catalog[$0.exerciseID] }), rec.action.isProgression, let weight = rec.weight {
                 Button {
                     model.sheet = .exercise(exercise.id)
                 } label: {
                     HStack(spacing: Space.xs) {
-                        Image(systemName: Icon.sparkles).foregroundStyle(VColor.accentText)
+                        Image(systemName: Icon.recommendation).foregroundStyle(VColor.accentText)
                         (Text("\(exercise.name): ").foregroundStyle(VColor.textSecondary)
                          + Text("\(Format.weight(weight, unit: model.unit)) × \(rec.reps)").foregroundStyle(VColor.textPrimary).bold())
                             .font(VFont.secondary)
@@ -241,7 +235,7 @@ private struct TodayNutritionCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             AdaptiveStack(spacing: Space.xs) {
-                QuickActionButton(title: "Scan Meal", symbol: Icon.scan, prominent: true) { model.cover = .scanner(meal) }
+                QuickActionButton(title: "Scan Meal", symbol: Icon.scan) { model.cover = .scanner(meal) }
                 QuickActionButton(title: "Log Food", symbol: Icon.search) { model.sheet = .foodSearch(meal) }
                 QuickActionButton(title: "Quick Add", symbol: Icon.quickAdd) { model.sheet = .quickAdd(meal) }
             }
@@ -263,13 +257,13 @@ private struct DailyInsightSection: View {
                     Button("Hide this insight", systemImage: "eye.slash") { withAnimation { model.dismiss(insight) } }
                 }
         } else if model.sessions.isEmpty {
-            EmptyStateView(symbol: Icon.sparkles, title: "Your coach is warming up",
+            EmptyStateView(symbol: Icon.recommendation, title: "Your coach is warming up",
                            message: "After a couple of workouts and a few days of logging, you'll get insights built from your own data.",
                            actionTitle: model.nextWorkout == nil ? nil : "Start \(model.nextWorkout?.name ?? "")") {
                 if let next = model.nextWorkout { model.startWorkout(next) }
             }
         } else {
-            EmptyStateView(symbol: Icon.sparkles, title: "All caught up",
+            EmptyStateView(symbol: Icon.recommendation, title: "All caught up",
                            message: "Log today's meals to unlock nutrition insights.",
                            actionTitle: "Log Food") { model.handle(.logFood) }
         }

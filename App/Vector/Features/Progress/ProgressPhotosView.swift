@@ -331,9 +331,8 @@ struct ProgressPhotoCompareView: View {
             } label: {
                 HStack(spacing: Space.xxs) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(title.uppercased())
+                        Text(title)
                             .font(VFont.sectionHeading)
-                            .tracking(0.6)
                             .foregroundStyle(VColor.textSecondary)
                         Text(selection.wrappedValue.map { Format.shortDate($0, calendar: model.calendar) } ?? "Choose")
                             .font(VFont.bodyEmphasized)

@@ -14,7 +14,10 @@ extension AppModel {
                     bodyWeights: data.bodyWeights, decisions: coachDecisions, now: now())
         let today = TodayCoachEngine(catalog: catalog, calendar: calendar)
             .coaching(profile: profile, program: data.program, sessions: data.sessions, foodEntries: data.foodEntries,
-                      bodyWeights: data.bodyWeights, review: review, checkInDue: weeklyCheckInDue,
+                      bodyWeights: data.bodyWeights, review: review,
+                      // The Weekly Check-In card sits on Today itself, so the coach card
+                      // never repeats it: one decision on screen at a time.
+                      checkInDue: false,
                       recommendations: recommendations, includesDecision: isPro, now: now())
         reviewCache = (day, review, today)
         return (review, today)

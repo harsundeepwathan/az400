@@ -113,7 +113,7 @@ struct ScanReviewView: View {
             Text("AI estimate. Review portions for better accuracy.")
                 .font(VFont.secondaryEmphasized)
         } icon: {
-            Image(systemName: Icon.sparkles)
+            Image(systemName: Icon.recommendation)
         }
         .foregroundStyle(VColor.accentText)
         .padding(Space.sm)

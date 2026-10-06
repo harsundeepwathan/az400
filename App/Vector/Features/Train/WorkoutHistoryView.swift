@@ -164,7 +164,7 @@ private struct MetricTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title.uppercased()).font(VFont.sectionHeading).tracking(0.4).foregroundStyle(VColor.textSecondary)
+            Text(title).font(VFont.sectionHeading).foregroundStyle(VColor.textSecondary)
             Text(value).font(VFont.metricSmall).foregroundStyle(VColor.textPrimary).lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

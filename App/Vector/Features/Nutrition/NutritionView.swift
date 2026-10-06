@@ -282,7 +282,7 @@ struct FoodEntryRow: View {
                         .foregroundStyle(VColor.textPrimary)
                         .lineLimit(1)
                     if entry.source == .aiScan {
-                        Image(systemName: Icon.sparkles)
+                        Image(systemName: Icon.recommendation)
                             .font(.system(.caption2))
                             .foregroundStyle(VColor.accentText)
                             .accessibilityLabel("AI estimate")

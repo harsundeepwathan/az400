@@ -144,7 +144,7 @@ struct ExerciseDetailView: View {
                             .font(VFont.secondaryEmphasized)
                             .foregroundStyle(VColor.textPrimary)
                         Spacer()
-                        Text("e1RM \(Format.estimate(performance.estimatedOneRepMax, unit: model.unit))")
+                        Text("Est. max \(Format.estimate(performance.estimatedOneRepMax, unit: model.unit))")
                             .font(VFont.caption.monospacedDigit())
                             .foregroundStyle(VColor.textSecondary)
                     }

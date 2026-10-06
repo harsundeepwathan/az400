@@ -9,7 +9,7 @@ struct VectorCoachCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            CategoryHeader(symbol: Icon.sparkles, title: "Coach", tint: VColor.coach,
+            CategoryHeader(symbol: Icon.recommendation, title: "Coach", tint: VColor.coach,
                            detail: coaching.focus == .checkInReady ? "Check-in ready" : "Today")
             Text(coaching.headline)
                 .font(VFont.title.weight(.bold))
@@ -110,27 +110,30 @@ struct WeeklyCheckInCard: View {
         let unit = model.unit
         let training = review.training
         let nutrition = review.nutrition
-        return VStack(alignment: .leading, spacing: Space.sm) {
-            row("Training", "\(training.completed) of \(training.planned) workouts",
+        return VStack(alignment: .leading, spacing: Space.md) {
+            row(Icon.train, VColor.training, "Training", "\(training.completed) of \(training.planned) workouts",
                 detail: [training.volumeChange.map { "Volume \(Format.signedPercent($0))" },
                          strengthLine(training, unit: unit)].compactMap { $0 }.joined(separator: " · "))
-            row("Nutrition", "\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories",
+            row(Icon.nutrition, VColor.nutrition, "Nutrition", "\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories",
                 detail: "Protein target hit on \(nutrition.proteinDaysOnTarget) of \(nutrition.windowDays) days")
-            row("Body weight", weightLine(unit: unit), detail: review.body.trend.map { trendLine($0, unit: unit) } ?? "Log 3+ weigh-ins a week for a trend")
-            row("Goal", review.goal.title, detail: goalLine(unit: unit))
+            row("scalemass", VColor.body, "Body weight", weightLine(unit: unit), detail: review.body.trend.map { trendLine($0, unit: unit) } ?? "Log 3+ weigh-ins a week for a trend")
+            row("flag", VColor.textSecondary, "Goal", review.goal.title, detail: goalLine(unit: unit))
         }
     }
 
-    private func row(_ title: String, _ value: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            AdaptiveStack(spacing: Space.xs, alignment: .firstTextBaseline) {
+    private func row(_ symbol: String, _ tint: Color, _ title: String, _ value: String, detail: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+            Image(systemName: symbol)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(title).font(VFont.secondary).foregroundStyle(VColor.textSecondary)
-                Spacer(minLength: Space.sm)
-                Text(value).font(VFont.secondaryEmphasized.monospacedDigit()).foregroundStyle(VColor.textPrimary)
-                    .multilineTextAlignment(.trailing)
-            }
-            if !detail.isEmpty {
-                Text(detail).font(VFont.caption.monospacedDigit()).foregroundStyle(VColor.textSecondary)
+                Text(value).font(VFont.bodyEmphasized.monospacedDigit()).foregroundStyle(VColor.textPrimary)
+                if !detail.isEmpty {
+                    Text(detail).font(VFont.secondary.monospacedDigit()).foregroundStyle(VColor.textSecondary)
+                }
             }
         }
         .accessibilityElement(children: .combine)
@@ -139,7 +142,7 @@ struct WeeklyCheckInCard: View {
     private func strengthLine(_ training: WeeklyReview.Training, unit: WeightUnit) -> String? {
         guard let lift = training.mainLift else { return nil }
         guard let before = training.e1rmBefore, let now = training.e1rmNow else { return nil }
-        return "\(lift) e1RM \(Format.estimate(before, unit: unit, includeUnit: false)) → \(Format.estimate(now, unit: unit))"
+        return "\(lift) estimated max \(Format.estimate(before, unit: unit, includeUnit: false)) → \(Format.estimate(now, unit: unit))"
     }
 
     private func weightLine(unit: WeightUnit) -> String {
@@ -171,7 +174,6 @@ struct WeeklyCheckInCard: View {
 
     @ViewBuilder private var decision: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text("Recommendation").font(VFont.captionEmphasized).foregroundStyle(VColor.textSecondary)
             switch review.recommendation {
             case .learningBaseline(let items):
                 Text("Vector is learning your baseline. No changes yet.")
@@ -183,8 +185,12 @@ struct WeeklyCheckInCard: View {
                 explanation(reason)
                 Button("Continue Current Plan") { model.applyReview(review) }.buttonStyle(.primary)
             case .adjustCalories(let from, let to, let reason):
-                Text("\(Format.integer(from)) → \(Format.integer(to)) kcal a day")
-                    .font(VFont.title3.monospacedDigit()).foregroundStyle(VColor.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(Format.integer(from)) → \(Format.integer(to))")
+                        .font(VFont.metricHero).foregroundStyle(VColor.textPrimary)
+                    Text("kcal a day").font(VFont.secondary).foregroundStyle(VColor.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
                 explanation(reason)
                 AdaptiveStack {
                     Button("Keep Current") { model.keepCurrentTargets(review) }.buttonStyle(.secondary)

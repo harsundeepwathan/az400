@@ -66,9 +66,8 @@ struct WorkoutSummaryView: View {
                     .opacity(appeared ? 1 : 0)
             }
             .accessibilityHidden(true)
-            Text("WORKOUT COMPLETE")
+            Text("Workout complete")
                 .font(VFont.sectionHeading)
-                .tracking(1.2)
                 .foregroundStyle(VColor.success)
             Text(summary.session.name)
                 .font(VFont.largeTitle)
@@ -151,9 +150,8 @@ struct WorkoutSummaryView: View {
         default: "Next \(name.lowercased()) target: \(target)."
         }
         return VStack(alignment: .leading, spacing: Space.sm) {
-            Label("AI INSIGHT", systemImage: Icon.sparkles)
+            Label("Summary", systemImage: Icon.recommendation)
                 .font(VFont.sectionHeading)
-                .tracking(0.6)
                 .foregroundStyle(VColor.accentText)
             Text(message)
                 .font(VFont.body)

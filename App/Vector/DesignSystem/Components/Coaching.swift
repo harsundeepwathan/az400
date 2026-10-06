@@ -127,9 +127,8 @@ struct AIRecommendationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             HStack {
-                Label("NEXT SESSION", systemImage: Icon.sparkles)
+                Label("Next session", systemImage: Icon.recommendation)
                     .font(VFont.sectionHeading)
-                    .tracking(0.6)
                     .foregroundStyle(VColor.accentText)
                 Spacer()
                 Text(recommendation.action.title)
@@ -160,7 +159,7 @@ struct AIRecommendationCard: View {
                     }
                     if let onAccept {
                         Button(action: onAccept) {
-                            Label(isAccepted ? "Accepted" : "Use this", systemImage: isAccepted ? Icon.check : Icon.sparkles)
+                            Label(isAccepted ? "Accepted" : "Use this", systemImage: isAccepted ? Icon.check : Icon.recommendation)
                         }
                         .buttonStyle(.primary)
                         .disabled(isAccepted)

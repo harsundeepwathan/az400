@@ -143,19 +143,17 @@ struct Hairline: View {
     }
 }
 
-/// Side by side normally; stacked at accessibility text sizes so labels
-/// never truncate (paired actions, label/value rows).
+/// Side by side when it fits, stacked when it doesn't (large text sizes,
+/// long translations), so labels never truncate.
 struct AdaptiveStack<Content: View>: View {
     var spacing: CGFloat = Space.sm
     var alignment: VerticalAlignment = .center
     @ViewBuilder var content: () -> Content
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        if typeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: spacing) { content() }
-        } else {
+        ViewThatFits(in: .horizontal) {
             HStack(alignment: alignment, spacing: spacing) { content() }
+            VStack(alignment: .leading, spacing: spacing) { content() }
         }
     }
 }

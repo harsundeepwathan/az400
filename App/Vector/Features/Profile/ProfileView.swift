@@ -45,7 +45,7 @@ struct ProfileView: View {
                                 model.presentPaywall(.profile)
                             } label: {
                                 HStack(spacing: Space.md) {
-                                    IconBadge(symbol: Icon.sparkles, tint: VColor.textOnAccent, fill: VColor.accent)
+                                    IconBadge(symbol: Icon.recommendation, tint: VColor.textOnAccent, fill: VColor.accent)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Upgrade to Pro").font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
                                         Text("AI coaching, daily meal scans, advanced analytics")

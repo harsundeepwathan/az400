@@ -122,6 +122,7 @@ struct QuickActionButton: View {
             VStack(spacing: 6) {
                 Image(systemName: symbol)
                     .font(.system(.title3, weight: .semibold))
+                    .foregroundStyle(prominent ? VColor.textOnAccent : VColor.accentText)
                 Text(title)
                     .font(VFont.captionEmphasized)
                     .lineLimit(1)

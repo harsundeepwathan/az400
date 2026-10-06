@@ -85,7 +85,7 @@ struct CoachSummaryCard: View {
                 Spacer()
                 ProBadge()
             }
-            Label("AI summary of your logged data", systemImage: Icon.sparkles)
+            Label("AI summary of your logged data", systemImage: Icon.recommendation)
                 .font(VFont.caption)
                 .foregroundStyle(VColor.textSecondary)
             content()
@@ -216,8 +216,8 @@ struct CoachDigestDataView: View {
                 row("Planned per week", "\(digest.training.plannedPerWeek)")
                 row("Volume vs previous week", digest.training.volumeChangePct.map { Format.signedPercent($0 / 100) })
                 if let lift = digest.training.mainLift {
-                    row("\(lift.exercise) e1RM now", weight(lift.e1rmNow))
-                    row("\(lift.exercise) e1RM ~30 days ago", lift.e1rm30dAgo.map(weight))
+                    row("\(lift.exercise) estimated max now", weight(lift.e1rmNow))
+                    row("\(lift.exercise) estimated max ~30 days ago", lift.e1rm30dAgo.map(weight))
                 }
                 ForEach(Array(digest.training.prsLast14d.enumerated()), id: \.offset) { _, pr in
                     row("PR · \(pr.exercise)", pr.weight > 0 ? "\(weight(pr.weight)) × \(pr.reps)" : "\(pr.reps) reps")

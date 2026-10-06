@@ -169,9 +169,8 @@ struct ExerciseLogCard: View {
         let first = log.sets.first { $0.kind != .warmup } ?? log.sets.first
         return HStack(alignment: .top, spacing: Space.md) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(previous.map { "LAST · \(Format.relativeDays(from: $0.date, to: model.now(), calendar: model.calendar).uppercased())" } ?? "LAST")
+                Text(previous.map { "Last · \(Format.relativeDays(from: $0.date, to: model.now(), calendar: model.calendar))" } ?? "Last")
                     .font(VFont.sectionHeading)
-                    .tracking(0.4)
                     .foregroundStyle(VColor.textSecondary)
                 Text(lastTopSet ?? "First time")
                     .font(VFont.bodyEmphasized.monospacedDigit())
@@ -184,11 +183,10 @@ struct ExerciseLogCard: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 3) {
-                    Text("TODAY")
-                    if showsSmartTarget, first?.targetWeight != nil { Image(systemName: Icon.sparkles).imageScale(.small) }
+                    Text("Today")
+                    if showsSmartTarget, first?.targetWeight != nil { Image(systemName: Icon.recommendation).imageScale(.small) }
                 }
                 .font(VFont.sectionHeading)
-                .tracking(0.4)
                 .foregroundStyle(showsSmartTarget ? VColor.accentText : VColor.textSecondary)
                 Text(todayTarget(first))
                     .font(VFont.bodyEmphasized.monospacedDigit())
