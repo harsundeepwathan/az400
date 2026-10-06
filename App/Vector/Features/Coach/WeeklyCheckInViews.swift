@@ -1,20 +1,21 @@
 import SwiftUI
 import VectorCore
 
-/// Today's Vector Coach card: one focus (or "Everything is on track"), plus
-/// plain accountability facts. Never a list of advice.
+/// Today's coach statement. Sits on the plain ground between fields (no
+/// card), so the decision stands apart from the trackers: one focus (or
+/// "Everything is on track"), plain accountability facts, and the evidence
+/// one tap away. Never a list of advice.
 struct VectorCoachCard: View {
     var coaching: TodayCoaching
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            CategoryHeader(symbol: Icon.recommendation, title: "Coach", tint: VColor.coach,
-                           detail: coaching.focus == .checkInReady ? "Check-in ready" : "Today")
-            Text(coaching.headline)
-                .font(VFont.title.weight(.bold))
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text(headline)
+                .font(VFont.statement)
                 .foregroundStyle(VColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             if let detail = coaching.detail {
                 Text(detail)
                     .font(VFont.secondary)
@@ -23,39 +24,87 @@ struct VectorCoachCard: View {
             }
             if case .learningBaseline(let items) = coaching.focus {
                 BaselineChecklist(items: items)
+                    .padding(.top, Space.xxs)
             }
             if !coaching.accountability.isEmpty {
-                Hairline()
-                ForEach(coaching.accountability, id: \.self) { line in
-                    Text(line)
-                        .font(VFont.secondary)
-                        .foregroundStyle(VColor.textPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    ForEach(coaching.accountability, id: \.self) { line in
+                        Text(line)
+                            .font(VFont.secondary)
+                            .foregroundStyle(VColor.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.top, Space.xxs)
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Space.xs) {
+                    byline
+                    Spacer(minLength: Space.sm)
+                    action
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    byline.frame(minHeight: Size.minTouch)
+                    action
                 }
             }
-            action
+            .padding(.top, Space.xxs)
         }
-        .card()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Coach")
+    }
+
+    private var byline: some View {
+        Label("Coach", systemImage: Icon.recommendation)
+            .font(VFont.secondary)
+            .foregroundStyle(VColor.textSecondary)
+            .accessibilityHidden(true)
+    }
+
+    /// The headline, with the progression target ("82.5 kg × 8") in the accent.
+    private var headline: AttributedString {
+        var text = AttributedString(coaching.headline)
+        if case .progression(let rec) = coaching.focus, let weight = rec.weight {
+            let target = "\(Format.weight(weight, unit: model.unit)) × \(rec.reps)"
+            if let range = text.range(of: target) {
+                text[range].foregroundColor = VColor.accentText
+            }
+        }
+        return text
     }
 
     @ViewBuilder private var action: some View {
         switch coaching.focus {
         case .progression(let rec):
-            Button("See the evidence") { model.sheet = .exercise(rec.exerciseID) }
-                .buttonStyle(.plain)
-                .font(VFont.secondaryEmphasized)
-                .foregroundStyle(VColor.accentText)
-                .frame(minHeight: Size.minTouch)
+            CoachLink(title: "See the evidence") { model.sheet = .exercise(rec.exerciseID) }
         case .learningBaseline(let items) where items.contains(where: { $0.label == "weigh-ins" && !$0.isComplete }):
-            Button("Log Weight") { model.sheet = .bodyWeight }
-                .buttonStyle(.plain)
-                .font(VFont.secondaryEmphasized)
-                .foregroundStyle(VColor.accentText)
-                .frame(minHeight: Size.minTouch)
+            CoachLink(title: "Log weight") { model.sheet = .bodyWeight }
         default:
             EmptyView()
         }
+    }
+}
+
+/// Accent text link with a chevron and a 44 pt target.
+private struct CoachLink: View {
+    var title: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.xxs) {
+                Text(title)
+                Image(systemName: Icon.chevron)
+                    .font(.caption.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: Size.minTouch)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .font(VFont.secondaryEmphasized)
+        .foregroundStyle(VColor.accentText)
     }
 }
 
