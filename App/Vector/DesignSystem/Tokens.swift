@@ -155,12 +155,26 @@ enum Elevation {
 
 // MARK: - Motion
 
+/// Motion rules (Emil Kowalski / Apple): ease-out for anything entering,
+/// press feedback faster than release, bounce only for rare moments (PRs,
+/// workout complete), and never movement under Reduce Motion.
 enum Motion {
     static let snappy = Animation.snappy(duration: 0.28)
     static let smooth = Animation.smooth(duration: 0.35)
-    static let gentle = Animation.easeInOut(duration: 0.45)
+    /// Strong ease-out: starts fast, so the moment the user is watching isn't delayed.
+    static func easeOut(_ duration: Double) -> Animation { .timingCurve(0.23, 1, 0.32, 1, duration: duration) }
+    /// Rings and bars filling in on appear.
+    static let gentle = easeOut(0.45)
+    /// Press-down feedback; the release uses `snappy`.
+    static let press = easeOut(0.1)
+    /// Rare moments only. Never on high-frequency actions like completing a set.
     static let celebrate = Animation.spring(response: 0.45, dampingFraction: 0.62)
-    static let chart = Animation.easeOut(duration: 0.5)
+    static let chart = easeOut(0.5)
+
+    /// Slide in from an edge, or just fade when Reduce Motion is on.
+    static func slide(_ edge: Edge, reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
+    }
 
     /// Respect Reduce Motion by collapsing to a quick cross-fade.
     static func adaptive(_ animation: Animation, reduceMotion: Bool) -> Animation {

@@ -16,7 +16,7 @@ struct PrimaryButtonStyle: ButtonStyle {
                         in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .opacity(configuration.isPressed ? 0.92 : 1)
-            .animation(Motion.snappy, value: configuration.isPressed)
+            .animation(configuration.isPressed ? Motion.press : Motion.snappy, value: configuration.isPressed)
     }
 }
 
@@ -33,7 +33,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .padding(.horizontal, Space.md)
             .background(VColor.accentSoft, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(Motion.snappy, value: configuration.isPressed)
+            .animation(configuration.isPressed ? Motion.press : Motion.snappy, value: configuration.isPressed)
     }
 }
 
@@ -50,7 +50,7 @@ struct QuietButtonStyle: ButtonStyle {
             .background(VColor.surfaceSunken.opacity(configuration.isPressed ? 0.7 : 1),
                         in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(Motion.snappy, value: configuration.isPressed)
+            .animation(configuration.isPressed ? Motion.press : Motion.snappy, value: configuration.isPressed)
     }
 }
 
@@ -61,7 +61,7 @@ struct PressableStyle: ButtonStyle {
             .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .opacity(configuration.isPressed ? 0.9 : 1)
-            .animation(Motion.snappy, value: configuration.isPressed)
+            .animation(configuration.isPressed ? Motion.press : Motion.snappy, value: configuration.isPressed)
     }
 }
 

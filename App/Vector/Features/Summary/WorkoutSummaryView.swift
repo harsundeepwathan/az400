@@ -58,11 +58,11 @@ struct WorkoutSummaryView: View {
                 Circle()
                     .fill(VColor.successSoft)
                     .frame(width: 96, height: 96)
-                    .scaleEffect(appeared ? 1 : 0.6)
+                    .scaleEffect(appeared ? 1 : 0.9)
                 Image(systemName: "checkmark")
                     .font(.system(size: 40, weight: .bold))
                     .foregroundStyle(VColor.success)
-                    .scaleEffect(appeared ? 1 : 0.3)
+                    .scaleEffect(appeared ? 1 : 0.7)
                     .opacity(appeared ? 1 : 0)
             }
             .accessibilityHidden(true)

@@ -17,6 +17,7 @@ enum SetField: Hashable {
 /// completion, large targets, zero modal interruptions (no paywalls, no
 /// confirmations except finishing), and state that survives anything.
 struct ActiveWorkoutView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @FocusState private var focusedField: SetField?
     @State private var detailExercise: ExerciseDetailContext?
@@ -68,7 +69,7 @@ struct ActiveWorkoutView: View {
                         RestTimerBar()
                             .padding(.horizontal, Space.gutter)
                             .padding(.bottom, Space.xs)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .transition(Motion.slide(.bottom, reduceMotion: reduceMotion))
                     }
                 }
                 .animation(Motion.smooth, value: model.restTimer)

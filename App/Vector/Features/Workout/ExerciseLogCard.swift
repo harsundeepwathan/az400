@@ -21,6 +21,7 @@ struct ExerciseLogCard: View {
     private var showsSmartTarget: Bool { model.isPro || index == 0 }
 
     @AppStorage("logsEffort") private var logsEffort = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editsNote = false
     @State private var reportsDiscomfort = false
 
@@ -59,7 +60,7 @@ struct ExerciseLogCard: View {
                     if logsEffort, set.isCompleted, set.kind != .warmup, set.rpe == nil,
                        model.lastCompletion?.position == position {
                         EffortPicker(position: position)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .transition(Motion.slide(.top, reduceMotion: reduceMotion))
                     }
                     if model.lastCompletion?.position == position,
                        let feedback = SetFeedback.evaluate(set, next: log.sets[safe: setIndex + 1], restSeconds: log.restSeconds, unit: model.unit) {
@@ -120,7 +121,7 @@ struct ExerciseLogCard: View {
                     if log.isComplete {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(VColor.success)
-                            .transition(.scale.combined(with: .opacity))
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                 }
                 .frame(minHeight: Size.minTouch)
@@ -320,7 +321,7 @@ struct SetRow: View {
                 }
                 if isPR {
                     PRBadge()
-                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                        .transition(.scale(scale: 0.9).combined(with: .opacity))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -350,7 +351,8 @@ struct SetRow: View {
 
             Button {
                 focusedField.wrappedValue = nil
-                withAnimation(Motion.adaptive(Motion.celebrate, reduceMotion: reduceMotion)) {
+                // Completing a set happens ~20 times a workout: crisp, never bouncy.
+                withAnimation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion)) {
                     if set.isCompleted {
                         model.uncompleteSet(position)
                     } else {

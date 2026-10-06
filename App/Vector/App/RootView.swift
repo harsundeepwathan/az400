@@ -116,6 +116,7 @@ struct RootCoverContent: View {
 /// Shows a toast briefly, then clears it.
 struct ToastHost: View {
     @Binding var toast: ToastMessage?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -124,7 +125,7 @@ struct ToastHost: View {
                       tint: toast.symbol == Icon.trophy ? VColor.warning : VColor.accentText)
                     .padding(.horizontal, Space.gutter)
                     .padding(.top, Space.xs)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(Motion.slide(.top, reduceMotion: reduceMotion))
                     .onTapGesture { dismiss() }
                     .task(id: toast.id) {
                         try? await Task.sleep(for: .seconds(2.6))

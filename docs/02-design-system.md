@@ -75,6 +75,13 @@ One family (SF Pro) throughout. Hierarchy comes from size and weight, not from t
 | `celebrate` | spring 0.45 s, damping 0.62 | Set completion, PRs, summary |
 | `chart` | easeOut 0.5 s | Range changes |
 
+Rules from the Emil Kowalski and Impeccable skills (`.claude/skills/`):
+- Anything entering uses a strong ease-out (`Motion.easeOut`, cubic-bezier 0.23, 1, 0.32, 1). The built-in `easeIn` is never used on UI.
+- Press feedback is faster than release: `Motion.press` (0.1 s) going down, `Motion.snappy` coming back.
+- Bounce (`Motion.celebrate`) is for rare moments only (a PR, workout complete). Completing a set, which happens about 20 times a workout, is crisp.
+- Nothing grows from nothing: entrances start at 0.7–0.97 scale, never 0.
+- Slide-ins use `Motion.slide(edge:reduceMotion:)`, which becomes a fade under Reduce Motion.
+
 `Motion.adaptive` collapses animations to a 0.15 s fade under **Reduce Motion**. The scanner sweep, shimmer and pulse are disabled entirely.
 
 Haptics: selection ticks on pickers, ranges, steppers and tabs; medium impact on set complete; success notification on PRs, workout complete and a logged scan; warning on rest finished.
