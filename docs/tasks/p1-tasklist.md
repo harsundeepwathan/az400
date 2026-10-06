@@ -30,7 +30,7 @@ Errors: `402 {"error":"pro_required"}`, `400 invalid_request`, `429 rate_limited
 
 ---
 
-### [ ] T1: App Store Server Notifications → subscription table
+### [x] T1: App Store Server Notifications → subscription table
 > "App Store Server Notifications → subscription table"
 
 Owner: backend-architect. Files: `backend/api/**`.
@@ -43,7 +43,7 @@ Owner: backend-architect. Files: `backend/api/**`.
 
 **Evidence:** `npm test` passes with new tests: renewal extends expiry, refund revokes, duplicate notification ignored, forged chain rejected, wrong bundle rejected.
 
-### [ ] T2: Cost dashboard SQL views
+### [x] T2: Cost dashboard SQL views
 > "cost dashboard SQL views"
 
 Owner: backend-architect. Files: `backend/api/migrations/**`, tests.
@@ -52,7 +52,7 @@ Owner: backend-architect. Files: `backend/api/migrations/**`, tests.
 
 **Evidence:** tests insert known rows and assert each view's numbers.
 
-### [ ] T3: Claude-written coach summary, backend (cached daily)
+### [x] T3: Claude-written coach summary, backend (cached daily)
 > "Claude-written coach summary from a structured digest (cached daily)"
 
 Owner: ai-engineer with backend-architect. Files: `backend/api/**`.
@@ -66,6 +66,8 @@ Owner: ai-engineer with backend-architect. Files: `backend/api/**`.
 - Same model/beta/fallback setup as the meal scan.
 
 **Evidence:** `npm test` with a fake Claude client covers: Pro gating (402), validation (400), cache hit on second call the same day (no second model call), cost row written, invented-number output rejected.
+
+**Status (T1–T3):** done in `backend/api`: `src/appleNotifications.ts`, `src/coach.ts`, migrations `002`–`004`. 51 backend tests pass on PostgreSQL 16 (11 notifications, 10 coach summary, 5 cost views, plus the original 25). Not run against Apple's servers or the live Claude API.
 
 ### [x] T4: Coach summary, iOS side (digest + card) (core verified; UI unverified)
 Owner: mobile-app-builder. Files: `Packages/VectorCore/**` (new `CoachDigest` builder and tests, `APIClient.coachSummary`), `App/Vector/Features/Coach/**`, minimal `App/Vector/App/*` wiring.

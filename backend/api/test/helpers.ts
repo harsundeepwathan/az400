@@ -69,8 +69,10 @@ export function fakeClaude(reply: any = plateReply()): FakeClaude {
       messages: {
         create: (async (request: any) => {
           fake.calls.push(request);
-          if (fake.reply instanceof Error) throw fake.reply;
-          return fake.reply;
+          // An array is a queue of replies, one per call (the last one repeats).
+          const reply = Array.isArray(fake.reply) ? (fake.reply.length > 1 ? fake.reply.shift() : fake.reply[0]) : fake.reply;
+          if (reply instanceof Error) throw reply;
+          return reply;
         }) as any,
       },
     },

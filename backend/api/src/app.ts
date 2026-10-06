@@ -2,7 +2,9 @@ import { createServer } from "node:http";
 import type { JWTVerifyGetKey } from "jose";
 import { z } from "zod";
 import type { MessagesClient } from "./analyze.js";
+import { handleNotification } from "./appleNotifications.js";
 import { recordTransaction, entitlement } from "./appStore.js";
+import { coachSummary } from "./coach.js";
 import { authenticate, refreshSession, signInWithApple, signOut } from "./auth.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
@@ -23,6 +25,7 @@ const SignIn = z.object({ identity_token: z.string().min(1).max(8192), nonce: z.
 const Refresh = z.object({ refresh_token: z.string().min(16).max(256) });
 const Purchase = z.object({ signed_transaction: z.string().min(1).max(32_768) });
 const Preferences = z.object({ analytics_opt_out: z.boolean() });
+const AppleNotification = z.object({ signedPayload: z.string().min(1).max(256 * 1024) });
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -35,6 +38,8 @@ export function createApp(deps: AppDeps) {
   const now = () => deps.now?.() ?? new Date();
   const auth = { db, jwtSecret: config.jwtSecret, bundleId: config.bundleId, appleKeys: deps.appleKeys, now: deps.now };
   const authLimiter = new IpRateLimiter(20, 60_000);
+  // Generous: Apple delivers from a few addresses; this only bounds abuse of an unauthenticated endpoint.
+  const notificationLimiter = new IpRateLimiter(300, 60_000);
   const user = (req: Parameters<typeof authenticate>[1]) => authenticate(auth, req);
 
   const router = new Router()
@@ -104,6 +109,17 @@ export function createApp(deps: AppDeps) {
       );
       return { status: 200, body: result };
     })
+    // App Store Server Notifications V2. No user auth: the payload is
+    // verified against Apple's certificate chain instead.
+    .on("POST", "/v1/apple/notifications", async (req) => {
+      notificationLimiter.check(req.ip);
+      const body = parse(AppleNotification, await readJson(req, 300 * 1024));
+      const outcome = await handleNotification(
+        { db, bundleId: config.bundleId, proProductIds: config.proProductIds, rootCertificate: config.appleRootCertificate, allowSandbox: config.allowSandbox, log, now: deps.now },
+        body.signedPayload,
+      );
+      return { status: 200, body: { status: outcome } };
+    })
 
     // AI meal scan
     .on("POST", "/v1/meal-scan", async (req) => {
@@ -120,6 +136,18 @@ export function createApp(deps: AppDeps) {
       const userId = await user(req);
       await recordCorrection(db, userId, req.params.id, await readJson(req, 4096), now());
       return { status: 204 };
+    })
+
+    // Coach summary (Pro)
+    .on("POST", "/v1/coach/summary", async (req) => {
+      const userId = await user(req);
+      const body = await readJson(req, 16_384);
+      const result = await coachSummary(
+        { db, client: deps.claude, pricing: config.pricing, model: config.model, log, now: deps.now },
+        userId,
+        body,
+      );
+      return { status: 200, body: result };
     })
 
     // Analytics
