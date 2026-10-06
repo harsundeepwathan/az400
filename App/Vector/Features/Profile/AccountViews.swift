@@ -64,8 +64,8 @@ struct AccountSection: View {
             Text("Account")
         } footer: {
             Text(model.isSignedIn
-                 ? "Your workouts and food logs stay on your devices and iCloud. Your account holds your subscription and AI scan usage. Analytics are anonymous usage counts, never what you eat or lift."
-                 : "Optional. An account is needed for AI meal scans and keeps your Pro subscription linked. Only an anonymous Apple ID is shared, not your name or email.")
+                 ? "Your workouts and food logs stay on your devices and iCloud. Your account holds your subscription and AI scan usage. Analytics are usage events linked to your account (never what you eat or lift), and you can turn them off here."
+                 : "Optional. An account is needed for AI meal scans and keeps your Pro subscription linked. Apple shares only a private account identifier, not your name or email.")
         }
         .confirmationDialog("Delete your account?", isPresented: $confirmsDelete, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {

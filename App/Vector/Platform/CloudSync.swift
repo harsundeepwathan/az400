@@ -76,8 +76,9 @@ final class ICloudDocumentSync: NSObject, CloudSync, @unchecked Sendable {
                let remote = try? JSONFileStore.decoder.decode(AppData.self, from: data) {
                 toWrite = SyncMerge.merge(local: local, remote: remote)
             }
-            toWrite.activeWorkout = nil
-            toWrite.restTimer = nil
+            // Device-local state (in-progress workout, rest timer, progress-photo
+            // metadata) never goes to iCloud.
+            toWrite = SyncMerge.cloudCopy(toWrite)
             guard let encoded = try? JSONFileStore.encoder.encode(toWrite) else { return }
             try? encoded.write(to: writeURL, options: .atomic)
             lastWrittenModifiedAt = toWrite.modifiedAt

@@ -536,6 +536,8 @@ final class AppModel {
         // Tombstone everything so other devices delete it too instead of syncing it back.
         let tombstones = Tombstone.all(in: data).union(data.deletedIDs ?? [])
         commit { $0 = AppData(tier: tier, deletedIDs: tombstones) }
+        // Photo files live outside AppData; delete them now, not on the next visit.
+        removeOrphanedPhotoFiles()
         cover = nil
         sheet = nil
     }
