@@ -89,3 +89,4 @@ Vector's own tokens in `docs/02-design-system.md` take precedence over the skill
 4. [Apple ecosystem](docs/04-apple-ecosystem.md)
 5. [Launch audit, roadmap and P0 status](docs/05-launch-audit.md)
 6. [The team: 18 Claude Code subagents](docs/06-team.md)
+7. [Digital-coach audit and roadmap](docs/07-coaching-audit.md)
