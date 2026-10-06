@@ -56,8 +56,17 @@ If the photo does not show food, set no_food_detected to true and return an empt
 
 export type ImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
-export class NoFoodError extends Error {}
-export class RefusedError extends Error {}
+/** Token usage as reported by the API; the basis for cost tracking. */
+export interface Usage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+}
+
+export type AnalyzeResult =
+  | { status: "ok"; items: MealAnalysis["items"]; model: string; usage: Usage }
+  | { status: "no_food" | "refused"; items: []; model: string; usage: Usage };
 
 /** Minimal surface of the SDK the analyzer uses, so tests can inject a fake. */
 export interface MessagesClient {
@@ -74,7 +83,7 @@ export async function analyzeMeal(
   imageBase64: string,
   mediaType: ImageMediaType,
   options: AnalyzeOptions = {},
-): Promise<MealAnalysis> {
+): Promise<AnalyzeResult> {
   const response = await client.beta.messages.create({
     model: options.model ?? "claude-opus-5-5",
     max_tokens: 16000,
@@ -99,16 +108,23 @@ export async function analyzeMeal(
     ],
   }, { timeout: 45_000 });
 
-  if (response.stop_reason === "refusal") {
-    throw new RefusedError(response.stop_details?.explanation ?? "The request was declined.");
-  }
+  const usage: Usage = {
+    input_tokens: response.usage?.input_tokens ?? 0,
+    output_tokens: response.usage?.output_tokens ?? 0,
+    cache_read_input_tokens: response.usage?.cache_read_input_tokens ?? 0,
+    cache_creation_input_tokens: response.usage?.cache_creation_input_tokens ?? 0,
+  };
+  // With server-side fallback the serving model can differ from the requested one.
+  const model = response.model;
+  if (response.stop_reason === "refusal") return { status: "refused", items: [], model, usage };
+
   const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
   const parsed = MealAnalysis.parse(JSON.parse(text));
   const items = parsed.items
     .filter((item) => item.grams > 0)
     .map((item) => ({ ...item, alternatives: item.alternatives.slice(0, 3) }));
-  if (parsed.no_food_detected || items.length === 0) throw new NoFoodError("No food detected");
-  return { no_food_detected: false, items };
+  if (parsed.no_food_detected || items.length === 0) return { status: "no_food", items: [], model, usage };
+  return { status: "ok", items, model, usage };
 }
 
 /** Detects the image type from its magic bytes; the app always sends JPEG today. */
