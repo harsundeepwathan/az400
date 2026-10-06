@@ -102,7 +102,9 @@ final class APIClientTests: XCTestCase {
         }
         XCTAssertEqual(allowance?.remaining, 0)
         XCTAssertNotNil(allowance?.resetsAt)
-        XCTAssertEqual(APIClient.error(status: 429, data: Data(#"{"error":"rate_limited"}"#.utf8), authorized: true), .rateLimited)
+        XCTAssertEqual(APIClient.error(status: 429, data: Data(#"{"error":"rate_limited"}"#.utf8), authorized: true), .rateLimited(retryAfter: nil))
+        XCTAssertEqual(APIClient.error(status: 429, data: Data(#"{"error":"rate_limited","retry_after_seconds":30}"#.utf8), authorized: true),
+                       .rateLimited(retryAfter: 30))
         XCTAssertEqual(APIClient.error(status: 503, data: Data(), authorized: true), .unavailable)
         XCTAssertEqual(APIClient.error(status: 400, data: Data(#"{"error":"unsupported_image"}"#.utf8), authorized: true),
                        .rejected(status: 400, code: "unsupported_image"))

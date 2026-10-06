@@ -77,7 +77,8 @@ public enum APIError: Error, Hashable, Sendable {
     case signedOut
     case offline
     case scanQuotaExceeded(ScanAllowance?)
-    case rateLimited
+    /// 429. `retryAfter` is the server's `retry_after_seconds`, when sent.
+    case rateLimited(retryAfter: Int?)
     case unavailable
     case rejected(status: Int, code: String)
 }
@@ -102,7 +103,9 @@ public enum CoachSummaryError: Error, Hashable, Sendable {
     case proRequired
     case signedOut
     case offline
-    case rateLimited
+    /// 429. A short `retryAfter` means another request is still writing
+    /// today's summary; a long one means the daily cap was reached.
+    case rateLimited(retryAfter: Int?)
     /// 503 `busy`, or a response without a usable summary.
     case unavailable
     /// 400 `invalid_request`: the digest failed server validation.
@@ -113,7 +116,7 @@ public enum CoachSummaryError: Error, Hashable, Sendable {
         switch error {
         case .signedOut: self = .signedOut
         case .offline: self = .offline
-        case .rateLimited: self = .rateLimited
+        case .rateLimited(let retryAfter): self = .rateLimited(retryAfter: retryAfter)
         case .unavailable: self = .unavailable
         case .rejected(402, "pro_required"): self = .proRequired
         case .rejected(400, _): self = .invalidDigest
@@ -230,7 +233,7 @@ public actor APIClient {
     }
 
     static func error(status: Int, data: Data, authorized: Bool) -> APIError {
-        struct Body: Decodable { var error: String?; var allowance: AllowanceDTO? }
+        struct Body: Decodable { var error: String?; var allowance: AllowanceDTO?; var retry_after_seconds: Double? }
         let body = try? JSONDecoder().decode(Body.self, from: data)
         let code = body?.error ?? "http_\(status)"
         switch status {
@@ -238,7 +241,10 @@ public actor APIClient {
         // Pro-only endpoints (coach summary) answer 402 pro_required; that is not a scan quota.
         case 402 where code == "pro_required": return .rejected(status: 402, code: code)
         case 402: return .scanQuotaExceeded(body?.allowance?.model)
-        case 429: return code == "daily_scan_limit" ? .scanQuotaExceeded(body?.allowance?.model) : .rateLimited
+        case 429:
+            if code == "daily_scan_limit" { return .scanQuotaExceeded(body?.allowance?.model) }
+            let retryAfter = body?.retry_after_seconds.flatMap { $0.isFinite && $0 >= 0 && $0 < 1e9 ? Int($0.rounded(.up)) : nil }
+            return .rateLimited(retryAfter: retryAfter)
         case 502, 503, 504: return .unavailable
         default: return .rejected(status: status, code: code)
         }
@@ -322,14 +328,15 @@ public actor APIClient {
 
     /// AI-written summary of a structured digest (`POST /v1/coach/summary`).
     /// Pro only; the server stores one per user per UTC day and returns it
-    /// with `cached: true` afterwards. Throws `CoachSummaryError`.
+    /// with `cached: true` afterwards. Throws `CoachSummaryError`. The
+    /// timeout covers the server's worst case (two model attempts, ~60 s).
     public func coachSummary(digest: CoachDigest) async throws -> CoachSummary {
         struct Envelope: Encodable { var digest: CoachDigest }
         struct Response: Decodable { var summary: String; var cached: Bool?; var generated_at: String? }
         let data: Data
         do {
             data = try await perform(path: "v1/coach/summary", method: "POST", json: Envelope(digest: digest),
-                                     authorized: true, timeout: 45)
+                                     authorized: true, timeout: 70)
         } catch let error as APIError {
             throw CoachSummaryError(error)
         }

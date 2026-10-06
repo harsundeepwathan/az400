@@ -131,7 +131,14 @@ extension AppModel {
         (data.progressPhotos ?? []).sorted { $0.date > $1.date }
     }
 
-    var photoStore: ProgressPhotoStore? { try? ProgressPhotoStore.standard() }
+    /// Created once and reused. A failure isn't cached, so a later access
+    /// can still succeed (for example once protected data is available).
+    var photoStore: ProgressPhotoStore? {
+        if let photoStoreCache { return photoStoreCache }
+        let store = try? ProgressPhotoStore.standard()
+        photoStoreCache = store
+        return store
+    }
 
     /// Writes the file first, then records the metadata, so metadata never
     /// points at a file that failed to save.
@@ -162,9 +169,10 @@ extension AppModel {
         }, refreshInsights: false)
     }
 
-    /// Deletes orphaned files (for example after "reset all data", which
-    /// clears the metadata). Runs synchronously on the main actor so it can't
-    /// race a photo being added. The directory holds a handful of files.
+    /// Deletes orphaned files after "reset all data", which clears the
+    /// metadata. Only `resetAll()` calls it: running it on screen appearance
+    /// would delete every photo if AppData had failed to load. Runs
+    /// synchronously on the main actor so it can't race a photo being added.
     func removeOrphanedPhotoFiles() {
         photoStore?.removeFiles(notIn: data.progressPhotos ?? [])
     }

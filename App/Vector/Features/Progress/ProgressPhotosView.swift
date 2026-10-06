@@ -10,6 +10,9 @@ struct ProgressPhotosView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var showsCamera = false
     @State private var pending: PendingPhoto?
+    /// A camera capture held until the camera cover has finished dismissing;
+    /// presenting the save sheet while the cover is still animating out drops it.
+    @State private var captured: PendingPhoto?
     @State private var viewing: ProgressPhoto?
     @State private var loadFailed = false
 
@@ -45,11 +48,17 @@ struct ProgressPhotosView: View {
         .screenBackground()
         .navigationTitle("Progress Photos")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { model.removeOrphanedPhotoFiles() }
-        .fullScreenCover(isPresented: $showsCamera) {
+        // No orphan cleanup here: if AppData failed to load, its photo list is
+        // empty and a cleanup would delete every photo. `resetAll()` does it.
+        .fullScreenCover(isPresented: $showsCamera, onDismiss: {
+            if let captured {
+                self.captured = nil
+                pending = captured
+            }
+        }) {
             CameraPicker { image in
+                captured = PendingPhoto(image: image, date: model.now())
                 showsCamera = false
-                pending = PendingPhoto(image: image, date: model.now())
             }
             .ignoresSafeArea()
         }

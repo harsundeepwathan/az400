@@ -64,6 +64,7 @@ extension AppModel {
     func signOut() async {
         await api?.signOut()
         await events?.clear()
+        coachSummaryArchive?.clear()
         setAccount(nil)
         setScanAllowance(nil)
     }
@@ -75,6 +76,7 @@ extension AppModel {
         do {
             try await api.deleteAccount()
             await events?.clear()
+            coachSummaryArchive?.clear()
             setAccount(nil)
             setScanAllowance(nil)
             return true

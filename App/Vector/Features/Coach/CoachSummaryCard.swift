@@ -16,8 +16,24 @@ struct CoachSummaryCard: View {
         case hidden
     }
 
+    /// Reload when the day changes, and once insights finish computing (the
+    /// digest's recommendations come from them).
+    private struct LoadKey: Equatable {
+        var day: Date
+        var insightsReady: Bool
+    }
+
+    /// A 429 with a wait this short means another request is still writing
+    /// today's summary; anything longer is the daily cap.
+    private static let pendingRetryThreshold = 60
+    /// Longest the card waits before its single retry.
+    private static let maxRetryDelay = 10
+
     @State private var phase: Phase = .loading
-    @State private var digest: CoachDigest?
+    /// The digest the shown summary was written from, or today's when that
+    /// isn't known (`isExact == false`).
+    @State private var shown: CoachDigestShown?
+    @State private var loadedDay: Date?
 
     var body: some View {
         Group {
@@ -33,11 +49,9 @@ struct CoachSummaryCard: View {
                         .foregroundStyle(VColor.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
-                    if let generatedAt = summary.generatedAt {
-                        Text("Written \(generatedAt.formatted(date: .omitted, time: .shortened)) from today's data")
-                            .font(VFont.caption)
-                            .foregroundStyle(VColor.textTertiary)
-                    }
+                    Text(writtenLabel(summary))
+                        .font(VFont.caption)
+                        .foregroundStyle(VColor.textTertiary)
                 }
             case .failed(let message):
                 card {
@@ -50,13 +64,16 @@ struct CoachSummaryCard: View {
                             .foregroundStyle(VColor.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    Button("Try again") { Task { await load() } }
+                    Button("Try again") { Task { await load(force: true) } }
                         .buttonStyle(.secondary(compact: true))
                 }
             }
         }
-        // Re-run when the day changes so a new day gets a new summary.
-        .task(id: model.calendar.startOfDay(for: model.now())) { await load() }
+        // Re-run when the day changes so a new day gets a new summary, and
+        // when insights finish so the digest carries their recommendations.
+        .task(id: LoadKey(day: model.calendar.startOfDay(for: model.now()), insightsReady: !model.isComputingInsights)) {
+            await load()
+        }
     }
 
     // MARK: Layout
@@ -72,9 +89,9 @@ struct CoachSummaryCard: View {
                 .font(VFont.caption)
                 .foregroundStyle(VColor.textSecondary)
             content()
-            if let digest {
+            if let shown {
                 NavigationLink {
-                    CoachDigestDataView(digest: digest)
+                    CoachDigestDataView(digest: shown.digest, isExact: shown.isExact)
                 } label: {
                     HStack(spacing: Space.xxs) {
                         Text("See the data it used")
@@ -105,18 +122,40 @@ struct CoachSummaryCard: View {
         .accessibilityLabel("Loading this week's summary")
     }
 
+    /// "Written Tue 6 Oct, 08:00 from your logged data" in the user's locale.
+    private func writtenLabel(_ summary: CoachSummary) -> String {
+        guard let generatedAt = summary.generatedAt else { return "Written from your logged data" }
+        let when = generatedAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+        return "Written \(when) from your logged data"
+    }
+
     // MARK: Loading
 
-    private func load() async {
-        guard model.canShowCoachSummary, let digest = model.coachDigest, digest.hasLoggedData else {
+    private func load(force: Bool = false) async {
+        guard model.canShowCoachSummary else {
             phase = .hidden
             return
         }
-        self.digest = digest
+        // The digest's recommendations come from the insight engine; wait
+        // for it rather than send an empty list. The task re-runs when it's done.
+        guard !model.isComputingInsights else {
+            if case .loaded = phase {} else { phase = .loading }
+            return
+        }
+        let day = model.calendar.startOfDay(for: model.now())
+        // Already showing today's summary: an insights refresh after a new
+        // log doesn't need another request (the server returns the same one).
+        if !force, loadedDay == day, case .loaded = phase { return }
+        guard let digest = model.coachDigest, digest.hasLoggedData else {
+            phase = .hidden
+            return
+        }
         if case .loaded = phase {} else { phase = .loading }
         do {
-            let summary = try await model.coachSummary(for: digest)
-            withAnimation(Motion.smooth) { phase = .loaded(summary) }
+            let result = try await requestSummary(digest)
+            shown = result.shown
+            loadedDay = day
+            withAnimation(Motion.smooth) { phase = .loaded(result.summary) }
         } catch let error as CoachSummaryError {
             switch error {
             case .proRequired, .signedOut:
@@ -124,6 +163,8 @@ struct CoachSummaryCard: View {
                 phase = .hidden
             case .offline:
                 phase = .failed("You're offline. This week's summary will load when you're back online.")
+            case .rateLimited(let retryAfter?) where retryAfter <= Self.pendingRetryThreshold:
+                phase = .failed("This week's summary is still being written. Try again in a minute.")
             case .rateLimited, .unavailable:
                 phase = .failed("The summary isn't available right now. Your insights below are unaffected.")
             case .invalidDigest, .rejected:
@@ -135,14 +176,40 @@ struct CoachSummaryCard: View {
             phase = .failed("Couldn't load this week's summary.")
         }
     }
+
+    /// One retry when the server says another request is still writing
+    /// today's summary (a short `retry_after_seconds`), after that wait
+    /// capped at `maxRetryDelay`, instead of showing an error straight away.
+    private func requestSummary(_ digest: CoachDigest) async throws -> (summary: CoachSummary, shown: CoachDigestShown) {
+        do {
+            return try await model.coachSummary(for: digest)
+        } catch CoachSummaryError.rateLimited(let retryAfter?) where retryAfter <= Self.pendingRetryThreshold {
+            try await Task.sleep(for: .seconds(min(max(retryAfter, 1), Self.maxRetryDelay)))
+            return try await model.coachSummary(for: digest)
+        }
+    }
 }
 
-/// Exactly the numbers sent for the summary, so every sentence can be checked.
+/// The numbers the summary was written from, so every sentence can be
+/// checked. When those aren't known, today's numbers with a note saying so.
 struct CoachDigestDataView: View {
     var digest: CoachDigest
+    /// False when the digest the summary was written from isn't stored on
+    /// this device (for example it was written on another device): today's
+    /// numbers are shown instead, and may differ.
+    var isExact: Bool = true
 
     var body: some View {
         List {
+            if !isExact {
+                Section {
+                    Label("Your data may have changed since this summary was written.", systemImage: "info.circle")
+                        .font(VFont.secondary)
+                        .foregroundStyle(VColor.textSecondary)
+                } footer: {
+                    Text("These are your current numbers, not necessarily the ones the summary used.")
+                }
+            }
             Section {
                 row("Workouts, last 7 days", "\(digest.training.workoutsLast7d)")
                 row("Workouts, previous 7 days", "\(digest.training.workoutsPrev7d)")

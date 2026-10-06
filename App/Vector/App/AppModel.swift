@@ -41,6 +41,8 @@ final class AppModel {
         didSet { briefCache = nil }
     }
     private(set) var isComputingInsights = false
+    /// Created on first use and kept (see `photoStore`); not view state.
+    @ObservationIgnored var photoStoreCache: ProgressPhotoStore?
 
     // MARK: Dependencies
 
@@ -538,6 +540,8 @@ final class AppModel {
         commit { $0 = AppData(tier: tier, deletedIDs: tombstones) }
         // Photo files live outside AppData; delete them now, not on the next visit.
         removeOrphanedPhotoFiles()
+        // So is the digest behind the last coach summary.
+        coachSummaryArchive?.clear()
         cover = nil
         sheet = nil
     }

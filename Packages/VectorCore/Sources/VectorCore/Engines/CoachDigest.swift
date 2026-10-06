@@ -7,14 +7,16 @@ import Foundation
 ///
 /// Weights are in the user's display unit (`unit`), so the summary quotes the
 /// same numbers the app shows. Nullable fields are always encoded, as `null`.
-public struct CoachDigest: Encodable, Hashable, Sendable {
-    public struct PR: Encodable, Hashable, Sendable {
+/// Decodable so the app can keep the exact digest a summary was written
+/// from (`CoachSummaryArchive`).
+public struct CoachDigest: Codable, Hashable, Sendable {
+    public struct PR: Codable, Hashable, Sendable {
         public var exercise: String
         public var weight: Double
         public var reps: Int
     }
 
-    public struct MainLift: Encodable, Hashable, Sendable {
+    public struct MainLift: Codable, Hashable, Sendable {
         public var exercise: String
         public var e1rmNow: Double
         public var e1rm30dAgo: Double?
@@ -31,7 +33,7 @@ public struct CoachDigest: Encodable, Hashable, Sendable {
         }
     }
 
-    public struct Training: Encodable, Hashable, Sendable {
+    public struct Training: Codable, Hashable, Sendable {
         public var workoutsLast7d: Int
         public var workoutsPrev7d: Int
         public var plannedPerWeek: Int
@@ -56,7 +58,7 @@ public struct CoachDigest: Encodable, Hashable, Sendable {
         }
     }
 
-    public struct Nutrition: Encodable, Hashable, Sendable {
+    public struct Nutrition: Codable, Hashable, Sendable {
         public var daysLoggedLast7d: Int
         public var avgCalories: Double?
         public var targetCalories: Double
@@ -80,7 +82,7 @@ public struct CoachDigest: Encodable, Hashable, Sendable {
         }
     }
 
-    public struct Body: Encodable, Hashable, Sendable {
+    public struct Body: Codable, Hashable, Sendable {
         public var trendWeightNow: Double?
         public var trendWeight14dAgo: Double?
         public var weighInsLast14d: Int
@@ -97,7 +99,8 @@ public struct CoachDigest: Encodable, Hashable, Sendable {
         }
     }
 
-    /// `yyyy-MM-dd` in the user's calendar.
+    /// `yyyy-MM-dd`: the Gregorian date in the user's time zone, whatever
+    /// calendar the device uses.
     public var date: String
     /// `build_muscle | lose_fat | gain_strength | maintain | recomposition`.
     public var goal: String
@@ -116,6 +119,7 @@ public struct CoachDigest: Encodable, Hashable, Sendable {
 
     public static let maxPRs = 5
     public static let maxRecommendations = 5
+    /// In UTF-16 code units, as the server's validator (zod) counts them.
     public static let maxStringLength = 120
 
     /// Contract goal value. `improveFitness` (kept only so old profiles
@@ -264,13 +268,19 @@ public struct CoachDigestBuilder: Sendable {
             guard let weight = rec.weight, weight > 0 else { return nil }
             let name = catalog[rec.exerciseID]?.name ?? rec.exerciseID
             let load = "\(Self.plain(Self.weight(weight, unit: unit))) \(unit.symbol) × \(rec.reps)"
+            let (prefix, suffix): (String, String)
             switch rec.action {
-            case .increaseLoad: return Self.clip("Increase \(name) to \(load)")
-            case .increaseReps: return Self.clip("Add reps on \(name): \(load)")
-            case .reduceLoad: return Self.clip("Reduce \(name) to \(load)")
-            case .deload: return Self.clip("Deload \(name) to \(load)")
+            case .increaseLoad: (prefix, suffix) = ("Increase ", " to \(load)")
+            case .increaseReps: (prefix, suffix) = ("Add reps on ", ": \(load)")
+            case .reduceLoad: (prefix, suffix) = ("Reduce ", " to \(load)")
+            case .deload: (prefix, suffix) = ("Deload ", " to \(load)")
             case .repeatLoad, .establishBaseline: return nil
             }
+            // Only the name is shortened, so the load and reps are never cut off.
+            let budget = CoachDigest.maxStringLength - prefix.utf16.count - suffix.utf16.count
+            let clippedName = Self.clip(name, limit: budget)
+            guard !clippedName.isEmpty else { return nil }
+            return prefix + clippedName + suffix
         }
         .prefix(CoachDigest.maxRecommendations)
         .map { $0 }
@@ -278,8 +288,17 @@ public struct CoachDigestBuilder: Sendable {
 
     // MARK: Number hygiene
 
-    static func dayString(_ date: Date, calendar: Calendar) -> String {
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+    /// `yyyy-MM-dd` of the Gregorian date in `calendar`'s time zone. The
+    /// user's calendar may be Japanese, Buddhist, Hebrew and so on; only its
+    /// time zone is used, so the year is never an era year.
+    public static func dayString(_ date: Date, calendar: Calendar) -> String {
+        dayString(date, timeZone: calendar.timeZone)
+    }
+
+    public static func dayString(_ date: Date, timeZone: TimeZone) -> String {
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = timeZone
+        let parts = gregorian.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
@@ -302,7 +321,19 @@ public struct CoachDigestBuilder: Sendable {
         value.rounded() == value ? String(Int(value)) : String(value)
     }
 
-    static func clip(_ text: String) -> String {
-        text.count <= CoachDigest.maxStringLength ? text : String(text.prefix(CoachDigest.maxStringLength))
+    /// At most `limit` UTF-16 code units (how the server counts), cut at a
+    /// character boundary so an emoji or accented letter is never split.
+    static func clip(_ text: String, limit: Int = CoachDigest.maxStringLength) -> String {
+        guard text.utf16.count > limit else { return text }
+        var result = ""
+        var used = 0
+        for character in text {
+            let size = character.utf16.count
+            guard used + size <= limit else { break }
+            result.append(character)
+            used += size
+        }
+        while result.last?.isWhitespace == true { result.removeLast() }
+        return result
     }
 }

@@ -216,11 +216,14 @@ struct MeasurementEntryView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var entry: BodyMeasurementEntry
-    @State private var values: [BodySite: Double] = [:]
-    /// Values as first shown (rounded, in the display unit), so untouched
+    /// What's typed in each field, parsed on every keystroke (no Return
+    /// needed) with `MeasurementInput`, in the locale's decimal format.
+    @State private var texts: [BodySite: String] = [:]
+    /// Text as first shown (rounded, in the display unit), so untouched
     /// fields keep their exact stored value instead of a rounded round-trip.
-    @State private var initialValues: [BodySite: Double] = [:]
+    @State private var initialTexts: [BodySite: String] = [:]
     @State private var confirmDelete = false
+    @FocusState private var focusedSite: BodySite?
     var isNew: Bool
 
     init(entry: BodyMeasurementEntry, isNew: Bool) {
@@ -243,12 +246,15 @@ struct MeasurementEntryView: View {
                                 Text(site.guidance).font(VFont.caption).foregroundStyle(VColor.textTertiary)
                             }
                             Spacer(minLength: Space.sm)
-                            TextField("–", value: binding(for: site), format: .number.precision(.fractionLength(0...1)))
+                            TextField("–", text: binding(for: site))
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .font(VFont.data)
+                                .foregroundStyle(isInvalid(site) ? VColor.danger : VColor.textPrimary)
                                 .frame(width: 72)
+                                .focused($focusedSite, equals: site)
                                 .accessibilityLabel("\(site.displayName) in \(unit == .centimeters ? "centimetres" : "inches")")
+                                .accessibilityValue(isInvalid(site) ? "\(texts[site] ?? ""), not a valid number" : (texts[site] ?? ""))
                             Text(unit.symbol)
                                 .font(VFont.secondary)
                                 .foregroundStyle(VColor.textSecondary)
@@ -256,7 +262,12 @@ struct MeasurementEntryView: View {
                         .frame(minHeight: Size.minTouch)
                     }
                 } footer: {
-                    Text("Leave a site blank if you didn't measure it. Only what you log is charted.")
+                    if hasInvalidInput {
+                        Text("Enter each measurement as a number above zero, or leave it blank.")
+                            .foregroundStyle(VColor.danger)
+                    } else {
+                        Text("Leave a site blank if you didn't measure it. Only what you log is charted.")
+                    }
                 }
                 if !isNew {
                     Section {
@@ -274,11 +285,17 @@ struct MeasurementEntryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        focusedSite = nil
                         model.saveMeasurements(finalEntry(unit: unit))
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .disabled(isNew && finalEntry(unit: unit).isEmpty)
+                    .disabled(hasInvalidInput || (isNew && finalEntry(unit: unit).isEmpty))
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focusedSite = nil }
+                        .fontWeight(.semibold)
                 }
             }
             .confirmationDialog("Delete this entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -288,22 +305,35 @@ struct MeasurementEntryView: View {
                 }
             }
             .onAppear {
+                guard initialTexts.isEmpty else { return }
                 for site in BodySite.allCases {
-                    if let cm = entry[site] { values[site] = (unit.fromCentimeters(cm) * 10).rounded() / 10 }
+                    if let cm = entry[site] { texts[site] = MeasurementInput.text(unit.fromCentimeters(cm)) }
                 }
-                initialValues = values
+                initialTexts = texts
             }
         }
     }
 
-    private func binding(for site: BodySite) -> Binding<Double?> {
-        Binding(get: { values[site] }, set: { values[site] = $0 })
+    private func binding(for site: BodySite) -> Binding<String> {
+        Binding(get: { texts[site] ?? "" }, set: { texts[site] = $0 })
     }
 
+    private func isInvalid(_ site: BodySite) -> Bool {
+        MeasurementInput.parse(texts[site] ?? "") == .invalid
+    }
+
+    private var hasInvalidInput: Bool { BodySite.allCases.contains(where: isInvalid) }
+
+    /// Untouched fields keep their stored value; edited ones are parsed.
+    /// Invalid text never reaches here (Save is disabled), but is ignored if it does.
     private func finalEntry(unit: LengthUnit) -> BodyMeasurementEntry {
         var result = entry
-        for site in BodySite.allCases where values[site] != initialValues[site] {
-            result[site] = values[site].map(unit.toCentimeters)
+        for site in BodySite.allCases where (texts[site] ?? "") != (initialTexts[site] ?? "") {
+            switch MeasurementInput.parse(texts[site] ?? "") {
+            case .empty: result[site] = nil
+            case .value(let value): result[site] = unit.toCentimeters(value)
+            case .invalid: break
+            }
         }
         return result
     }

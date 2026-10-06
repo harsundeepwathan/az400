@@ -113,3 +113,39 @@ extension Format {
         return length(0, unit: unit)
     }
 }
+
+/// Text typed into a measurement field. Parsed on every keystroke, so a
+/// value counts as soon as it's typed (no Return needed).
+public enum MeasurementInput: Hashable, Sendable {
+    /// Blank: the site wasn't measured.
+    case empty
+    case value(Double)
+    /// Not a positive number; the field is flagged and Save is disabled.
+    case invalid
+
+    /// Accepts the locale's decimal separator and also `.`, which some
+    /// keyboards offer whatever the region. Grouping separators and signs are
+    /// rejected rather than guessed at.
+    public static func parse(_ text: String, locale: Locale = Format.locale) -> MeasurementInput {
+        var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return .empty }
+        let separator = locale.decimalSeparator ?? "."
+        if separator != "." { trimmed = trimmed.replacingOccurrences(of: separator, with: ".") }
+        guard trimmed.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }),
+              trimmed.filter({ $0 == "." }).count <= 1,
+              trimmed.contains(where: \.isNumber),
+              let number = Double(trimmed.hasPrefix(".") ? "0" + trimmed : trimmed),
+              number.isFinite, number > 0 else { return .invalid }
+        return .value(number)
+    }
+
+    /// A stored value as editable text: one decimal at most, no grouping,
+    /// the locale's decimal separator ("82.5", "82,5", "80").
+    public static func text(_ value: Double, locale: Locale = Format.locale) -> String {
+        let rounded = (value * 10).rounded() / 10
+        guard rounded.isFinite else { return "" }
+        let plain = rounded == rounded.rounded() && abs(rounded) < 1e15 ? String(Int(rounded)) : String(format: "%.1f", rounded)
+        let separator = locale.decimalSeparator ?? "."
+        return separator == "." ? plain : plain.replacingOccurrences(of: ".", with: separator)
+    }
+}

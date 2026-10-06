@@ -214,6 +214,91 @@ final class CoachDigestTests: XCTestCase {
         XCTAssertEqual(digest.recommendations, ["Increase Back Squat to 87.5 kg × 8"])
     }
 
+    // MARK: Date
+
+    func testDigestDateIsGregorianWhateverTheUserCalendar() {
+        // 23:30 UTC on Monday 5 October 2026 is already Tuesday 6 October in Tokyo.
+        let lateEvening = Date(timeIntervalSince1970: 1_791_243_000)
+        for identifier: Calendar.Identifier in [.japanese, .buddhist, .hebrew, .islamicUmmAlQura, .persian, .gregorian] {
+            var userCalendar = Calendar(identifier: identifier)
+            userCalendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+            XCTAssertEqual(CoachDigestBuilder.dayString(lateEvening, calendar: userCalendar), "2026-10-06", "\(identifier)")
+            userCalendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            XCTAssertEqual(CoachDigestBuilder.dayString(lateEvening, calendar: userCalendar), "2026-10-05", "\(identifier)")
+        }
+        var japanese = Calendar(identifier: .japanese)
+        japanese.timeZone = TimeZone(identifier: "UTC")!
+        let context = CoachContext(sessions: [], foodEntries: [], bodyWeights: [], program: nil, profile: profile(), now: now)
+        XCTAssertEqual(CoachDigestBuilder(calendar: japanese).build(context).date, "2026-10-05", "not the Reiwa year 0008")
+    }
+
+    // MARK: String limits (UTF-16, as the server counts)
+
+    func testClipCountsUTF16AndNeverSplitsACharacter() {
+        let flexes = String(repeating: "💪", count: 100) // 200 UTF-16 units, 100 characters
+        let clipped = CoachDigestBuilder.clip(flexes)
+        XCTAssertEqual(clipped.utf16.count, 120)
+        XCTAssertEqual(clipped, String(repeating: "💪", count: 60))
+        let family = String(repeating: "👨‍👩‍👧‍👦", count: 20) // 11 UTF-16 units each
+        let clippedFamily = CoachDigestBuilder.clip(family)
+        XCTAssertLessThanOrEqual(clippedFamily.utf16.count, 120)
+        XCTAssertEqual(clippedFamily, String(repeating: "👨‍👩‍👧‍👦", count: 10), "whole graphemes only")
+        XCTAssertEqual(CoachDigestBuilder.clip("Back Squat"), "Back Squat")
+        XCTAssertEqual(CoachDigestBuilder.clip(String(repeating: "a", count: 119) + " b", limit: 120), String(repeating: "a", count: 119),
+                       "no trailing space left behind")
+    }
+
+    func testLongNamesAreClippedButRecommendationNumbersSurvive() throws {
+        let names = [String(repeating: "Bulgarian Split Squat ", count: 10),
+                     String(repeating: "🏋️‍♀️", count: 80),
+                     "Curl " + String(repeating: "é", count: 200)]
+        for name in names {
+            let recs = [ProgressionRecommendation(exerciseID: name, action: .increaseLoad, weight: 87.5, reps: 8, sets: 3, reason: "", evidence: []),
+                        ProgressionRecommendation(exerciseID: name, action: .increaseReps, weight: 40, reps: 12, sets: 3, reason: "", evidence: []),
+                        ProgressionRecommendation(exerciseID: name, action: .deload, weight: 70, reps: 5, sets: 3, reason: "", evidence: [])]
+            let lines = CoachDigestBuilder(calendar: calendar).recommendationLines(recs, unit: .kilograms)
+            XCTAssertEqual(lines.count, 3)
+            for line in lines { XCTAssertLessThanOrEqual(line.utf16.count, CoachDigest.maxStringLength, line) }
+            XCTAssertTrue(lines[0].hasPrefix("Increase "))
+            XCTAssertTrue(lines[0].hasSuffix(" to 87.5 kg × 8"), lines[0])
+            XCTAssertTrue(lines[1].hasSuffix(": 40 kg × 12"), lines[1])
+            XCTAssertTrue(lines[2].hasSuffix(" to 70 kg × 5"), lines[2])
+        }
+    }
+
+    func testLongPRAndMainLiftNamesFitTheServerLimit() throws {
+        let name = String(repeating: "💪 Press ", count: 30)
+        func session(_ daysAgo: Int, _ weight: Double) -> WorkoutSession {
+            let start = day(daysAgo, hour: 9)
+            return WorkoutSession(name: "Push", startedAt: start, endedAt: start.addingTimeInterval(3600), exercises: [
+                ExerciseLog(exerciseID: name, sets: (0..<3).map { _ in SetLog(weight: weight, reps: 8, isCompleted: true) },
+                            repRange: RepRange(6, 8), restSeconds: 150)
+            ])
+        }
+        let program = TrainingProgram(name: "Push", daysPerWeek: 3, workouts: [
+            WorkoutTemplate(name: "Push", exercises: [ExercisePrescription(exerciseID: name, sets: 3, repRange: RepRange(6, 8))])
+        ])
+        let context = CoachContext(sessions: [session(10, 50), session(3, 55)], foodEntries: [], bodyWeights: [],
+                                   program: program, profile: profile(), now: now)
+        let digest = CoachDigestBuilder(calendar: calendar).build(context, recommendations: [])
+        let pr = try XCTUnwrap(digest.training.prsLast14d.first)
+        XCTAssertLessThanOrEqual(pr.exercise.utf16.count, CoachDigest.maxStringLength)
+        XCTAssertTrue(name.hasPrefix(pr.exercise))
+        XCTAssertEqual(pr.weight, 55)
+        let lift = try XCTUnwrap(digest.training.mainLift)
+        XCTAssertLessThanOrEqual(lift.exercise.utf16.count, CoachDigest.maxStringLength)
+        XCTAssertTrue(name.hasPrefix(lift.exercise))
+    }
+
+    func testDigestRoundTripsThroughJSON() throws {
+        let digest = CoachDigestBuilder(calendar: calendar).build(fullContext(), recommendations: [increase])
+        let decoded = try JSONDecoder().decode(CoachDigest.self, from: JSONEncoder().encode(digest))
+        XCTAssertEqual(decoded, digest)
+        let empty = CoachDigestBuilder(calendar: calendar)
+            .build(CoachContext(sessions: [], foodEntries: [], bodyWeights: [], program: nil, profile: profile(), now: now))
+        XCTAssertEqual(try JSONDecoder().decode(CoachDigest.self, from: JSONEncoder().encode(empty)), empty)
+    }
+
     // MARK: API client
 
     let base = URL(string: "https://api.example.com")!
@@ -231,6 +316,7 @@ final class CoachDigestTests: XCTestCase {
             let digest = body["digest"] as! [String: Any]
             XCTAssertEqual(digest["goal"] as? String, "build_muscle")
             XCTAssertNotNil(digest["training"] as? [String: Any])
+            XCTAssertGreaterThanOrEqual(request.timeoutInterval, 65, "the server can take ~60 s (two model attempts)")
             return (200, #"{"summary":"Two sessions this week.","cached":true,"generated_at":"2026-10-05T07:12:00.000Z"}"#)
         }
         let api = APIClient(baseURL: base, transport: transport, tokens: signedIn(), now: { self.now })
@@ -249,7 +335,9 @@ final class CoachDigestTests: XCTestCase {
         let cases: [((Int, String), CoachSummaryError)] = [
             ((402, #"{"error":"pro_required"}"#), .proRequired),
             ((400, #"{"error":"invalid_request"}"#), .invalidDigest),
-            ((429, #"{"error":"rate_limited"}"#), .rateLimited),
+            ((429, #"{"error":"rate_limited"}"#), .rateLimited(retryAfter: nil)),
+            ((429, #"{"error":"rate_limited","retry_after_seconds":30}"#), .rateLimited(retryAfter: 30)),
+            ((429, #"{"error":"rate_limited","retry_after_seconds":52000.4}"#), .rateLimited(retryAfter: 52001)),
             ((503, #"{"error":"busy"}"#), .unavailable),
             ((200, #"{"summary":"  "}"#), .unavailable)
         ]
