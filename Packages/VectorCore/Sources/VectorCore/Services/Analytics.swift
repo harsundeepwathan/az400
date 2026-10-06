@@ -17,6 +17,18 @@ public enum AnalyticsEventName: String, Codable, CaseIterable, Sendable {
     case subscriptionStarted = "subscription_started"
     case subscriptionCancelled = "subscription_cancelled"
     case appOpened = "app_opened"
+    // Coaching (mirror backend/api/src/events.ts)
+    case recommendationGenerated = "recommendation_generated"
+    case recommendationViewed = "recommendation_viewed"
+    case recommendationApplied = "recommendation_applied"
+    case recommendationRejected = "recommendation_rejected"
+    case adjustmentCreated = "adjustment_created"
+    case adjustmentOutcomeMeasured = "adjustment_outcome_measured"
+    case weeklyCheckInCompleted = "weekly_checkin_completed"
+    case trainingProgressionAccepted = "training_progression_accepted"
+    case trainingProgressionRejected = "training_progression_rejected"
+    case calorieAdjustmentAccepted = "calorie_adjustment_accepted"
+    case calorieAdjustmentRejected = "calorie_adjustment_rejected"
 }
 
 public enum AnalyticsValue: Codable, Hashable, Sendable, ExpressibleByStringLiteral, ExpressibleByIntegerLiteral,

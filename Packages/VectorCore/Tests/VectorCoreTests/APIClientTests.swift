@@ -156,6 +156,21 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(AnalyticsEvent.self, from: JSONEncoder().encode(event)), event)
     }
 
+    func testEventNamesMatchBackendList() throws {
+        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../backend/api/src/events.ts").standardized
+        let text = try String(contentsOf: source, encoding: .utf8)
+        guard let start = text.range(of: "EVENT_NAMES = ["), let end = text.range(of: "] as const", range: start.upperBound..<text.endIndex) else {
+            return XCTFail("EVENT_NAMES not found")
+        }
+        let backend = text[start.upperBound..<end.lowerBound].split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.hasPrefix("\"") }
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "\",")) }
+        XCTAssertEqual(Set(backend), Set(AnalyticsEventName.allCases.map(\.rawValue)))
+        XCTAssertEqual(backend.count, AnalyticsEventName.allCases.count)
+    }
+
     func testEventQueueBatchesKeepsFailuresAndRespectsOptOut() async {
         final class Box: @unchecked Sendable { var enabled = true; var fail = false; var uploaded: [[AnalyticsEvent]] = []; var persisted = 0 }
         let box = Box()

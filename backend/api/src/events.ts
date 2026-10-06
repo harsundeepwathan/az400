@@ -19,6 +19,18 @@ export const EVENT_NAMES = [
   "subscription_started",
   "subscription_cancelled",
   "app_opened",
+  // Coaching
+  "recommendation_generated",
+  "recommendation_viewed",
+  "recommendation_applied",
+  "recommendation_rejected",
+  "adjustment_created",
+  "adjustment_outcome_measured",
+  "weekly_checkin_completed",
+  "training_progression_accepted",
+  "training_progression_rejected",
+  "calorie_adjustment_accepted",
+  "calorie_adjustment_rejected",
 ] as const;
 
 const Property = z.union([z.string().max(200), z.number().finite(), z.boolean(), z.null()]);
