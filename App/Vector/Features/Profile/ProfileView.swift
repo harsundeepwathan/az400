@@ -58,7 +58,9 @@ struct ProfileView: View {
 
                     Section("Training") {
                         Picker("Goal", selection: binding(\.goal)) {
-                            ForEach(TrainingGoal.allCases) { Text($0.title).tag($0) }
+                            ForEach(TrainingGoal.selectable + (profile.goal == .improveFitness ? [.improveFitness] : [])) {
+                                Text($0.title).tag($0)
+                            }
                         }
                         Picker("Experience", selection: binding(\.experience)) {
                             ForEach(ExperienceLevel.allCases) { Text($0.title).tag($0) }

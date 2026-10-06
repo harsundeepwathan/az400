@@ -36,12 +36,13 @@ public struct NutritionEngine: Sendable {
         heightCm: Double,
         age: Int,
         trainingDays: Int,
-        goal: NutritionGoal
+        goal: NutritionGoal,
+        proteinPerKg: Double? = nil
     ) -> NutritionTargets {
         let maintenance = restingEnergy(sex: sex, weightKg: weightKg, heightCm: heightCm, age: age)
             * activityMultiplier(trainingDays: trainingDays)
         let calories = max(((maintenance + goal.calorieAdjustment) / 50).rounded() * 50, 1200)
-        let proteinPerKg: Double = goal == .lose ? 2.0 : 1.8
+        let proteinPerKg = proteinPerKg ?? (goal == .lose ? 2.0 : 1.8)
         let protein = (weightKg * proteinPerKg / 5).rounded() * 5
         let fat = (max(weightKg * 0.8, calories * 0.25 / 9) / 5).rounded() * 5
         let carbs = max(((calories - protein * 4 - fat * 9) / 4 / 5).rounded() * 5, 50)

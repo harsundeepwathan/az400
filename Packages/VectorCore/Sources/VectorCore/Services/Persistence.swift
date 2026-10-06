@@ -38,6 +38,15 @@ public struct AppData: Codable, Hashable, Sendable {
     public var deletedIDs: Set<String>?
     /// When this copy last changed; decides which device's settings win a merge.
     public var modifiedAt: Date?
+    /// User-created exercises (ids prefixed `custom-`).
+    public var customExercises: [Exercise]?
+    public var favoriteExerciseIDs: Set<String>?
+    /// Foods starred for one-tap logging. Stored whole because Open Food Facts items aren't bundled.
+    public var favoriteFoods: [FoodItem]?
+    /// Rest time the athlete last chose for each exercise, in seconds.
+    public var restPreferences: [String: Int]?
+    /// Weekly adaptive-nutrition check-ins, oldest first.
+    public var checkIns: [NutritionCheckIn]?
 
     public init(
         schemaVersion: Int = AppData.currentSchemaVersion,
@@ -56,7 +65,12 @@ public struct AppData: Codable, Hashable, Sendable {
         tier: SubscriptionTier = .free,
         targetOverrides: [String: TargetOverride]? = nil,
         deletedIDs: Set<String>? = nil,
-        modifiedAt: Date? = nil
+        modifiedAt: Date? = nil,
+        customExercises: [Exercise]? = nil,
+        favoriteExerciseIDs: Set<String>? = nil,
+        favoriteFoods: [FoodItem]? = nil,
+        restPreferences: [String: Int]? = nil,
+        checkIns: [NutritionCheckIn]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.profile = profile
@@ -75,6 +89,11 @@ public struct AppData: Codable, Hashable, Sendable {
         self.targetOverrides = targetOverrides
         self.deletedIDs = deletedIDs
         self.modifiedAt = modifiedAt
+        self.customExercises = customExercises
+        self.favoriteExerciseIDs = favoriteExerciseIDs
+        self.favoriteFoods = favoriteFoods
+        self.restPreferences = restPreferences
+        self.checkIns = checkIns
     }
 
     public var hasCompletedOnboarding: Bool { profile != nil }

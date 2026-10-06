@@ -52,6 +52,7 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
         catalog: ExerciseCatalog,
         history: [WorkoutSession],
         overrides: [String: ProgressionRecommendation] = [:],
+        restPreferences: [String: Int] = [:],
         unit: WeightUnit = .kilograms,
         now: Date = Date()
     ) -> ActiveWorkout {
@@ -66,7 +67,7 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
                 SetLog(weight: weight, reps: rec.reps, targetReps: rec.reps, targetWeight: rec.weight)
             }
             return ExerciseLog(exerciseID: item.exerciseID, sets: sets, repRange: item.repRange,
-                               restSeconds: item.restSeconds ?? exercise.defaultRestSeconds)
+                               restSeconds: restPreferences[item.exerciseID] ?? item.restSeconds ?? exercise.defaultRestSeconds)
         }
         let session = WorkoutSession(templateID: template.id, name: template.name, startedAt: now, exercises: logs)
         return ActiveWorkout(
@@ -154,12 +155,24 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
             }
         }
 
-        let next = nextIncomplete(after: position)
-        focus = next
         let log = session.exercises[position.exercise]
+        var rest = set.kind == .warmup ? 0 : log.restSeconds
+        var next = nextIncomplete(after: position)
+        // Supersets: go straight to the next member; rest once the round is done.
+        if let group = log.supersetGroup {
+            let members = session.exercises.indices.filter { session.exercises[$0].supersetGroup == group }
+            let later = members.filter { $0 > position.exercise } + members.filter { $0 <= position.exercise }
+            if let target = later.first(where: { $0 > position.exercise && !session.exercises[$0].isComplete }) {
+                next = SetPosition(exercise: target, set: session.exercises[target].sets.firstIndex { !$0.isCompleted } ?? 0)
+                rest = 0
+            } else if let target = later.first(where: { !session.exercises[$0].isComplete }) {
+                next = SetPosition(exercise: target, set: session.exercises[target].sets.firstIndex { !$0.isCompleted } ?? 0)
+            }
+        }
+        focus = next
         return SetCompletion(
             position: position,
-            restSeconds: log.restSeconds,
+            restSeconds: rest,
             nextFocus: next,
             finishedExercise: log.isComplete,
             finishedWorkout: next == nil,
@@ -218,6 +231,49 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
         }
     }
 
+    public mutating func setKind(_ kind: SetKind, at position: SetPosition) {
+        guard isValid(position) else { return }
+        session.exercises[position.exercise].sets[position.set].kind = kind
+    }
+
+    /// RPE 6–10 in half steps; nil clears it.
+    public mutating func setRPE(_ rpe: Double?, at position: SetPosition) {
+        guard isValid(position) else { return }
+        session.exercises[position.exercise].sets[position.set].rpe = rpe.map { min(max(($0 * 2).rounded() / 2, 6), 10) }
+    }
+
+    public mutating func setNote(_ note: String, forExercise index: Int) {
+        guard session.exercises.indices.contains(index) else { return }
+        session.exercises[index].note = String(note.prefix(500))
+    }
+
+    /// Links an exercise with the one after it, or unlinks them if they're
+    /// already in the same superset.
+    public mutating func toggleSuperset(withNext index: Int) {
+        guard session.exercises.indices.contains(index), session.exercises.indices.contains(index + 1) else { return }
+        let first = session.exercises[index].supersetGroup
+        let second = session.exercises[index + 1].supersetGroup
+        if let first, first == second {
+            session.exercises[index + 1].supersetGroup = nil
+        } else {
+            let used = session.exercises.compactMap(\.supersetGroup)
+            let group = first ?? second ?? (used.max() ?? 0) + 1
+            session.exercises[index].supersetGroup = group
+            session.exercises[index + 1].supersetGroup = group
+        }
+        normalizeSupersets()
+    }
+
+    /// A superset needs at least two adjacent members; anything else is cleared.
+    mutating func normalizeSupersets() {
+        for index in session.exercises.indices {
+            guard let group = session.exercises[index].supersetGroup else { continue }
+            let linked = (index > 0 && session.exercises[index - 1].supersetGroup == group)
+                || (index + 1 < session.exercises.count && session.exercises[index + 1].supersetGroup == group)
+            if !linked { session.exercises[index].supersetGroup = nil }
+        }
+    }
+
     public mutating func toggleWarmup(_ position: SetPosition) {
         guard isValid(position) else { return }
         let kind = session.exercises[position.exercise].sets[position.set].kind
@@ -225,14 +281,14 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
     }
 
     public mutating func addExercise(_ exercise: Exercise, sets: Int = 3, repRange: RepRange = RepRange(8, 12),
-                                     recommendation: ProgressionRecommendation? = nil) {
+                                     recommendation: ProgressionRecommendation? = nil, restSeconds: Int? = nil) {
         let weight = recommendation?.weight ?? 0
         let reps = recommendation?.reps ?? repRange.upper
         let log = ExerciseLog(
             exerciseID: exercise.id,
             sets: (0..<max(sets, 1)).map { _ in SetLog(weight: weight, reps: reps, targetReps: reps, targetWeight: recommendation?.weight) },
             repRange: repRange,
-            restSeconds: exercise.defaultRestSeconds
+            restSeconds: restSeconds ?? exercise.defaultRestSeconds
         )
         session.exercises.append(log)
         if focus == nil { focus = SetPosition(exercise: session.exercises.count - 1, set: 0) }
@@ -241,7 +297,7 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
     /// Swaps an exercise in place. Completed sets are kept only if the
     /// replacement is the same exercise; otherwise the slot restarts with the
     /// replacement's recommendation.
-    public mutating func replaceExercise(at index: Int, with exercise: Exercise, recommendation: ProgressionRecommendation?) {
+    public mutating func replaceExercise(at index: Int, with exercise: Exercise, recommendation: ProgressionRecommendation?, restSeconds: Int? = nil) {
         guard session.exercises.indices.contains(index) else { return }
         let old = session.exercises[index]
         let weight = recommendation?.weight ?? 0
@@ -250,7 +306,8 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
             exerciseID: exercise.id,
             sets: old.sets.map { _ in SetLog(weight: weight, reps: reps, targetReps: reps, targetWeight: recommendation?.weight) },
             repRange: old.repRange,
-            restSeconds: exercise.defaultRestSeconds
+            restSeconds: restSeconds ?? exercise.defaultRestSeconds,
+            supersetGroup: old.supersetGroup
         )
         if focus?.exercise == index { focus = SetPosition(exercise: index, set: 0) }
     }
@@ -258,6 +315,7 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
     public mutating func removeExercise(at index: Int) {
         guard session.exercises.indices.contains(index) else { return }
         session.exercises.remove(at: index)
+        normalizeSupersets()
         if session.exercises.isEmpty {
             focus = nil
         } else if let focus {
@@ -273,6 +331,7 @@ public struct ActiveWorkout: Codable, Hashable, Sendable {
         guard session.exercises.indices.contains(source), session.exercises.indices.contains(destination) else { return }
         let item = session.exercises.remove(at: source)
         session.exercises.insert(item, at: destination)
+        normalizeSupersets()
         let exercises = session.exercises
         focus = exercises.indices.lazy.compactMap { index in
             exercises[index].sets.firstIndex { !$0.isCompleted }.map { SetPosition(exercise: index, set: $0) }

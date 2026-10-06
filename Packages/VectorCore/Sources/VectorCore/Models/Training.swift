@@ -25,6 +25,20 @@ public enum MuscleGroup: String, Codable, CaseIterable, Hashable, Sendable {
     public static let analyticsOrder: [MuscleGroup] = [
         .chest, .back, .shoulders, .quads, .hamstrings, .glutes, .biceps, .triceps
     ]
+
+    public var isLowerBody: Bool { [.quads, .hamstrings, .glutes, .calves].contains(self) }
+
+    /// Movement pattern assumed for a compound custom exercise.
+    public var defaultPattern: MovementPattern {
+        switch self {
+        case .chest, .triceps: .horizontalPush
+        case .back, .biceps, .forearms: .horizontalPull
+        case .shoulders: .verticalPush
+        case .quads, .calves: .squat
+        case .hamstrings, .glutes: .hinge
+        case .core: .core
+        }
+    }
 }
 
 public enum Equipment: String, Codable, CaseIterable, Hashable, Sendable {
@@ -223,8 +237,27 @@ public struct TrainingProgram: Identifiable, Codable, Hashable, Sendable {
 
 // MARK: - Logged training
 
-public enum SetKind: String, Codable, Hashable, Sendable {
+public enum SetKind: String, Codable, CaseIterable, Hashable, Sendable {
     case warmup, working, drop, failure
+
+    public var title: String {
+        switch self {
+        case .warmup: "Warm-up"
+        case .working: "Working"
+        case .drop: "Drop set"
+        case .failure: "To failure"
+        }
+    }
+
+    /// One-letter badge shown in place of the set number.
+    public var badge: String? {
+        switch self {
+        case .warmup: "W"
+        case .working: nil
+        case .drop: "D"
+        case .failure: "F"
+        }
+    }
 }
 
 public struct SetLog: Identifiable, Codable, Hashable, Sendable {
@@ -239,6 +272,8 @@ public struct SetLog: Identifiable, Codable, Hashable, Sendable {
     /// to judge success / failure.
     public var targetReps: Int?
     public var targetWeight: Double?
+    /// Rate of perceived exertion, 6–10 in half steps. Nil when not logged.
+    public var rpe: Double?
 
     public init(
         id: UUID = UUID(),
@@ -248,7 +283,8 @@ public struct SetLog: Identifiable, Codable, Hashable, Sendable {
         isCompleted: Bool = false,
         completedAt: Date? = nil,
         targetReps: Int? = nil,
-        targetWeight: Double? = nil
+        targetWeight: Double? = nil,
+        rpe: Double? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -258,7 +294,11 @@ public struct SetLog: Identifiable, Codable, Hashable, Sendable {
         self.completedAt = completedAt
         self.targetReps = targetReps
         self.targetWeight = targetWeight
+        self.rpe = rpe
     }
+
+    /// Reps in reserve implied by RPE (RPE 8 ≈ 2 reps left).
+    public var rir: Int? { rpe.map { max(Int((10 - $0).rounded()), 0) } }
 
     public var volume: Double { weight * Double(reps) }
     public var countsTowardVolume: Bool { isCompleted && kind != .warmup }
@@ -271,6 +311,8 @@ public struct ExerciseLog: Identifiable, Codable, Hashable, Sendable {
     public var repRange: RepRange
     public var restSeconds: Int
     public var note: String
+    /// Exercises sharing a group number are performed as a superset.
+    public var supersetGroup: Int?
 
     public init(
         id: UUID = UUID(),
@@ -278,7 +320,8 @@ public struct ExerciseLog: Identifiable, Codable, Hashable, Sendable {
         sets: [SetLog],
         repRange: RepRange,
         restSeconds: Int,
-        note: String = ""
+        note: String = "",
+        supersetGroup: Int? = nil
     ) {
         self.id = id
         self.exerciseID = exerciseID
@@ -286,6 +329,7 @@ public struct ExerciseLog: Identifiable, Codable, Hashable, Sendable {
         self.repRange = repRange
         self.restSeconds = restSeconds
         self.note = note
+        self.supersetGroup = supersetGroup
     }
 
     public var completedWorkingSets: [SetLog] { sets.filter(\.countsTowardVolume) }

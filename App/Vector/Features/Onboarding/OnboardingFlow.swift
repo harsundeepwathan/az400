@@ -28,8 +28,12 @@ struct OnboardingFlow: View {
                 case .name: NameStep(name: $answers.name) { go(.goal) }
                 case .goal:
                     ChoiceStep(title: "What's your main goal?", subtitle: "We'll tune your training and nutrition around it.",
-                               options: TrainingGoal.allCases, selection: answers.goal,
-                               label: { ($0.title, $0.detail, $0.symbol) }) { answers.goal = $0; go(.experience) }
+                               options: TrainingGoal.selectable, selection: answers.goal,
+                               label: { ($0.title, $0.detail, $0.symbol) }) {
+                        answers.goal = $0
+                        answers.nutritionGoal = $0.nutritionGoal
+                        go(.experience)
+                    }
                 case .experience:
                     ChoiceStep(title: "How experienced are you?", subtitle: "This sets your starting volume and progression speed.",
                                options: ExperienceLevel.allCases, selection: answers.experience,
@@ -39,10 +43,7 @@ struct OnboardingFlow: View {
                     ChoiceStep(title: "What equipment do you have?", subtitle: "Every exercise in your plan will match it.",
                                options: EquipmentAccess.allCases, selection: answers.equipment,
                                label: { ($0.title, $0.detail, $0.symbol) }) { answers.equipment = $0; go(.nutrition) }
-                case .nutrition:
-                    ChoiceStep(title: "What's your nutrition goal?", subtitle: "Sets your daily calorie and macro targets.",
-                               options: NutritionGoal.allCases, selection: answers.nutritionGoal,
-                               label: { ($0.title, $0.detail, nil) }) { answers.nutritionGoal = $0; go(.body) }
+                case .nutrition: DietStep(selection: $answers.dietaryPreferences) { go(.body) }
                 case .body: BodyStep(answers: $answers) { generate() }
                 case .generating: GeneratingStep()
                 case .ready:
@@ -254,6 +255,38 @@ private struct ChoiceStep<Option: Hashable & Identifiable>: View {
                 }
             }
             .sensoryFeedback(.selection, trigger: tapped)
+        }
+    }
+}
+
+/// Multi-select. Skipping is fine: no preference is a valid answer.
+private struct DietStep: View {
+    @Binding var selection: Set<DietaryPreference>
+    var onNext: () -> Void
+
+    var body: some View {
+        StepScaffold(title: "Any dietary preferences?", subtitle: "Used for food suggestions. Choose any that apply.",
+                     primaryTitle: selection.isEmpty ? "No preferences" : "Continue", onPrimary: onNext) {
+            FlowLayout(spacing: Space.xs) {
+                ForEach(DietaryPreference.allCases) { preference in
+                    let isOn = selection.contains(preference)
+                    Button {
+                        withAnimation(Motion.snappy) {
+                            if isOn { selection.remove(preference) } else { selection.insert(preference) }
+                        }
+                    } label: {
+                        Label(preference.title, systemImage: isOn ? "checkmark" : "plus")
+                            .font(VFont.bodyEmphasized)
+                            .foregroundStyle(isOn ? VColor.textOnAccent : VColor.textPrimary)
+                            .padding(.horizontal, Space.md)
+                            .frame(minHeight: Size.minTouch)
+                            .background(isOn ? VColor.accent : VColor.surface, in: Capsule())
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityAddTraits(isOn ? .isSelected : [])
+                }
+            }
+            .sensoryFeedback(.selection, trigger: selection)
         }
     }
 }

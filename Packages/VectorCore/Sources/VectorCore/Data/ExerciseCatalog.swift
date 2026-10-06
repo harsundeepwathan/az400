@@ -245,6 +245,35 @@ public struct ExerciseCatalog: Sendable {
 }
 
 extension Exercise {
-    /// Imported exercises carry a `fedb-` id prefix; everything else is hand-curated.
-    public var isCurated: Bool { !id.hasPrefix("fedb-") }
+    static let customPrefix = "custom-"
+
+    /// Imported exercises carry a `fedb-` id prefix and user-created ones `custom-`;
+    /// everything else is hand-curated.
+    public var isCurated: Bool { !id.hasPrefix("fedb-") && !isCustom }
+    public var isCustom: Bool { id.hasPrefix(Self.customPrefix) }
+
+    /// A user-created exercise. Isolation-style defaults (shorter rest, small
+    /// load steps) unless the user marks it compound.
+    public static func custom(name: String, primaryMuscle: MuscleGroup, equipment: Equipment, isCompound: Bool = false,
+                              id: UUID = UUID()) -> Exercise {
+        Exercise(
+            id: customPrefix + id.uuidString.lowercased(),
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            primaryMuscles: [primaryMuscle],
+            equipment: equipment,
+            pattern: isCompound ? primaryMuscle.defaultPattern : (primaryMuscle.isLowerBody ? .isolationLower : .isolationUpper),
+            defaultRestSeconds: isCompound ? 120 : 90,
+            loadIncrement: equipment == .bodyweight ? 0 : (equipment == .barbell ? 2.5 : (equipment == .dumbbell ? 2 : 2.5)),
+            isCompound: isCompound,
+            symbol: equipment == .bodyweight ? "figure.core.training" : "dumbbell"
+        )
+    }
+}
+
+extension ExerciseCatalog {
+    /// The catalog plus the user's own exercises. Custom ids never collide with built-ins.
+    public func adding(_ custom: [Exercise]) -> ExerciseCatalog {
+        guard !custom.isEmpty else { return self }
+        return ExerciseCatalog(all + custom.filter { self[$0.id] == nil })
+    }
 }

@@ -13,6 +13,7 @@ public struct OnboardingAnswers: Codable, Hashable, Sendable {
     public var weightKg: Double
     public var targetWeightKg: Double
     public var unit: WeightUnit
+    public var dietaryPreferences: Set<DietaryPreference>
 
     public init(
         name: String = "",
@@ -26,7 +27,8 @@ public struct OnboardingAnswers: Codable, Hashable, Sendable {
         heightCm: Double = 175,
         weightKg: Double = 75,
         targetWeightKg: Double = 75,
-        unit: WeightUnit = .kilograms
+        unit: WeightUnit = .kilograms,
+        dietaryPreferences: Set<DietaryPreference> = []
     ) {
         self.name = name
         self.goal = goal
@@ -40,6 +42,30 @@ public struct OnboardingAnswers: Codable, Hashable, Sendable {
         self.weightKg = weightKg
         self.targetWeightKg = targetWeightKg
         self.unit = unit
+        self.dietaryPreferences = dietaryPreferences
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, goal, experience, daysPerWeek, equipment, nutritionGoal, sex, age, heightCm, weightKg, targetWeightKg, unit, dietaryPreferences
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            name: try c.decode(String.self, forKey: .name),
+            goal: try c.decode(TrainingGoal.self, forKey: .goal),
+            experience: try c.decode(ExperienceLevel.self, forKey: .experience),
+            daysPerWeek: try c.decode(Int.self, forKey: .daysPerWeek),
+            equipment: try c.decode(EquipmentAccess.self, forKey: .equipment),
+            nutritionGoal: try c.decode(NutritionGoal.self, forKey: .nutritionGoal),
+            sex: try c.decode(BiologicalSex.self, forKey: .sex),
+            age: try c.decode(Int.self, forKey: .age),
+            heightCm: try c.decode(Double.self, forKey: .heightCm),
+            weightKg: try c.decode(Double.self, forKey: .weightKg),
+            targetWeightKg: try c.decode(Double.self, forKey: .targetWeightKg),
+            unit: try c.decode(WeightUnit.self, forKey: .unit),
+            dietaryPreferences: try c.decodeIfPresent(Set<DietaryPreference>.self, forKey: .dietaryPreferences) ?? []
+        )
     }
 }
 
@@ -91,7 +117,8 @@ public struct PlanGenerator: Sendable {
             heightCm: answers.heightCm,
             age: answers.age,
             trainingDays: days,
-            goal: answers.nutritionGoal
+            goal: answers.nutritionGoal,
+            proteinPerKg: answers.goal.proteinPerKg
         )
 
         var rationale = [
@@ -116,7 +143,8 @@ public struct PlanGenerator: Sendable {
             weightKg: answers.weightKg,
             targetWeightKg: answers.targetWeightKg,
             unit: answers.unit,
-            targets: targets
+            targets: targets,
+            dietaryPreferences: answers.dietaryPreferences
         )
         return GeneratedPlan(program: program, targets: targets, rationale: rationale, profile: profile)
     }
@@ -145,6 +173,7 @@ public struct PlanGenerator: Sendable {
         case (.getStronger, .primary): return (primarySets, .fixed(5))
         case (.getStronger, .secondary): return (3, RepRange(6, 8))
         case (.getStronger, .accessory): return (3, RepRange(8, 12))
+        case (.loseFat, .primary): return (primarySets, RepRange(5, 8))
         case (.improveFitness, .primary): return (3, RepRange(8, 12))
         case (.improveFitness, _): return (3, RepRange(12, 15))
         case (_, .primary): return (primarySets, .fixed(8))

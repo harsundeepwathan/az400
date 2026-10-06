@@ -1,15 +1,22 @@
 import Foundation
 
 public enum TrainingGoal: String, Codable, CaseIterable, Hashable, Sendable, Identifiable {
-    case buildMuscle, loseFat, getStronger, improveFitness
+    /// `improveFitness` is kept so profiles saved by earlier builds still decode;
+    /// it's no longer offered in onboarding.
+    case buildMuscle, loseFat, getStronger, maintain, recomposition, improveFitness
 
     public var id: String { rawValue }
+
+    /// Goals offered in onboarding and settings.
+    public static let selectable: [TrainingGoal] = [.buildMuscle, .loseFat, .getStronger, .maintain, .recomposition]
 
     public var title: String {
         switch self {
         case .buildMuscle: "Build muscle"
         case .loseFat: "Lose fat"
-        case .getStronger: "Get stronger"
+        case .getStronger: "Gain strength"
+        case .maintain: "Maintain"
+        case .recomposition: "Recomposition"
         case .improveFitness: "Improve fitness"
         }
     }
@@ -19,6 +26,8 @@ public enum TrainingGoal: String, Codable, CaseIterable, Hashable, Sendable, Ide
         case .buildMuscle: "Hypertrophy-focused volume with a small surplus"
         case .loseFat: "Keep your strength while in a calorie deficit"
         case .getStronger: "Heavier compound lifts, lower rep ranges"
+        case .maintain: "Hold your weight and keep training consistent"
+        case .recomposition: "Lose fat and build muscle at maintenance calories"
         case .improveFitness: "Balanced training and sustainable habits"
         }
     }
@@ -28,7 +37,55 @@ public enum TrainingGoal: String, Codable, CaseIterable, Hashable, Sendable, Ide
         case .buildMuscle: "figure.strengthtraining.traditional"
         case .loseFat: "flame"
         case .getStronger: "scalemass"
+        case .maintain: "equal.circle"
+        case .recomposition: "arrow.triangle.2.circlepath"
         case .improveFitness: "heart.text.square"
+        }
+    }
+
+    /// Calorie direction implied by the goal.
+    public var nutritionGoal: NutritionGoal {
+        switch self {
+        case .buildMuscle: .gain
+        case .loseFat: .lose
+        case .getStronger, .maintain, .recomposition, .improveFitness: .maintain
+        }
+    }
+
+    /// Target body-weight change per week as a fraction of body weight.
+    /// The adaptive check-in steers calories toward this rate.
+    public var targetWeeklyRate: Double {
+        switch self {
+        case .buildMuscle: 0.0025
+        case .loseFat: -0.005
+        case .getStronger: 0.001
+        case .maintain, .recomposition, .improveFitness: 0
+        }
+    }
+
+    /// Protein per kg of body weight. Higher in a deficit and for recomposition.
+    public var proteinPerKg: Double {
+        switch self {
+        case .loseFat, .recomposition: 2.0
+        default: 1.8
+        }
+    }
+}
+
+public enum DietaryPreference: String, Codable, CaseIterable, Hashable, Sendable, Identifiable {
+    case vegetarian, vegan, pescatarian, dairyFree, glutenFree, halal, kosher
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .vegetarian: "Vegetarian"
+        case .vegan: "Vegan"
+        case .pescatarian: "Pescatarian"
+        case .dairyFree: "Dairy-free"
+        case .glutenFree: "Gluten-free"
+        case .halal: "Halal"
+        case .kosher: "Kosher"
         }
     }
 }
@@ -152,6 +209,8 @@ public struct UserProfile: Codable, Hashable, Sendable {
     /// Exercise ids the athlete wants to avoid (injury / preference).
     public var avoidedExerciseIDs: Set<String>
     public var restTimerNotifications: Bool
+    /// Optional so profiles saved before this field existed still decode.
+    public var dietaryPreferences: Set<DietaryPreference>?
 
     public init(
         name: String,
@@ -168,7 +227,8 @@ public struct UserProfile: Codable, Hashable, Sendable {
         unit: WeightUnit = .kilograms,
         targets: NutritionTargets,
         avoidedExerciseIDs: Set<String> = [],
-        restTimerNotifications: Bool = true
+        restTimerNotifications: Bool = true,
+        dietaryPreferences: Set<DietaryPreference>? = nil
     ) {
         self.name = name
         self.goal = goal
@@ -185,5 +245,6 @@ public struct UserProfile: Codable, Hashable, Sendable {
         self.targets = targets
         self.avoidedExerciseIDs = avoidedExerciseIDs
         self.restTimerNotifications = restTimerNotifications
+        self.dietaryPreferences = dietaryPreferences
     }
 }

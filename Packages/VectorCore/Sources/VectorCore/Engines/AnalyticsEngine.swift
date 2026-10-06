@@ -322,6 +322,19 @@ public struct AnalyticsEngine: Sendable {
     }
 
     /// Most recent finished session from the same template, before `date`.
+    /// Exercise ids from finished sessions, most recently trained first, without duplicates.
+    public func recentExerciseIDs(_ sessions: [WorkoutSession], limit: Int = 10) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for session in sessions.filter(\.isFinished).sorted(by: { $0.startedAt > $1.startedAt }) {
+            for log in session.exercises where seen.insert(log.exerciseID).inserted {
+                result.append(log.exerciseID)
+                if result.count == limit { return result }
+            }
+        }
+        return result
+    }
+
     public func previousSession(templateID: UUID?, before date: Date, in sessions: [WorkoutSession]) -> WorkoutSession? {
         guard let templateID else { return nil }
         return sessions

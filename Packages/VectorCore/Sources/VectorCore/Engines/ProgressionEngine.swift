@@ -154,11 +154,29 @@ public struct ProgressionEngine: Sendable {
             }
         }
 
+        // Logged effort, when the athlete records it, refines the decision.
+        let topRPE = topSets.compactMap(\.rpe).max()
+        if let topRPE {
+            evidence.append(Evidence("Hardest set", "RPE \(Format.rpe(topRPE))"))
+        }
+
         // 2. Hit the top of the range on every set: add load.
         if hitTop {
             let twice = history.count >= 2 && Self.hitTop(history[1], weight: weight, sets: sets, range: repRange)
             let setsText = sets == 1 ? "your set" : "all \(sets) sets"
             let suffix = twice ? " twice in a row" : ""
+            // A grinder at true failure isn't owned yet. Repeat once before adding load.
+            if let topRPE, topRPE >= Self.maximalEffortRPE, !twice, exercise.loadIncrement > 0 {
+                return ProgressionRecommendation(
+                    exerciseID: exercise.id,
+                    action: .repeatLoad,
+                    weight: weight,
+                    reps: repRange.upper,
+                    sets: sets,
+                    reason: "You hit \(fmt(weight)) × \(repRange.upper) on \(setsText), but at RPE \(Format.rpe(topRPE)) with nothing left. Repeat it once with a rep in reserve, then add load.",
+                    evidence: evidence
+                )
+            }
             if exercise.loadIncrement > 0 {
                 return ProgressionRecommendation(
                     exerciseID: exercise.id,
@@ -166,7 +184,7 @@ public struct ProgressionEngine: Sendable {
                     weight: weight + exercise.loadIncrement,
                     reps: repRange.isFixed ? repRange.upper : repRange.lower,
                     sets: sets,
-                    reason: "You completed \(fmt(weight)) × \(repRange.upper) across \(setsText)\(suffix).",
+                    reason: "You completed \(fmt(weight)) × \(repRange.upper) across \(setsText)\(suffix)" + (topRPE.map { " at RPE \(Format.rpe($0))" } ?? "") + ".",
                     evidence: evidence
                 )
             }
@@ -222,6 +240,9 @@ public struct ProgressionEngine: Sendable {
             evidence: evidence
         )
     }
+
+    /// RPE at or above which a set is treated as maximal (no reps in reserve).
+    public static let maximalEffortRPE = 9.5
 
     static func hitTop(_ performance: ExercisePerformance, weight: Double, sets: Int, range: RepRange) -> Bool {
         let top = performance.workingSets.filter { $0.weight == weight }

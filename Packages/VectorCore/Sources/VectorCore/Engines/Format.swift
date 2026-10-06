@@ -45,6 +45,9 @@ public enum Format {
         }
     }
 
+    /// "8", "8.5": RPE is logged in half steps.
+    public static func rpe(_ value: Double) -> String { number(value, maxFraction: 1) }
+
     public static func integer(_ value: Double) -> String { number(value.rounded(), maxFraction: 0) }
 
     public static func grams(_ value: Double) -> String { number(value.rounded(), maxFraction: 0) + "g" }
