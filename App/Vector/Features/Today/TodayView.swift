@@ -11,6 +11,9 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.section) {
                     TodayHeader()
+                    if let brief = model.dailyBrief {
+                        TodayBriefCard(brief: brief)
+                    }
                     VStack(alignment: .leading, spacing: Space.sm) {
                         SectionHeader("Today's training")
                         TodayTrainingCard()
@@ -18,6 +21,10 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         SectionHeader("Daily nutrition", actionTitle: "Details") { model.selectedTab = .nutrition }
                         TodayNutritionCard()
+                    }
+                    if let checkIn = model.nutritionCheckIn, showsCheckIn(checkIn) {
+                        NutritionCheckInCard(result: checkIn)
+                            .transition(.opacity.combined(with: .scale(scale: 0.97)))
                     }
                     if model.shouldShowUpgradeMoment {
                         UpgradeMomentCard()
@@ -40,7 +47,15 @@ struct TodayView: View {
             .screenBackground()
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
+            .animation(Motion.smooth, value: model.checkIns.count)
         }
+    }
+
+    /// The "needs more data" version only appears once the user has started
+    /// logging, so day one isn't a list of chores.
+    private func showsCheckIn(_ result: CheckInResult) -> Bool {
+        if case .ready = result { return true }
+        return model.bodyWeights.count >= 2 || model.sessions.count >= 3
     }
 }
 
