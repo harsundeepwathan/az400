@@ -3,35 +3,36 @@ import UIKit
 
 // MARK: - Color
 
-/// Semantic color tokens. Every value has a hand-tuned light and dark
-/// variant (dark mode is designed, not inverted). Contrast ratios are
-/// documented in docs/02-design-system.md and meet WCAG AA for their role.
+/// Semantic color tokens ("Ink"). The interface is monochrome: buttons,
+/// links, tabs and selection are ink (black in light mode, near-white in
+/// dark). Colour appears only when it carries data meaning: macros,
+/// success, PRs/warnings and errors. Every value has a hand-tuned light and
+/// dark variant; contrast ratios are in docs/02-design-system.md (WCAG AA).
 enum VColor {
-    // Surfaces
-    static let background = Color(light: 0xF4F5F7, dark: 0x0A0B0D)
-    static let surface = Color(light: 0xFFFFFF, dark: 0x16181C)
-    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x1E2126)
-    static let surfaceSunken = Color(light: 0xEEF0F3, dark: 0x23262C)
-    static let separator = Color(light: 0xE3E6EA, dark: 0x2A2E35)
+    // Surfaces: flat. Cards are a soft neutral on a white (or black) canvas, no shadows.
+    static let background = Color(light: 0xFFFFFF, dark: 0x000000)
+    static let surface = Color(light: 0xF5F5F7, dark: 0x141416)
+    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x1C1C1F)
+    static let surfaceSunken = Color(light: 0xEBEBEE, dark: 0x232326)
+    static let separator = Color(light: 0xE3E3E8, dark: 0x2C2C2F)
 
     // Text
-    static let textPrimary = Color(light: 0x0B0D10, dark: 0xF5F7FA)
-    static let textSecondary = Color(light: 0x5B6270, dark: 0x9AA3B2)
-    static let textTertiary = Color(light: 0x737A88, dark: 0x7D8594)
-    static let textOnAccent = Color.white
+    static let textPrimary = Color(light: 0x0A0A0A, dark: 0xF5F5F7)
+    static let textSecondary = Color(light: 0x5F5F64, dark: 0xA1A1A6)
+    static let textTertiary = Color(light: 0x6E6E73, dark: 0x8E8E93)
+    /// Text on ink fills: white on black in light mode, black on near-white in dark.
+    static let textOnAccent = Color(light: 0xFFFFFF, dark: 0x000000)
 
-    // Brand
-    /// Fill color for primary buttons and selected states (white text ≥ 4.5:1).
-    static let accent = Color(light: 0x1F62FF, dark: 0x2F6FEB)
-    /// Accent used for text and icons on surfaces (≥ 4.5:1 on surface).
-    static let accentText = Color(light: 0x1F62FF, dark: 0x4D8BFF)
-    static let accentSoft = Color(light: 0xE8EFFF, dark: 0x16264A)
+    // Ink: primary buttons, selected states, links, tab selection, focus.
+    static let accent = Color(light: 0x0A0A0A, dark: 0xF5F5F7)
+    static let accentText = Color(light: 0x0A0A0A, dark: 0xF5F5F7)
+    static let accentSoft = Color(light: 0xEBEBEE, dark: 0x232326)
 
     // Status: always paired with an icon or label, never color alone.
     static let success = Color(light: 0x1A7F4B, dark: 0x34C77B)
-    static let successSoft = Color(light: 0xE6F4EC, dark: 0x12301F)
-    static let warning = Color(light: 0xB45F00, dark: 0xF2A93B)
-    static let warningSoft = Color(light: 0xFFF3E0, dark: 0x332410)
+    static let successSoft = Color(light: 0xE8F3EC, dark: 0x10261A)
+    static let warning = Color(light: 0xA65A00, dark: 0xF2A93B)
+    static let warningSoft = Color(light: 0xFBF1E3, dark: 0x2A1F0E)
     static let danger = Color(light: 0xC8261B, dark: 0xFF6B5E)
     static let dangerSoft = Color(light: 0xFDECEA, dark: 0x3A1714)
 
@@ -43,12 +44,12 @@ enum VColor {
 
     // Data visualization
     static let chartPrimary = accentText
-    static let chartMuted = Color(light: 0xC9D2E3, dark: 0x343A46)
+    static let chartMuted = Color(light: 0xD4D4D9, dark: 0x3A3A3E)
     static let chartGrid = separator
-    static let chartTarget = Color(light: 0xD5F0E1, dark: 0x163323)
+    static let chartTarget = Color(light: 0xDDEFE4, dark: 0x14301F)
 
     // Pro
-    static let pro = Color(light: 0x0B0D10, dark: 0xF5F7FA)
+    static let pro = textPrimary
 }
 
 extension Color {
@@ -84,7 +85,7 @@ enum Space {
     /// Horizontal screen gutter.
     static let gutter: CGFloat = 16
     /// Vertical rhythm between dashboard sections.
-    static let section: CGFloat = 28
+    static let section: CGFloat = 36
 }
 
 // MARK: - Radius
@@ -92,8 +93,8 @@ enum Space {
 enum Radius {
     static let xs: CGFloat = 6
     static let sm: CGFloat = 10
-    static let md: CGFloat = 14
-    static let lg: CGFloat = 20
+    static let md: CGFloat = 16
+    static let lg: CGFloat = 22
     static let xl: CGFloat = 28
 }
 
@@ -127,11 +128,11 @@ enum VFont {
     static let caption = Font.system(.caption, design: .default, weight: .medium)
     static let captionEmphasized = Font.system(.caption, design: .default, weight: .semibold)
 
-    /// Hero number (calories remaining, rest countdown).
-    static let metricHero = Font.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit()
+    /// Hero number (workout clock, rest countdown): light weight, large, tabular.
+    static let metricHero = Font.system(.largeTitle, design: .default, weight: .light).monospacedDigit()
     /// Card metric (volume, workouts).
-    static let metric = Font.system(.title2, design: .rounded, weight: .bold).monospacedDigit()
-    static let metricSmall = Font.system(.headline, design: .rounded, weight: .semibold).monospacedDigit()
+    static let metric = Font.system(.title2, design: .default, weight: .semibold).monospacedDigit()
+    static let metricSmall = Font.system(.headline, design: .default, weight: .semibold).monospacedDigit()
     /// Inline data in tables and rows.
     static let data = Font.system(.body, design: .default, weight: .semibold).monospacedDigit()
     static let dataSecondary = Font.system(.subheadline, design: .default, weight: .regular).monospacedDigit()
@@ -145,7 +146,8 @@ enum Elevation {
     var shadow: (color: Color, radius: CGFloat, y: CGFloat) {
         switch self {
         case .flat: (.clear, 0, 0)
-        case .card: (Color.black.opacity(0.05), 10, 2)
+        // Flat by design: cards separate by tone, not shadow.
+        case .card: (.clear, 0, 0)
         case .floating: (Color.black.opacity(0.14), 24, 8)
         }
     }

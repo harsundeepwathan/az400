@@ -182,7 +182,7 @@ private struct ShareCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("VECTOR").font(.system(size: 13, weight: .heavy)).tracking(3).foregroundStyle(Color(red: 0.3, green: 0.55, blue: 1))
+            Text("VECTOR").font(.system(size: 13, weight: .heavy)).tracking(3).foregroundStyle(.white.opacity(0.6))
             Text(summary.session.name).font(.system(size: 34, weight: .bold)).foregroundStyle(.white)
             HStack(spacing: 28) {
                 stat("Volume", Format.volume(summary.session.volume, unit: unit))
@@ -190,14 +190,14 @@ private struct ShareCard: View {
                 stat("Time", Format.duration(summary.session.duration))
             }
             if !summary.records.isEmpty {
-                Text("🏆 \(summary.records.count) new PR\(summary.records.count == 1 ? "" : "s")")
+                Label("\(summary.records.count) new PR\(summary.records.count == 1 ? "" : "s")", systemImage: Icon.trophy)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
             }
         }
         .padding(28)
         .frame(width: 360, alignment: .leading)
-        .background(Color(red: 0.06, green: 0.07, blue: 0.09))
+        .background(Color.black)
     }
 
     private func stat(_ label: String, _ value: String) -> some View {

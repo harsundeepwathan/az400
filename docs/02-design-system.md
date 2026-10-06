@@ -2,28 +2,30 @@
 
 Source of truth: `App/Vector/DesignSystem/Tokens.swift` and `DesignSystem/Components/`.
 
-**Character:** athletic, precise, calm. Neutral surfaces carry the content, electric blue marks the one thing to do next, and numbers are the hero. Depth comes from soft shadows in light mode and hairline strokes in dark mode, never stacked gradients.
+**Character: "Ink". Minimalist, clean, modern.** The interface is monochrome: ink on a white (or black) canvas, with flat neutral cards and generous space. **Colour only ever means data:** macros, success, PRs and warnings, errors. Primary buttons, links, tabs and selection are ink, so the one coloured thing on a screen is the information. No shadows on content, no gradients, no emojis, no decorative illustration.
+
+Direction chosen with the vendored UI/UX Pro Max skill ("Minimalism & Swiss Style": spacious, high contrast, grid-based, essential). Its suggested energetic orange palette and condensed sports font were rejected as off-brief.
 
 ## 2.1 Color
 
-Every token has a hand-picked dark value, so dark mode is designed rather than inverted.
+Every token has a hand-picked dark value, so dark mode is designed rather than inverted. Contrast ratios below were computed with the WCAG formula.
 
 | Token | Light | Dark | Role / contrast |
 |---|---|---|---|
-| `background` | `#F4F5F7` | `#0A0B0D` | Screen |
-| `surface` | `#FFFFFF` | `#16181C` | Cards |
-| `surfaceRaised` | `#FFFFFF` | `#1E2126` | Tooltips, popovers |
-| `surfaceSunken` | `#EEF0F3` | `#23262C` | Fields, tracks, chips |
-| `separator` | `#E3E6EA` | `#2A2E35` | Hairlines, dark-mode card edge |
-| `textPrimary` | `#0B0D10` | `#F5F7FA` | ≥ 15:1 |
-| `textSecondary` | `#5B6270` | `#9AA3B2` | 6.1:1 / 7.0:1 on surface |
-| `textTertiary` | `#737A88` | `#7D8594` | 4.5:1 / 4.8:1, non-essential only |
-| `accent` (fill) | `#1F62FF` | `#2F6FEB` | White text 4.9:1 / 4.6:1 |
-| `accentText` | `#1F62FF` | `#4D8BFF` | 4.9:1 / 5.5:1 on surface |
-| `accentSoft` | `#E8EFFF` | `#16264A` | Tinted fills |
-| `success` | `#1A7F4B` | `#34C77B` | 5.0:1 / 8.1:1 |
-| `warning` | `#B45F00` | `#F2A93B` | 4.6:1 / 8.9:1 |
-| `danger` | `#C8261B` | `#FF6B5E` | 5.6:1 / 6.4:1 |
+| `background` | `#FFFFFF` | `#000000` | Screen canvas |
+| `surface` | `#F5F5F7` | `#141416` | Cards (flat, no shadow) |
+| `surfaceRaised` | `#FFFFFF` | `#1C1C1F` | Popovers, rest timer |
+| `surfaceSunken` | `#EBEBEE` | `#232326` | Fields, tracks, chips |
+| `separator` | `#E3E3E8` | `#2C2C2F` | Hairlines, current-exercise outline |
+| `textPrimary` | `#0A0A0A` | `#F5F5F7` | 18.2:1 / 16.9:1 on surface |
+| `textSecondary` | `#5F5F64` | `#A1A1A6` | 5.8:1 / 7.2:1 on surface |
+| `textTertiary` | `#6E6E73` | `#8E8E93` | 4.7:1 / 5.6:1 on surface |
+| `accent` (ink fill) | `#0A0A0A` | `#F5F5F7` | Primary buttons, selection. `textOnAccent` 19.8:1 / 19.3:1 |
+| `accentText` (ink) | `#0A0A0A` | `#F5F5F7` | Links, selected tab, focus |
+| `accentSoft` | `#EBEBEE` | `#232326` | Neutral tinted fills |
+| `success` | `#1A7F4B` | `#34C77B` | 4.6:1 / 8.4:1 on surface |
+| `warning` | `#A65A00` | `#F2A93B` | 4.7:1 / 9.2:1 |
+| `danger` | `#C8261B` | `#FF6B5E` | 5.1:1 / 6.6:1 |
 
 **Macros** form a categorical set: Protein `#1F62FF`/`#4D8BFF`, Carbs `#0E9F8E`/`#1FA896`, Fat `#E08A00`/`#C97D14`. I ran both modes through a CVD/lightness validator: worst adjacent CVD ΔE is 12.4 in light mode and 14.4 in dark. Macros are always direct-labeled, so identity is never carried by color alone. Status colors always ship with an icon or sign (↗ +8.4%, ✓, ⚠).
 
@@ -41,19 +43,27 @@ All styles derive from Dynamic Type text styles, so they scale up to AX sizes. N
 | `body` / `bodyEmphasized` | Body | Content, buttons |
 | `secondary` | Subheadline | Supporting text |
 | `caption` | Caption / Medium | Labels, metadata |
-| `metricHero` | Large Title / Rounded Bold, tabular | Calories left, rest countdown, workout clock |
-| `metric` | Title 2 / Rounded Bold, tabular | Metric cards |
-| `metricSmall` | Headline / Rounded Semibold, tabular | Ring centers, inline stats |
+| `metricHero` | Large Title / Light, tabular | Workout clock, rest countdown |
+| `metric` | Title 2 / Semibold, tabular | Metric cards, calories |
+| `metricSmall` | Headline / Semibold, tabular | Ring centers, inline stats |
 | `data` / `dataSecondary` | Body Semibold / Subheadline, tabular | Set tables, rows |
 
-Rounded numerals on metrics give the data a friendly, athletic voice, while text stays in SF Pro for sophistication.
+One family (SF Pro) throughout. Hierarchy comes from size and weight, not from typefaces or colour: big light numerals for clocks, semibold for data, tight bold titles.
 
 ## 2.3 Spacing, radius, size, elevation
 
-- **Spacing (8 pt grid):** 4 · 8 · 12 · 16 · 24 · 32 · 48. Screen gutter is 16 and section rhythm is 28.
-- **Radius:** 6 (tooltips) · 10 (fields, chips, set rows) · 14 (buttons, list cards) · 20 (cards) · 28 (camera frame). All continuous corners.
+- **Spacing (8 pt grid):** 4 · 8 · 12 · 16 · 24 · 32 · 48. Screen gutter is 16 and section rhythm is 36 (more air between sections).
+- **Radius:** 6 (tooltips) · 10 (fields, chips, set rows) · 16 (buttons, list cards) · 22 (cards) · 28 (camera frame). All continuous corners.
 - **Sizes:** minimum touch target 44×44; primary button 52 high; compact button 40 high but still 44 hit area; set-row controls 44 high, with a 48-wide check button.
-- **Elevation:** `flat`; `card` (5% black, 10 blur, y2); `floating` (14%, 24 blur, y8; rest timer, mini player, toasts). In dark mode shadows drop to clear and cards get a 0.5 pt `separator` stroke.
+- **Elevation:** content is flat; cards separate from the canvas by tone, not shadow. Only `floating` elements (rest timer, mini player, toasts) cast a soft shadow, because they sit above scrolling content.
+
+### Never
+
+- Gradients on buttons or backgrounds; coloured chrome (buttons, tabs, links are ink).
+- Emojis anywhere in the UI or share images: SF Symbols only.
+- Shadows on content cards; more than one accent colour on a screen that isn't data.
+- Decorative illustrations, mascots or stock imagery.
+- Text below 4.5:1 contrast.
 
 ## 2.4 Motion & haptics
 
