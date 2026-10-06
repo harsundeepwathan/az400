@@ -11,7 +11,8 @@ Training and food logs are **not** stored here. They stay on the user's devices 
 
 ```
 iOS ──HTTPS + Bearer──► vector-api (Node 20+) ──► PostgreSQL (Supabase or any managed Postgres)
-                              └──► Claude (meal photos, structured output)
+                              └──► Claude (meal photos, coach summaries; structured output)
+App Store ──Server Notifications V2──► vector-api
 ```
 
 Sized for 100 → 10,000 users: one instance (two for redundancy), a 10-connection pool, no Redis, no queue. Quotas and rate limits live in Postgres, so they hold across instances.
@@ -28,6 +29,8 @@ Sized for 100 → 10,000 users: one instance (two for redundancy), a 10-connecti
 | PATCH | `/v1/me` | Bearer | `{analytics_opt_out}`. Opting out also deletes stored events |
 | DELETE | `/v1/me` | Bearer | Deletes the account and all personal data |
 | POST | `/v1/subscription/transactions` | Bearer | `{signed_transaction}` (StoreKit 2 JWS) → entitlement |
+| POST | `/v1/apple/notifications` | – (Apple JWS) | App Store Server Notifications V2 `{signedPayload}` → `{status: applied \| unlinked \| ignored \| duplicate}` |
+| POST | `/v1/coach/summary` | Bearer, Pro | `{digest}` → `{summary, cached, generated_at}`. Contract: `docs/tasks/p1-tasklist.md` |
 | POST | `/v1/meal-scan` | Bearer | `{image: base64 JPEG}` → `{scan_id, items, allowance}` |
 | POST | `/v1/meal-scans/:id/correction` | Bearer | How the user corrected the estimate (no image) |
 | POST | `/v1/events` | Bearer | Batched analytics events, at most 100. Names are allow-listed |
@@ -36,6 +39,8 @@ Errors are `{"error": "<code>"}` plus details where useful. Notable codes:
 - `scan_quota_exceeded` (402), which comes with `allowance.resets_at`
 - `daily_scan_limit`, `rate_limited` (429)
 - `purchase_verification_unavailable` (503)
+- `pro_required` (402), `busy` (503) from the coach summary
+- `invalid_notification` (400) with a `reason` (`untrusted_root`, `signature`, `bundle`, `environment`, …)
 
 ## AI cost control
 
@@ -44,8 +49,53 @@ Errors are `{"error": "<code>"}` plus details where useful. Notable codes:
 - **Caching:** the same photo within 24 hours returns the stored result without calling Claude and without using quota.
 - **Validation:** JPEG, PNG, WebP or GIF only (magic bytes), at most 3 MB decoded. The app sends 1024 px JPEGs at 0.7 quality, about 150–400 KB.
 - **Accounting:** every call stores tokens (input, output, cache read and write), the model that served it, latency and cost in `ai_requests`. Images are never stored, only a SHA-256 for the cache.
-- **Monitoring:** `select * from ai_daily_cost order by day desc` gives scans, cache hits, failures, spend and cost per scan, by tier.
+- **Monitoring:** see "Cost dashboard" below.
 - **Prices** come from `PRICE_*_PER_MTOK`. The defaults ($5 input, $25 output, cache read 0.1×, cache write 1.25×) must be checked against the current Claude price list for the model you deploy.
+
+## Coach summary
+
+`POST /v1/coach/summary` turns a structured digest of the user's own logged data (built on the device; the server never sees the logs) into a 2–4 sentence summary.
+
+- **Pro only**, checked against verified `subscriptions` rows (402 `pro_required` otherwise).
+- **Validation:** zod schema matching the shared contract. Nullable fields accept `null` or a missing key (Swift's synthesized `Encodable` omits nil optionals). Unknown keys are dropped before the prompt.
+- **Once per UTC day:** the first success is stored in `coach_summaries` (unique `user_id, day`) and returned with `cached: true` for the rest of the day, without a model call. Only the summary text is stored, never the digest.
+- **Cost bounds:** a per-user advisory lock and a pending-row check stop parallel requests paying twice (429 `rate_limited`), and at most 4 model calls per user per UTC day (two failed requests with their retries).
+- **Prompt:** byte-stable system prompt with `cache_control`, structured output `{summary}`, effort `low`, the same model, beta and fallback setup as the meal scan. Claude only caches prompts above a model-specific minimum length, so check `cache_read_tokens` before counting on it.
+- **Post-validation:** at most 600 characters, and every number in the text must appear in the digest (digest values, their roundings to 0 or 1 decimal, numbers inside digest strings, and the 7/14/30-day windows; "1RM" is ignored, "2,240" is read as 2240). A draft that fails is retried once with the reason; a second failure returns 503 `busy` and stores nothing. This is a simple numeric check: it doesn't catch numbers written as words or wrong claims made with real numbers.
+- **Accounting:** every model call is its own `ai_requests` row (`kind = 'coach_summary'`), including rejected drafts (`status = 'error'`, `error_code = 'invented_number'` or `'summary_length'`). Cache hits are `status = 'cached'` rows with zero cost.
+
+## Cost dashboard
+
+Views (migration `004_cost_views.sql`); months and windows are UTC, 30-day windows are relative to `now()`:
+
+```sql
+-- Spend per month and tier, split by feature
+select * from ai_cost_by_month order by month desc, tier;
+-- 30-day spend per active user (last_seen_at in 30 days) and per AI user, for free, pro and all
+select * from ai_cost_per_active_user_30d;
+-- 100 most expensive users in 30 days (user id only)
+select * from ai_top_users_30d;
+-- Meal scan failure / refusal / cache-hit rates, share corrected, mean absolute calorie error
+select * from ai_scan_quality_30d;
+-- Daily spend, scans and cost per scan, by tier (scans are meal scans only)
+select * from ai_daily_cost order by day desc;
+```
+
+Definitions are commented in the migration. Spend is attributed to the tier recorded on each request; active users to their entitlement now. Deleted accounts' cost rows count in totals but not in per-user views.
+
+## App Store Server Notifications
+
+Renewals, refunds, revocations, expiry, renewal-status changes, billing failures and grace periods update `subscriptions` without the app reopening.
+
+**Setup:** App Store Connect → your app → App Information → App Store Server Notifications. Set the **Production Server URL** to `https://<api-host>/v1/apple/notifications` and choose **Version 2**. For TestFlight and sandbox, set the **Sandbox Server URL** to a deployment with `ALLOW_SANDBOX_PURCHASES=true` (the production API rejects sandbox notifications with 400). Use "Request a Test Notification" in App Store Connect (or the App Store Server API) to check delivery: a `TEST` notification is acknowledged as `ignored`. `APPLE_ROOT_CA_PATH` must be set, or the endpoint returns 503 so Apple retries later.
+
+**Processing:**
+- The outer `signedPayload`, `data.signedTransactionInfo` and `data.signedRenewalInfo` are each verified with the same certificate-chain check as purchases. Then bundle id (notification and transaction) and environment are checked.
+- `notificationUUID` is stored in `apple_notifications`; a redelivery returns `duplicate` and changes nothing.
+- Any notification carrying a Pro transaction is applied as that subscription's current state: expiry only moves forward, product and revocation come from the newest-signed transaction (so out-of-order deliveries or a stale JWS posted by the app can't undo a refund), and auto-renew and the billing grace period come from the newest renewal info. `REFUND` / `REVOKE` always set `revoked_at`. A billing grace period keeps Pro until `grace_period_expires_at`.
+- Handled types: `SUBSCRIBED`, `DID_RENEW`, `EXPIRED`, `REFUND`, `REVOKE`, `DID_CHANGE_RENEWAL_STATUS`, `DID_FAIL_TO_RENEW`, `GRACE_PERIOD_EXPIRED` (others carrying a transaction, such as `REFUND_REVERSED`, are applied the same way). Notifications without a transaction (`TEST`, summaries) or for non-Pro products are acknowledged as `ignored`.
+- A transaction that isn't linked to a user is linked through `appAccountToken` (the user id the app sets when purchasing). Otherwise it is stored with `user_id` null (`unlinked`) and claimed by the first account that posts it to `/v1/subscription/transactions`.
+- Every authentic payload gets 200. Forged, malformed, wrong-bundle and wrong-environment payloads get 400; a database outage gets 500, which Apple retries.
 
 ## Security
 
@@ -53,7 +103,7 @@ Errors are `{"error": "<code>"}` plus details where useful. Notable codes:
 - **Tokens:** access tokens are HS256 and last 1 hour. Refresh tokens are 256-bit random values, stored as SHA-256 hashes, last 60 days, rotate on every use, and reuse is detected. A deleted account's access token stops working immediately.
 - **Purchases:** the StoreKit JWS `x5c` chain must end in the exact Apple Root CA G3 you configure. Each certificate must be valid at signing and signed by the next, and the leaf and intermediate must carry Apple's marker OIDs. Then the ES256 signature is verified, followed by bundle, product, environment and `appAccountToken` (set it to the user id when purchasing). A transaction can't be moved to another account.
 - **Logs:** one JSON line per request (id, path, status, latency, user id). Bodies, tokens and images are never logged.
-- **Privacy:** account deletion cascades through tokens, subscriptions, scans, corrections and events. AI cost rows are kept with `user_id` cleared, so spend reporting stays correct without personal data.
+- **Privacy:** account deletion cascades through tokens, subscriptions, scans, corrections, coach summaries and events. `apple_notifications` holds no user id (type, environment, original transaction id, dates); prune it with `delete from apple_notifications where received_at < now() - interval '90 days'`. A notification for a deleted account's transaction re-creates an unlinked subscription row with no personal data. AI cost rows are kept with `user_id` cleared, so spend reporting stays correct without personal data.
 
 ## Configuration
 
@@ -88,11 +138,13 @@ Tests run against real PostgreSQL, one schema per file, covering:
 - quotas, including parallel requests
 - caching, cost accounting and corrections
 - StoreKit verification, with an OpenSSL-generated chain that carries Apple's marker OIDs
+- App Store Server Notifications: renewal, refund and revocation, grace period, duplicates, forged chains (outer and nested), wrong bundle and environment, unlinked transactions
+- coach summary: Pro gating, validation, daily cache, cost rows, invented-number rejection and retry, parallel requests (fake Claude client)
+- cost views, with known rows
 - analytics validation and opt-out
 - account deletion
 
 ## Not yet done (P1)
 
-- **App Store Server Notifications V2:** renewals, refunds and cancellations update `subscriptions` without the app reopening.
 - **App Attest:** proves requests come from the genuine app.
 - **Apple token revocation on account deletion:** this needs the Sign in with Apple REST API and a client secret.

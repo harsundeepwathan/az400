@@ -1,6 +1,6 @@
 import { X509Certificate } from "node:crypto";
 import { compactVerify, decodeProtectedHeader, importX509 } from "jose";
-import type { Db } from "./db.js";
+import type { Db, Queryable } from "./db.js";
 import { HttpError } from "./http.js";
 
 /** Apple marks its App Store receipt-signing certificates with these extension OIDs. */
@@ -19,6 +19,7 @@ export interface TransactionPayload {
   environment: "Production" | "Sandbox" | "Xcode" | "LocalTesting";
   appAccountToken?: string;
   type?: string;
+  signedDate?: number;
 }
 
 export interface StoreKitDeps {
@@ -35,15 +36,16 @@ function toCertificate(base64Der: string): X509Certificate {
 }
 
 /**
- * Verifies a StoreKit 2 signed transaction (`Transaction.jwsRepresentation`):
- * the x5c chain must end in the configured Apple Root CA G3, each certificate
- * must be valid at the signing date and signed by the next, the leaf and
- * intermediate must carry Apple's marker extensions, and the JWS signature
- * must verify with the leaf key.
+ * Verifies any App Store JWS (a StoreKit 2 transaction, renewal info, or an
+ * App Store Server Notification): the x5c chain must end in the configured
+ * Apple Root CA G3, each certificate must be valid at the signing date and
+ * signed by the next, the leaf and intermediate must carry Apple's marker
+ * extensions, and the JWS signature must verify with the leaf key.
+ * Failures throw `400 {error: errorCode, reason}`.
  */
-export async function verifySignedTransaction(jws: string, root: Buffer, now: Date): Promise<TransactionPayload> {
+export async function verifyAppleJws<T = unknown>(jws: string, root: Buffer, now: Date, errorCode = "invalid_transaction"): Promise<T> {
   const fail = (reason: string): never => {
-    throw new HttpError(400, "invalid_transaction", { reason });
+    throw new HttpError(400, errorCode, { reason });
   };
   let header: ReturnType<typeof decodeProtectedHeader>;
   try {
@@ -65,20 +67,84 @@ export async function verifySignedTransaction(jws: string, root: Buffer, now: Da
   if (!leaf.verify(intermediate.publicKey) || !intermediate.verify(trustedRoot.publicKey)) fail("certificate_signature");
   if (!leaf.raw.includes(LEAF_OID) || !intermediate.raw.includes(INTERMEDIATE_OID)) fail("certificate_purpose");
 
-  let payload: TransactionPayload;
+  let payload: T;
   try {
     const key = await importX509(leaf.toString(), "ES256");
     const { payload: bytes } = await compactVerify(jws, key);
-    payload = JSON.parse(new TextDecoder().decode(bytes)) as TransactionPayload;
+    payload = JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch {
     return fail("signature");
   }
+  if (typeof payload !== "object" || payload === null) return fail("malformed");
   // Certificates must have been valid when Apple signed, and must not be from the future.
   const signedAt = new Date((payload as { signedDate?: number }).signedDate ?? now.getTime());
   for (const cert of [leaf, intermediate, trustedRoot]) {
     if (signedAt < new Date(cert.validFrom) || signedAt > new Date(cert.validTo)) fail("certificate_expired");
   }
   return payload;
+}
+
+/** Verifies a StoreKit 2 signed transaction (`Transaction.jwsRepresentation`). */
+export function verifySignedTransaction(jws: string, root: Buffer, now: Date): Promise<TransactionPayload> {
+  return verifyAppleJws<TransactionPayload>(jws, root, now);
+}
+
+/** Renewal state from `JWSRenewalInfoDecodedPayload`, when Apple sent it. */
+export interface RenewalState {
+  autoRenew: boolean | null;
+  gracePeriodExpiresAt: Date | null;
+  signedAt: Date;
+}
+
+/**
+ * Inserts or updates a subscription from a verified transaction. Expiry only
+ * moves forward; product and revocation come from the newest-signed
+ * transaction, so out-of-order or stale JWSs can't undo a refund. An unlinked
+ * row (user_id null) is claimed by the first user who posts it. With
+ * `forceOwner` false (purchases), a row linked to another user is left
+ * untouched and null is returned; notifications pass true and never change
+ * the owner.
+ */
+export async function upsertSubscription(
+  db: Queryable,
+  tx: TransactionPayload,
+  userId: string | null,
+  options: { now: Date; renewal?: RenewalState; forceOwner: boolean },
+): Promise<{ user_id: string | null } | null> {
+  const newer = "excluded.last_signed_at >= coalesce(subscriptions.last_signed_at, '-infinity'::timestamptz)";
+  const newerRenewal = "excluded.renewal_signed_at is not null and excluded.renewal_signed_at >= coalesce(subscriptions.renewal_signed_at, '-infinity'::timestamptz)";
+  const { rows } = await db.query<{ user_id: string | null }>(
+    `insert into subscriptions (original_transaction_id, user_id, product_id, environment, purchased_at, expires_at, revoked_at,
+                                last_signed_at, auto_renew, grace_period_expires_at, renewal_signed_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+     on conflict (original_transaction_id) do update set
+       user_id = coalesce(subscriptions.user_id, excluded.user_id),
+       product_id = case when ${newer} then excluded.product_id else subscriptions.product_id end,
+       expires_at = greatest(subscriptions.expires_at, excluded.expires_at),
+       revoked_at = case when ${newer} then excluded.revoked_at else subscriptions.revoked_at end,
+       last_signed_at = greatest(subscriptions.last_signed_at, excluded.last_signed_at),
+       auto_renew = case when ${newerRenewal} then excluded.auto_renew else subscriptions.auto_renew end,
+       grace_period_expires_at = case when ${newerRenewal} then excluded.grace_period_expires_at else subscriptions.grace_period_expires_at end,
+       renewal_signed_at = greatest(subscriptions.renewal_signed_at, excluded.renewal_signed_at),
+       updated_at = now()
+     where $12 or subscriptions.user_id is null or subscriptions.user_id = excluded.user_id
+     returning user_id`,
+    [
+      tx.originalTransactionId,
+      userId,
+      tx.productId,
+      tx.environment,
+      new Date(tx.purchaseDate),
+      tx.expiresDate ? new Date(tx.expiresDate) : null,
+      tx.revocationDate ? new Date(tx.revocationDate) : null,
+      new Date(tx.signedDate ?? options.now.getTime()),
+      options.renewal?.autoRenew ?? null,
+      options.renewal?.gracePeriodExpiresAt ?? null,
+      options.renewal?.signedAt ?? null,
+      options.forceOwner,
+    ],
+  );
+  return rows[0] ?? null;
 }
 
 export interface Entitlement {
@@ -102,36 +168,21 @@ export async function recordTransaction(deps: StoreKitDeps, userId: string, jws:
     throw new HttpError(403, "transaction_belongs_to_another_account");
   }
 
-  const { rows } = await deps.db.query<{ user_id: string }>(
-    `insert into subscriptions (original_transaction_id, user_id, product_id, environment, purchased_at, expires_at, revoked_at, updated_at)
-     values ($1, $2, $3, $4, $5, $6, $7, now())
-     on conflict (original_transaction_id) do update set
-       product_id = excluded.product_id,
-       expires_at = greatest(subscriptions.expires_at, excluded.expires_at),
-       revoked_at = excluded.revoked_at,
-       updated_at = now()
-     where subscriptions.user_id = excluded.user_id
-     returning user_id`,
-    [
-      tx.originalTransactionId,
-      userId,
-      tx.productId,
-      tx.environment,
-      new Date(tx.purchaseDate),
-      tx.expiresDate ? new Date(tx.expiresDate) : null,
-      tx.revocationDate ? new Date(tx.revocationDate) : null,
-    ],
-  );
-  if (rows.length === 0) throw new HttpError(403, "transaction_belongs_to_another_account");
+  const row = await upsertSubscription(deps.db, tx, userId, { now, forceOwner: false });
+  if (!row) throw new HttpError(403, "transaction_belongs_to_another_account");
   return entitlement(deps.db, userId, now);
 }
 
-/** Pro while any verified, unrevoked subscription is unexpired (or non-expiring). */
+/** Pro while any verified, unrevoked subscription is unexpired, in a billing grace period, or non-expiring. */
 export async function entitlement(db: Db, userId: string, now = new Date()): Promise<Entitlement> {
+  // A billing grace period (from renewal info) keeps access past expiry.
   const { rows } = await db.query<{ product_id: string; expires_at: Date | null }>(
-    `select product_id, expires_at from subscriptions
-     where user_id = $1 and revoked_at is null and (expires_at is null or expires_at > $2)
-     order by expires_at desc nulls first limit 1`,
+    `select product_id,
+            case when expires_at is null then null else greatest(expires_at, grace_period_expires_at) end as expires_at
+     from subscriptions
+     where user_id = $1 and revoked_at is null
+       and (expires_at is null or expires_at > $2 or grace_period_expires_at > $2)
+     order by 2 desc nulls first limit 1`,
     [userId, now],
   );
   const active = rows[0];
