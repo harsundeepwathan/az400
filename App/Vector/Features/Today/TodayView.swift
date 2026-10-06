@@ -243,7 +243,7 @@ private struct TodayNutritionCard: View {
                     .foregroundStyle(VColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: Space.xs) {
+            AdaptiveStack(spacing: Space.xs) {
                 QuickActionButton(title: "Scan Meal", symbol: Icon.scan, prominent: true) { model.cover = .scanner(meal) }
                 QuickActionButton(title: "Log Food", symbol: Icon.search) { model.sheet = .foodSearch(meal) }
                 QuickActionButton(title: "Quick Add", symbol: Icon.quickAdd) { model.sheet = .quickAdd(meal) }

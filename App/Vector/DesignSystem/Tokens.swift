@@ -104,7 +104,8 @@ enum Size {
     /// Minimum interactive target (Apple HIG).
     static let minTouch: CGFloat = 44
     static let buttonHeight: CGFloat = 52
-    static let compactButtonHeight: CGFloat = 40
+    /// Never below `minTouch`.
+    static let compactButtonHeight: CGFloat = 44
     static let setRowHeight: CGFloat = 52
     static let iconBadge: CGFloat = 36
 }

@@ -132,9 +132,9 @@ struct WeeklyCheckInCard: View {
 
     private func row(_ title: String, _ value: String, detail: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            HStack(alignment: .firstTextBaseline) {
+            AdaptiveStack(spacing: Space.xs, alignment: .firstTextBaseline) {
                 Text(title).font(VFont.secondary).foregroundStyle(VColor.textSecondary)
-                Spacer()
+                Spacer(minLength: Space.sm)
                 Text(value).font(VFont.secondaryEmphasized.monospacedDigit()).foregroundStyle(VColor.textPrimary)
                     .multilineTextAlignment(.trailing)
             }
@@ -195,7 +195,7 @@ struct WeeklyCheckInCard: View {
                 Text("\(Format.integer(from)) → \(Format.integer(to)) kcal a day")
                     .font(VFont.title3.monospacedDigit()).foregroundStyle(VColor.textPrimary)
                 explanation(reason)
-                HStack(spacing: Space.sm) {
+                AdaptiveStack {
                     Button("Keep Current") { model.keepCurrentTargets(review) }.buttonStyle(.secondary)
                     Button("Apply Adjustment") { model.applyReview(review) }.buttonStyle(.primary)
                 }
@@ -252,7 +252,7 @@ struct WeeklyCheckInCard: View {
                 .font(VFont.secondary)
                 .foregroundStyle(VColor.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Space.sm) {
+            AdaptiveStack {
                 Button("Done") { model.keepCurrentTargets(review) }.buttonStyle(.secondary)
                 Button("See Pro") { model.sheet = .paywall(.coach) }.buttonStyle(.primary)
             }
