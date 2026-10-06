@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Taxonomy
 
 public enum MuscleGroup: String, Codable, CaseIterable, Hashable, Sendable {
-    case chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core
+    case chest, back, shoulders, biceps, triceps, forearms, quads, hamstrings, glutes, calves, core
 
     public var displayName: String {
         switch self {
@@ -12,6 +12,7 @@ public enum MuscleGroup: String, Codable, CaseIterable, Hashable, Sendable {
         case .shoulders: "Shoulders"
         case .biceps: "Biceps"
         case .triceps: "Triceps"
+        case .forearms: "Forearms"
         case .quads: "Quads"
         case .hamstrings: "Hamstrings"
         case .glutes: "Glutes"
@@ -27,7 +28,7 @@ public enum MuscleGroup: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 public enum Equipment: String, Codable, CaseIterable, Hashable, Sendable {
-    case barbell, dumbbell, machine, cable, bodyweight, kettlebell, band
+    case barbell, dumbbell, machine, cable, bodyweight, kettlebell, band, other
 
     public var displayName: String { rawValue.capitalized }
 }
@@ -71,6 +72,14 @@ public struct Exercise: Identifiable, Codable, Hashable, Sendable {
     public var isCompound: Bool
     /// SF Symbol used as a lightweight illustration fallback.
     public var symbol: String
+    /// Demonstration frames (start and end position), relative to `Exercise.imageBaseURL`.
+    public var images: [String]
+    public var level: String?
+
+    /// Public-domain demonstration photos from free-exercise-db.
+    public static let imageBaseURL = URL(string: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/")!
+
+    public var imageURLs: [URL] { images.compactMap { URL(string: $0, relativeTo: Self.imageBaseURL)?.absoluteURL } }
 
     public init(
         id: String,
@@ -83,7 +92,9 @@ public struct Exercise: Identifiable, Codable, Hashable, Sendable {
         defaultRestSeconds: Int = 120,
         loadIncrement: Double = 2.5,
         isCompound: Bool = true,
-        symbol: String = "figure.strengthtraining.traditional"
+        symbol: String = "figure.strengthtraining.traditional",
+        images: [String] = [],
+        level: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -96,6 +107,8 @@ public struct Exercise: Identifiable, Codable, Hashable, Sendable {
         self.loadIncrement = loadIncrement
         self.isCompound = isCompound
         self.symbol = symbol
+        self.images = images
+        self.level = level
     }
 
     public var isBodyweight: Bool { equipment == .bodyweight }

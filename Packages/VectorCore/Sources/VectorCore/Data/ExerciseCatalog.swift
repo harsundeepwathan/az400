@@ -13,18 +13,67 @@ public struct ExerciseCatalog: Sendable {
 
     public subscript(id: String) -> Exercise? { byID[id] }
 
+    /// Ranked search: name prefix beats word prefix beats substring, and the
+    /// hand-curated core lifts rank above the long tail of the library.
     public func search(_ query: String) -> [Exercise] {
         let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !trimmed.isEmpty else { return all.sorted { $0.name < $1.name } }
-        return all
-            .filter {
-                $0.name.lowercased().contains(trimmed)
-                    || $0.primaryMuscles.contains { $0.displayName.lowercased().hasPrefix(trimmed) }
+        guard !trimmed.isEmpty else {
+            return all.sorted { lhs, rhs in
+                lhs.isCurated == rhs.isCurated ? lhs.name < rhs.name : lhs.isCurated
             }
-            .sorted { $0.name < $1.name }
+        }
+        var scored: [(exercise: Exercise, score: Int)] = []
+        for exercise in all {
+            let name = exercise.name.lowercased()
+            var score = 0
+            if name.hasPrefix(trimmed) {
+                score = 30
+            } else if name.contains(" " + trimmed) || name.contains("-" + trimmed) {
+                score = 20
+            } else if name.contains(trimmed) {
+                score = 10
+            } else if exercise.primaryMuscles.contains(where: { $0.displayName.lowercased().hasPrefix(trimmed) }) {
+                score = 5
+            }
+            guard score > 0 else { continue }
+            if exercise.isCurated { score += 8 }
+            scored.append((exercise, score))
+        }
+        scored.sort { $0.score == $1.score ? $0.exercise.name < $1.exercise.name : $0.score > $1.score }
+        return scored.map(\.exercise)
     }
 
-    public static let standard = ExerciseCatalog(Self.library)
+    /// The hand-written core library plus the bundled public-domain import.
+    /// Curated exercises keep their ids (history depends on them) and gain
+    /// demonstration images from the import.
+    public static let standard: ExerciseCatalog = {
+        let bundled = BundledLibrary.load()
+        let curated = library.map { exercise -> Exercise in
+            var exercise = exercise
+            exercise.images = bundled.curatedImages[exercise.id] ?? []
+            return exercise
+        }
+        let curatedNames = Set(curated.map { $0.name.lowercased() })
+        let imported = bundled.exercises.filter { !curatedNames.contains($0.name.lowercased()) }
+        return ExerciseCatalog(curated + imported)
+    }()
+
+    /// Only the hand-written library, for tests that need stable fixtures.
+    public static let curatedOnly = ExerciseCatalog(library)
+
+    struct BundledLibrary: Decodable {
+        var curatedImages: [String: [String]]
+        var exercises: [Exercise]
+
+        static func load() -> BundledLibrary {
+            guard let url = Bundle.module.url(forResource: "exercises", withExtension: "json"),
+                  let data = try? Data(contentsOf: url),
+                  let library = try? JSONDecoder().decode(BundledLibrary.self, from: data) else {
+                return BundledLibrary(curatedImages: [:], exercises: [])
+            }
+            return library
+        }
+    }
 
     // swiftlint:disable line_length
     static let library: [Exercise] = [
@@ -193,4 +242,9 @@ public struct ExerciseCatalog: Sendable {
                  defaultRestSeconds: 45, loadIncrement: 0, isCompound: false)
     ]
     // swiftlint:enable line_length
+}
+
+extension Exercise {
+    /// Imported exercises carry a `fedb-` id prefix; everything else is hand-curated.
+    public var isCurated: Bool { !id.hasPrefix("fedb-") }
 }

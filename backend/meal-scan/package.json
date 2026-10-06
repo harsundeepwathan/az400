@@ -1,0 +1,24 @@
+{
+  "name": "vector-meal-scan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Proxies Vector's AI meal scans to Claude so no API key ships in the iOS app.",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "tsc && node --test dist/test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}

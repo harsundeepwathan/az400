@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "VectorCore", targets: ["VectorCore"])
     ],
     targets: [
-        .target(name: "VectorCore"),
-        .testTarget(name: "VectorCoreTests", dependencies: ["VectorCore"])
+        .target(name: "VectorCore", resources: [.copy("Resources/exercises.json")]),
+        .testTarget(name: "VectorCoreTests", dependencies: ["VectorCore"], resources: [.copy("Fixtures")])
     ]
 )

@@ -70,17 +70,20 @@ public protocol MealRecognizing: Sendable {
 /// Calls the Vector backend, which proxies the vision model so no API key
 /// ever ships in the app binary. Contract:
 ///
-///     POST {endpoint}
+///     POST {endpoint}            X-Vector-Key: <app key>
 ///     { "image": "<base64 jpeg>" }
 ///     → { "items": [{ "name", "grams", "calories", "protein", "carbs", "fat",
 ///                      "confidence", "matchId"?, "alternatives"?: [String] }] }
 public struct RemoteMealRecognizer: MealRecognizing {
     public let endpoint: URL
+    /// Shared secret sent as `X-Vector-Key` (see backend/meal-scan).
+    public let appKey: String?
     public let database: FoodDatabase
     public let session: URLSession
 
-    public init(endpoint: URL, database: FoodDatabase = FoodDatabase(), session: URLSession = .shared) {
+    public init(endpoint: URL, appKey: String? = nil, database: FoodDatabase = FoodDatabase(), session: URLSession = .shared) {
         self.endpoint = endpoint
+        self.appKey = appKey
         self.database = database
         self.session = session
     }
@@ -105,8 +108,9 @@ public struct RemoteMealRecognizer: MealRecognizing {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let appKey { request.setValue(appKey, forHTTPHeaderField: "X-Vector-Key") }
         request.httpBody = try JSONSerialization.data(withJSONObject: ["image": imageData.base64EncodedString()])
-        request.timeoutInterval = 30
+        request.timeoutInterval = 50
 
         let data: Data
         let response: URLResponse
@@ -115,7 +119,10 @@ public struct RemoteMealRecognizer: MealRecognizing {
         } catch {
             throw MealRecognitionError.network
         }
-        if let http = response as? HTTPURLResponse, http.statusCode == 402 { throw MealRecognitionError.quotaExceeded }
+        if let http = response as? HTTPURLResponse {
+            if http.statusCode == 402 { throw MealRecognitionError.quotaExceeded }
+            guard (200..<300).contains(http.statusCode) else { throw MealRecognitionError.network }
+        }
         return try Self.decode(data, database: database)
     }
 

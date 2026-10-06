@@ -34,6 +34,10 @@ public struct AppData: Codable, Hashable, Sendable {
     public var tier: SubscriptionTier
     /// Optional so documents written before this field existed still decode.
     public var targetOverrides: [String: TargetOverride]?
+    /// Tombstones ("kind:id") so a deletion on one device isn't undone by a sync.
+    public var deletedIDs: Set<String>?
+    /// When this copy last changed; decides which device's settings win a merge.
+    public var modifiedAt: Date?
 
     public init(
         schemaVersion: Int = AppData.currentSchemaVersion,
@@ -50,7 +54,9 @@ public struct AppData: Codable, Hashable, Sendable {
         dismissedInsightIDs: Set<String> = [],
         lastUpgradeMoment: Date? = nil,
         tier: SubscriptionTier = .free,
-        targetOverrides: [String: TargetOverride]? = nil
+        targetOverrides: [String: TargetOverride]? = nil,
+        deletedIDs: Set<String>? = nil,
+        modifiedAt: Date? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.profile = profile
@@ -67,6 +73,8 @@ public struct AppData: Codable, Hashable, Sendable {
         self.lastUpgradeMoment = lastUpgradeMoment
         self.tier = tier
         self.targetOverrides = targetOverrides
+        self.deletedIDs = deletedIDs
+        self.modifiedAt = modifiedAt
     }
 
     public var hasCompletedOnboarding: Bool { profile != nil }
