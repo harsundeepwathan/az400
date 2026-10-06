@@ -30,6 +30,7 @@ struct ProgressDashboardView: View {
                         personalRecords
                         muscleBalance
                     }
+                    BodyProgressLinks()
                 }
                 .padding(.horizontal, Space.gutter)
                 .padding(.bottom, Space.xl)
