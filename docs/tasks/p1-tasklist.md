@@ -101,7 +101,9 @@ Owner: mobile-app-builder. Files: `Packages/VectorCore/Sources/VectorCore/Engine
 
 **Status:** `NutritionChartEngine` (`Engines/NutritionCharts.swift`): 7D/1M daily, 3M weekly averages of logged days; unlogged days and weeks are absent (gaps), not zero; adherence = days hit / days logged, with today counted only once hit, plus the existing protein streak. Tests in `NutritionChartTests.swift`, all passing. The Progress section (`Features/Progress/NutritionChartsSection.swift`, one insertion in `ProgressDashboardView`) was written but **not compiled or run (UI unverified, no Xcode)**. This deliberately differs from design-system §2.7 ("empty buckets render as zero") for nutrition, as this task requires.
 
-### [ ] T7: Real Terms and Privacy pages
+### [x] T7: Real Terms and Privacy pages
+Status: drafts in `docs/legal/` and `web/legal/` (built by `web/legal/build.py`), marked for legal review. The claims checklist is at the end of `docs/legal/privacy.md`. Progress photos (T5) and coach summaries (T3) are described ahead of their code and flagged there.
+
 > "real Terms and Privacy pages"
 
 Owner: privacy-engineer. Files: `web/legal/**`, `docs/legal/**`.
@@ -111,7 +113,9 @@ Owner: privacy-engineer. Files: `web/legal/**`, `docs/legal/**`.
 
 **Evidence:** each data claim cites the code or migration that implements it (a checklist at the bottom of the doc).
 
-### [ ] T8: App icon
+### [x] T8: App icon
+Status: SVG sources in `design/icon/` (rendered by `design/icon/render.py`), and 1024 px light, dark and tinted PNGs in the AppIcon set. Previews at 180 and 58 px are in `design/icon/previews/`. Not yet seen on a device or simulator. Screenshots are still blocked.
+
 > "app icon and screenshots"
 
 Owner: ui-designer. Files: `design/icon/**`, `App/Vector/Resources/Assets.xcassets/AppIcon.appiconset/**`.
