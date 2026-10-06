@@ -8,11 +8,11 @@ Vector ("the app") is made by [Company legal name] ("we", "us"), [Registered add
 
 ## The short version
 
-- **Your training and food logs are not on our servers.** They stay on your device and, if you use iCloud, in your own private iCloud storage.
-- **An account is optional.** You only need one for AI meal scans and to link a Pro subscription. We get an anonymous identifier from Sign in with Apple. We never receive your name or email.
+- **Your training and food logs are not on our servers.** They stay on your device and, if you use iCloud, in your own private iCloud storage. The exception is the optional Pro coach summary (section 2.4): we keep its text, which quotes some of your numbers.
+- **An account is optional.** You only need one for AI meal scans and to link a Pro subscription. We get a private, app-specific identifier from Sign in with Apple (pseudonymous, not anonymous). We never receive your name or email.
 - **Meal photos go to our AI provider for analysis and are not stored.** We keep the result (the foods and the nutrition estimate) and how you corrected it, so we can measure and improve accuracy.
 - **Usage analytics are on by default, and you can turn them off.** Turning them off also deletes the analytics we have already stored for your account.
-- **Deleting your account deletes your personal data on our servers.** The only thing kept is AI usage and cost records with your identifier removed.
+- **Deleting your account deletes your personal data on our servers.** What is kept: AI usage and cost records with your identifier removed, and, if your App Store subscription is still active, the renewal records Apple keeps sending us (section 6).
 - We do not sell your data, we do not use it for advertising, and we do not track you across other companies' apps or websites.
 
 ## 1. What stays on your device (and your iCloud)
@@ -49,7 +49,7 @@ Our backend runs on [Hosting provider] with a PostgreSQL database hosted by [Dat
 
 ### 2.2 Subscription records
 
-When you buy or restore Vector Pro, the app sends us the transaction that Apple signed. We check Apple's signature and store: the original transaction ID, product, environment (production or sandbox), purchase date, expiry date and any refund/revocation date. We use this to decide whether your account has Pro. **We never see your payment details.** Apple handles all billing.
+When you buy or restore Vector Pro, the app sends us the transaction that Apple signed, and Apple's servers also notify us directly when a subscription renews, expires, is refunded or changes (App Store Server Notifications). We check Apple's signature on both and store: the original transaction ID, product, environment (production or sandbox), purchase date, expiry date, any refund/revocation date, whether auto-renew is on, any billing grace period, and the dates Apple signed this information. We also keep a log of the notifications Apple sent (notification ID, type, date and original transaction ID, but no account identifier) for 90 days. We use this to decide whether your account has Pro. **We never see your payment details.** Apple handles all billing.
 
 ### 2.3 AI meal scans
 
@@ -67,7 +67,7 @@ We store:
 
 ### 2.4 AI coach summary (Pro)
 
-[Confirm before publishing: this feature is being built.] If you have Pro and are signed in, the app can request a short weekly summary of your progress. The app sends a **structured digest** of numbers it has already calculated on your device (for example workouts this week, average calories vs. target, protein days hit, weight trend, your goal and top recommendations). It does not send your raw logs, food names, notes or photos. Our backend passes the digest to Anthropic, stores the generated summary for that day so it is created only once, and records a usage and cost row as in 2.3.
+If you have Pro and are signed in, the app can request a short weekly summary of your progress. The app sends a **structured digest** of numbers it has already calculated on your device (for example workouts this week, average calories vs. target, protein days hit, weight trend, your goal and top recommendations). The digest also contains **exercise names**, including names you gave custom exercises, and the app's own recommendation sentences. It does not send your food logs or food names, notes, measurements or photos. Our backend passes the digest to Anthropic without your account identifier, stores the **generated summary text** for that day (so it is created only once; the text can quote numbers from your digest, such as weights or calories), and records a usage and cost row as in 2.3. The digest itself is not stored on our servers.
 
 ### 2.5 Product analytics
 
@@ -79,7 +79,7 @@ Analytics events are linked to your account identifier (so they are pseudonymous
 
 ### 2.6 Server logs and security
 
-For every request our server writes one log line: a request ID, method, path, status, response time and (if signed in) your account ID. Request bodies, tokens and photos are never logged. To limit abuse of sign-in, the server counts requests per IP address in memory for one minute. IP addresses are not written to our database. Our hosting provider may process IP addresses and keep its own logs under its terms. Log retention: [Log retention period, set in the hosting provider].
+For every request our server writes one log line: a request ID, method, path, status, response time and (if signed in) your account ID. Request bodies, tokens and photos are never logged. To limit abuse, the server counts requests per IP address in memory for one minute on the sign-in and App Store notification endpoints. IP addresses are not written to our database. Our hosting provider may process IP addresses and keep its own logs under its terms. Log retention: [Log retention period, set in the hosting provider].
 
 ## 3. Who else processes your data
 
@@ -98,7 +98,7 @@ Apple Health is **opt-in**. If you allow it, Vector **writes** your finished str
 
 ## 5. Camera and photos
 
-The camera is used to photograph meals for AI estimates and to read food barcodes. The photo library is used only when you choose a meal photo. Meal photos are sent for analysis as described in 2.3 and are not stored by the app or on our servers. Progress photos stay on your device (section 1).
+The camera is used to photograph meals for AI estimates, to read food barcodes and to take progress photos. The photo library is used only when you choose a meal photo or a progress photo. Meal photos are sent for analysis as described in 2.3 and are not stored by the app or on our servers. Progress photos stay on your device (section 1).
 
 ## 6. Deleting your account
 
@@ -109,24 +109,25 @@ In Profile › Account › Delete Account, the app asks our server to delete you
 - your subscription records,
 - your meal-scan results and corrections,
 - your analytics events,
-- [your coach summaries, once that feature ships].
+- your coach summaries.
 
 **What is kept:** AI usage and cost records (section 2.3) stay **with your account identifier removed**, so our cost totals remain accurate. They still contain the time, tier, model, token counts, cost, status and photo fingerprint and size, but nothing that links them to you. Server log lines written before deletion are kept until they expire under the log retention above.
 
 **What is separate:**
 - **Your logs on your device and iCloud.** After deleting your account, the app offers to erase them as well. You can also keep them and keep using the app without an account.
-- **Your subscription.** Deleting your account does not cancel an App Store subscription. Cancel it in Settings › [your name] › Subscriptions.
+- **Your subscription.** Deleting your account does not cancel an App Store subscription. Cancel it in Settings › [your name] › Subscriptions. While it stays active, Apple keeps sending us renewal notifications, and we store the subscription record again (original transaction ID, product and dates) **without any link to an account**. If you sign in again later, it can be linked to your new account; otherwise it lapses when the subscription ends.
 - **Sign in with Apple.** To stop Vector from using your Apple ID, go to Settings › [your name] › Sign-In & Security › Sign in with Apple. [Planned: automatic revocation of the Apple token on account deletion.]
 
 ## 7. How long we keep data
 
 | Data | Kept |
 |---|---|
-| Account, subscription records, scan results and corrections | Until you delete your account. [Decide whether inactive accounts are deleted after a period, e.g. [N] months, and implement it before stating it.] |
+| Account, subscription records, scan results, corrections and coach summaries | Until you delete your account (see section 6 for subscriptions that are still active). [Decide whether inactive accounts are deleted after a period, e.g. [N] months, and implement it before stating it.] |
 | Refresh tokens | Expire after 60 days and are replaced on each use. Records are removed when the account is deleted. |
 | Photo fingerprint used for duplicate detection | Used for 24 hours. Kept afterwards inside the de-identified usage record. |
 | Analytics events | Until you opt out or delete your account. [Decide whether to add a fixed limit, e.g. [N] months.] |
 | AI usage and cost records | Kept for cost accounting. De-identified when you delete your account. [Retention period, if any.] |
+| App Store notification log | 90 days. |
 | Server logs | [Log retention period] |
 | Meal photos | Not stored by us. At Anthropic: [per our agreement with Anthropic]. |
 | On-device and iCloud data | Until you delete it, reset the app or delete the app. iCloud copies are managed in your iCloud settings. |
@@ -161,7 +162,7 @@ We will update this page and the "Last updated" date when our practices change, 
 
 ## Implementation references
 
-Every factual claim above, mapped to the code that implements it. Commit at time of writing: `8f16bfb` on `feature/vector-ios-app`. Re-check this list before publishing and after any change to these files.
+Every factual claim above, mapped to the code that implements it. Last checked against `feature/vector-ios-app` after P1 (T1–T8 and the review fixes). Re-check this list before publishing and after any change to these files.
 
 **On device / iCloud**
 - [x] Training, food, body-weight, profile and check-in data are one local JSON document: `Packages/VectorCore/Sources/VectorCore/Services/Persistence.swift` (`AppData`, `JSONFileStore.applicationSupport`).
@@ -171,7 +172,7 @@ Every factual claim above, mapped to the code that implements it. Commit at time
 - [x] Session tokens in Keychain, this device only, not backed up: `App/Vector/Platform/KeychainTokenStore.swift` (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`).
 - [x] Pending analytics kept on device, max 500, cleared on opt-out: `Packages/VectorCore/Sources/VectorCore/Services/Analytics.swift` (`EventQueue.maxQueued`, `clear`), `App/Vector/Platform/KeychainTokenStore.swift` (`EventQueueFile`), `App/Vector/App/AppModel+Account.swift` (`setAnalyticsEnabled`).
 - [x] MetricKit diagnostics stored in the on-device caches folder; `upload` hook exists but is never assigned: `App/Vector/Platform/Diagnostics.swift`, `App/Vector/App/VectorApp.swift` (only calls `start()`).
-- [ ] **Progress photos on device only, complete file protection, excluded from backup, not in iCloud JSON; measurements in `AppData`.** Not implemented at this commit. Specified by P1 task T5 (`docs/tasks/p1-tasklist.md`). Verify the T5 code before publishing.
+- [x] Progress photos on device only, complete file protection, excluded from backup, EXIF dropped by re-encoding, never in the iCloud file; measurements in `AppData`: `App/Vector/App/AppModel+Body.swift` (`ProgressPhotoStore`), `Packages/VectorCore/Sources/VectorCore/Services/SyncMerge.swift` (`cloudCopy`, photos kept local in `merge`), `App/Vector/Platform/CloudSync.swift` (`write` uses `cloudCopy`).
 
 **Server: account and tokens**
 - [x] Only Apple `sub` stored, no email or name: `backend/api/src/auth.ts` (`verifyAppleIdentity` returns `payload.sub`, `signInWithApple` inserts `apple_sub` only), `backend/api/migrations/001_init.sql` (`users` table has no email/name columns).
@@ -191,7 +192,8 @@ Every factual claim above, mapped to the code that implements it. Commit at time
 - [x] Correction fields (counts and calories, no names): `backend/api/src/mealScan.ts` (`ScanCorrection`, `recordCorrection`), `Packages/VectorCore/Sources/VectorCore/Services/MealRecognition.swift` (`ScanCorrection`).
 - [x] Usage and cost row fields: `001_init.sql` (`ai_requests`), `backend/api/src/mealScan.ts` (`cost`, updates after the call).
 - [x] Quotas (3 per 7 days free, Pro daily ceiling): `backend/api/src/mealScan.ts` (`allowance`), `backend/api/src/config.ts`.
-- [ ] **Coach summary (2.4): digest only, stored once per day, cost row with `kind = 'coach_summary'`.** Not implemented at this commit (`ai_requests.kind` only allows `meal_scan`). Specified by P1 tasks T3/T4. Verify before publishing.
+- [x] Coach summary (2.4): digest fields incl. exercise names (`Packages/VectorCore/Sources/VectorCore/Engines/CoachDigest.swift`), no account id sent and digest not stored, summary text stored once per user per day, cost row `kind = 'coach_summary'`: `backend/api/src/coach.ts`, `backend/api/migrations/003_coach_summaries.sql`; deleted with the account (`on delete cascade`).
+- [x] App Store Server Notifications: verified, fields stored, unlinked records after deletion, 90-day notification log: `backend/api/src/appleNotifications.ts`, `backend/api/migrations/002_apple_notifications.sql` (and the retention change in `backend/api`).
 
 **Server: analytics**
 - [x] Allow-listed event names, property limits (no free text beyond 200-char strings): `backend/api/src/events.ts` (`EVENT_NAMES`, `Property`, `Event`), `Packages/VectorCore/Sources/VectorCore/Services/Analytics.swift`.
@@ -204,7 +206,7 @@ Every factual claim above, mapped to the code that implements it. Commit at time
 
 **Server: logs and security**
 - [x] Log line fields, bodies/tokens/images never logged: `backend/api/src/http.ts` (`Router.handle` `finally` block).
-- [x] IP counted in memory for auth endpoints only: `backend/api/src/http.ts` (`IpRateLimiter`), `backend/api/src/app.ts` (`authLimiter`).
+- [x] IP counted in memory for the sign-in and notification endpoints: `backend/api/src/http.ts` (`IpRateLimiter`), `backend/api/src/app.ts` (`authLimiter`, `notificationLimiter`).
 - [x] AI key only on the server: `backend/api/README.md` (`ANTHROPIC_API_KEY`), `backend/api/src/config.ts`.
 
 **Third parties**
@@ -216,7 +218,7 @@ Every factual claim above, mapped to the code that implements it. Commit at time
 - [x] Health data never sent to the server: no Health values in `APIClient.swift` requests or in analytics properties (see analytics items above).
 
 **Camera and photos**
-- [x] Purpose strings: `project.yml` (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`). The scanner keeps the image in memory only: `App/Vector/Features/Scanner/MealScannerFlow.swift`.
+- [x] Purpose strings cover meals, barcodes and progress photos: `project.yml` (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`). The scanner keeps the image in memory only: `App/Vector/Features/Scanner/MealScannerFlow.swift`.
 
 **Account deletion**
 - [x] `DELETE /v1/me` deletes the user row; cascades to `refresh_tokens`, `subscriptions`, `meal_scans`, `analytics_events`; `ai_requests.user_id` set to null: `backend/api/src/app.ts`, `001_init.sql` (`on delete cascade` / `on delete set null`).

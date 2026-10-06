@@ -120,3 +120,22 @@ Server sync of workouts and nutrition; Watch heart rate (`HKWorkoutSession`); re
 - real Sign in with Apple and App Store transactions
 
 These need a Mac with Xcode, an Anthropic key and an Apple developer account. They are the first P1 task.
+
+## P1 status
+
+Done by the agent team (`docs/06-team.md`); details and evidence per task in `docs/tasks/p1-tasklist.md`. Reviewed by code-reviewer, appsec-engineer and reality-checker; their findings were fixed before merge.
+
+| P1 item | Status |
+|---|---|
+| App Store Server Notifications → subscriptions | Done (backend, tested on PostgreSQL with a test certificate chain). Not yet exercised with real Apple payloads. |
+| Cost dashboard SQL views | Done (tested). |
+| Claude-written coach summary (cached daily) | Done: backend tested with a fake Claude client; iOS digest tested; card UI unverified. |
+| Measurements and progress photos (on device) | Core done and tested; UI unverified. |
+| Protein-adherence and calorie charts | Core done and tested; UI unverified. |
+| Real Terms and Privacy pages | Drafts done, tied to the code; need legal review, hosting, and `VectorTermsURL` / `VectorPrivacyURL` set (they're empty, so the app falls back to Apple's standard pages). |
+| App icon | Done (light, dark, tinted); not yet seen on a device. Screenshots blocked. |
+| Build in Xcode and fix compile errors | **Blocked: needs a Mac.** |
+| HealthKit steps and resting heart rate | **Not started: needs a device or simulator to verify.** |
+| App Attest | **Not started: needs a real device.** |
+
+Reality-checker verdict: **NEEDS WORK, not ready for TestFlight** until the app is compiled and run on a Mac, the UI is exercised on a simulator, the legal pages are reviewed and hosted, and one real sandbox purchase, notification and live Claude call have been checked end to end.
