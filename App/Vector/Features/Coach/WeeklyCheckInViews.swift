@@ -127,33 +127,94 @@ private struct BaselineChecklist: View {
     }
 }
 
-/// The Weekly Coach Check-In: training, nutrition, body weight, goal, then
-/// one decision. Free users see their week in numbers; the decision and
-/// Apply are Pro.
-struct WeeklyCheckInCard: View {
+
+// MARK: - Weekly check-in sheet
+
+extension View {
+    /// Presents this week's check-in as a large sheet. The review is captured
+    /// when the sheet opens, so acting on it (which records a decision and
+    /// refreshes the model) can't swap the content out mid-dismissal.
+    func weeklyCheckInSheet(isPresented: Binding<Bool>) -> some View {
+        modifier(WeeklyCheckInPresenter(isPresented: isPresented))
+    }
+}
+
+private struct WeeklyCheckInPresenter: ViewModifier {
+    @Binding var isPresented: Bool
+    @Environment(AppModel.self) private var model
+    @State private var captured: WeeklyReview?
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: isPresented) { _, shows in
+                if shows { captured = model.weeklyReview }
+            }
+            .sheet(isPresented: $isPresented, onDismiss: { captured = nil }) {
+                if let review = captured ?? model.weeklyReview {
+                    WeeklyCheckInSheet(review: review)
+                }
+            }
+    }
+}
+
+/// The Weekly Coach Check-In ("Fields"): the decision on the dark hero
+/// field with its reason and confidence, the evidence one tap away, then the
+/// week in three area fields. Actions are pinned to the bottom.
+///
+/// Free users see their week in numbers and an honest description of what
+/// Pro adds. The decision itself is never shown blurred or locked.
+struct WeeklyCheckInSheet: View {
     var review: WeeklyReview
     @Environment(AppModel.self) private var model
-    @State private var showsEvidence = false
+    @Environment(\.dismiss) private var dismiss
+    @State private var showsEvidence: Bool
     @State private var tracked = false
+    @State private var showsPaywall = false
+    @State private var applied = false
+
+    init(review: WeeklyReview) {
+        self.review = review
+        // Expanded when there's a change to justify; collapsed otherwise.
+        if case .adjustCalories = review.recommendation {
+            _showsEvidence = State(initialValue: true)
+        } else {
+            _showsEvidence = State(initialValue: false)
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            CategoryHeader(symbol: "arrow.triangle.2.circlepath", title: "Weekly Check-In", tint: VColor.coach,
-                           detail: review.confidence.title)
-            if model.isPro {
-                // Decide, then explain: the decision leads, the week follows.
-                decision
-                Hairline()
-                Text("Your week").font(VFont.headline).foregroundStyle(VColor.textPrimary)
-                sections
-            } else {
-                // Free: the week in numbers is the value; Pro is offered after it.
-                sections
-                Hairline()
-                locked
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if model.isPro {
+                        hero
+                        evidence
+                    }
+                    yourWeek
+                    if !model.isPro {
+                        proOffer
+                    }
+                }
+                .padding(.bottom, Space.lg)
+            }
+            .screenBackground()
+            .safeAreaInset(edge: .bottom, spacing: 0) { actions }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SheetTitle(title: "Weekly check-in", subtitle: weekLabel)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    SheetCloseButton { dismiss() }
+                }
+            }
+            .sheet(isPresented: $showsPaywall) {
+                PaywallView(trigger: .coach)
             }
         }
-        .card()
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .sensoryFeedback(.success, trigger: applied)
         .onAppear {
             guard !tracked else { return }
             tracked = true
@@ -164,45 +225,220 @@ struct WeeklyCheckInCard: View {
         }
     }
 
-    // MARK: Week in numbers (free)
+    /// "Week of 28 Sep": the start of the reviewed week.
+    private var weekLabel: String {
+        let start = model.calendar.dateInterval(of: .weekOfYear, for: review.date)?.start ?? review.date
+        return "Week of \(start.formatted(.dateTime.day().month(.abbreviated)))"
+    }
 
-    private var sections: some View {
-        let unit = model.unit
-        let training = review.training
-        let nutrition = review.nutrition
-        return VStack(alignment: .leading, spacing: Space.md) {
-            row(Icon.train, VColor.training, "Training", "\(training.completed) of \(training.planned) workouts",
-                detail: [training.volumeChange.map { "Volume \(Format.signedPercent($0))" },
-                         strengthLine(training, unit: unit)].compactMap { $0 }.joined(separator: " · "))
-            row(Icon.nutrition, VColor.nutrition, "Nutrition", "\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories",
-                detail: "Protein target hit on \(nutrition.proteinDaysOnTarget) of \(nutrition.windowDays) days")
-            row("scalemass", VColor.body, "Body weight", weightLine(unit: unit), detail: review.body.trend.map { trendLine($0, unit: unit) } ?? "Log 3+ weigh-ins a week for a trend")
-            row("flag", VColor.textSecondary, "Goal", review.goal.title, detail: goalLine(unit: unit))
+    // MARK: Hero (Pro)
+
+    @ViewBuilder private var hero: some View {
+        HeroField(spacing: Space.sm) {
+            switch review.recommendation {
+            case .adjustCalories(let from, let to, let reason):
+                HeroLabel("Calories", symbol: Icon.recommendation)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                        Text(Format.integer(from))
+                        Image(systemName: "arrow.right")
+                            .font(.system(.title2, weight: .semibold))
+                            .foregroundStyle(VColor.heroTextSecondary)
+                        Text(Format.integer(to))
+                    }
+                    .font(VFont.metricHero)
+                    .foregroundStyle(VColor.heroText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    Text("kcal a day")
+                        .font(VFont.body)
+                        .foregroundStyle(VColor.heroTextSecondary)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Change calories from \(Format.integer(from)) to \(Format.integer(to)) kilocalories a day")
+                reasonText(reason)
+            case .onTrack(let reason):
+                statement("On track", symbol: "checkmark.circle", title: "No changes this week.", reason: reason)
+            case .watch(let reason):
+                statement("Watching", symbol: "eye", title: "Hold steady for one more week.", reason: reason)
+            case .improveAdherence(let reason):
+                statement("Consistency", symbol: "calendar", title: "Focus on consistency first.", reason: reason)
+            case .learningBaseline(let items):
+                HeroLabel("Learning your baseline", symbol: "hourglass")
+                heroTitle("No changes yet.")
+                reasonText("Vector needs a little more of your data before it changes anything.")
+                HeroBaselineChecklist(items: items)
+                    .padding(.top, Space.xxs)
+            }
+            if let outcome = review.previousOutcome {
+                Text(outcome.summary)
+                    .font(VFont.secondary)
+                    .foregroundStyle(VColor.heroTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HeroHairline()
+                .padding(.top, Space.xs)
+            Label {
+                Text(confidenceLine)
+            } icon: {
+                Image(systemName: "checkmark.seal")
+            }
+            .font(VFont.secondary.monospacedDigit())
+            .foregroundStyle(VColor.heroTextSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, Space.xxs)
         }
     }
 
-    private func row(_ symbol: String, _ tint: Color, _ title: String, _ value: String, detail: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
-            Image(systemName: symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(tint)
-                .frame(width: 24)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(title).font(VFont.secondary).foregroundStyle(VColor.textSecondary)
-                Text(value).font(VFont.bodyEmphasized.monospacedDigit()).foregroundStyle(VColor.textPrimary)
-                if !detail.isEmpty {
-                    Text(detail).font(VFont.secondary.monospacedDigit()).foregroundStyle(VColor.textSecondary)
+    @ViewBuilder
+    private func statement(_ label: String, symbol: String, title: String, reason: String) -> some View {
+        HeroLabel(label, symbol: symbol)
+        heroTitle(title)
+        reasonText(reason)
+    }
+
+    private func heroTitle(_ text: String) -> some View {
+        Text(text)
+            .font(VFont.largeTitle)
+            .foregroundStyle(VColor.heroText)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func reasonText(_ text: String) -> some View {
+        Text(text)
+            .font(VFont.body)
+            .foregroundStyle(VColor.heroText)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// "High confidence · 19 weigh-ins over 20 days, 6 of 7 days on calories".
+    private var confidenceLine: String {
+        var basis: [String] = []
+        if let trend = review.body.trend {
+            basis.append("\(trend.weighIns) weigh-ins over \(Int(trend.spanDays.rounded())) days")
+        }
+        let nutrition = review.nutrition
+        basis.append("\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories")
+        return "\(review.confidence.title) · \(basis.joined(separator: ", "))"
+    }
+
+    // MARK: Evidence (Pro)
+
+    @ViewBuilder private var evidence: some View {
+        if case .learningBaseline = review.recommendation {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                DisclosureGroup(isExpanded: $showsEvidence) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(review.evidence.enumerated()), id: \.offset) { _, item in
+                            EvidenceRow(label: item.label, value: item.value)
+                        }
+                        Text("Expenditure is estimated from your logged food and weight trend. Calorie changes are limited to 100–250 kcal and never go below 1,200 kcal.")
+                            .font(VFont.caption)
+                            .foregroundStyle(VColor.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, Space.sm)
+                    }
+                } label: {
+                    Text("Evidence")
                 }
+                .disclosureGroupStyle(FieldDisclosureStyle())
+            }
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.vertical, Space.md)
+            Hairline()
+        }
+    }
+
+    // MARK: Your week
+
+    private var yourWeek: some View {
+        let unit = model.unit
+        let training = review.training
+        let nutrition = review.nutrition
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("Your week")
+                .font(VFont.title)
+                .foregroundStyle(VColor.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.top, Space.lg)
+                .padding(.bottom, Space.md)
+
+            FieldSection(.training, symbol: Icon.train, title: "Training", spacing: Space.xxs) {
+                weekValue("\(training.completed) of \(training.planned) workouts")
+                let detail = [training.volumeChange.map { "Volume \(Format.signedPercent($0))" },
+                              strengthLine(training, unit: unit)].compactMap { $0 }.joined(separator: " · ")
+                if !detail.isEmpty { weekDetail(detail) }
+            }
+
+            FieldSection(.nutrition, symbol: Icon.nutrition, title: "Nutrition", spacing: Space.xxs) {
+                weekValue("\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories")
+                weekDetail("Protein target hit on \(nutrition.proteinDaysOnTarget) of \(nutrition.windowDays) days")
+            }
+
+            FieldSection(.body, symbol: "scalemass", title: "Body", spacing: Space.xxs) {
+                bodyContent(unit: unit)
             }
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    private func weekValue(_ text: String) -> some View {
+        Text(text)
+            .font(VFont.title.monospacedDigit())
+            .foregroundStyle(VColor.textPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func weekDetail(_ text: String) -> some View {
+        Text(text)
+            .font(VFont.secondary.monospacedDigit())
+            .foregroundStyle(VColor.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private func bodyContent(unit: WeightUnit) -> some View {
+        let now = model.now()
+        let points = model.analytics.bodyWeightSeries(model.bodyWeights, range: .month, now: now)
+
+        HStack(alignment: .bottom, spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                weekValue(weightLine(unit: unit))
+                Group {
+                    if let trend = review.body.trend {
+                        Text(signed(trend.kgPerWeek, unit: unit))
+                            .font(VFont.secondaryEmphasized.monospacedDigit())
+                            .foregroundStyle(VColor.inkBody)
+                        + Text(" a week over \(Int(trend.spanDays.rounded())) days")
+                            .font(VFont.secondary)
+                            .foregroundStyle(VColor.textSecondary)
+                    } else {
+                        Text("Log 3+ weigh-ins a week for a trend")
+                            .font(VFont.secondary)
+                            .foregroundStyle(VColor.textSecondary)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: Space.md)
+            if review.body.trend != nil, points.count >= 2 {
+                TrendSparkline(points: points, trend: model.analytics.smoothedTrend(points), tint: VColor.inkBody)
+                    .frame(maxWidth: 150)
+                    .frame(height: 44)
+            }
+        }
+        weekDetail(goalLine(unit: unit))
+            .padding(.top, Space.xxs)
     }
 
     private func strengthLine(_ training: WeeklyReview.Training, unit: WeightUnit) -> String? {
         guard let lift = training.mainLift else { return nil }
         guard let before = training.e1rmBefore, let now = training.e1rmNow else { return nil }
-        return "\(lift) estimated max \(Format.estimate(before, unit: unit, includeUnit: false)) → \(Format.estimate(now, unit: unit))"
+        return "\(lift) est. max \(Format.estimate(before, unit: unit, includeUnit: false)) → \(Format.estimate(now, unit: unit))"
     }
 
     private func weightLine(unit: WeightUnit) -> String {
@@ -213,105 +449,104 @@ struct WeeklyCheckInCard: View {
         return Format.weight(current, unit: unit)
     }
 
-    private func trendLine(_ trend: WeightTrend, unit: WeightUnit) -> String {
-        let sign = trend.kgPerWeek >= 0 ? "+" : "\u{2212}"
-        return "Trend \(sign)\(Format.weight(abs(trend.kgPerWeek), unit: unit))/week over \(Int(trend.spanDays.rounded())) days"
+    private func signed(_ kgPerWeek: Double, unit: WeightUnit) -> String {
+        "\(kgPerWeek >= 0 ? "+" : "\u{2212}")\(Format.weight(abs(kgPerWeek), unit: unit))"
     }
 
     private func goalLine(unit: WeightUnit) -> String {
-        guard let band = review.bandKgPerWeek else { return "Range appears once there's a weight trend" }
+        let goal = review.goal.title
+        guard let band = review.bandKgPerWeek else { return "\(goal): the range appears once there's a weight trend" }
         let status = switch review.goalStatus {
         case .within: "On track"
         case .below: "Below range"
         case .above: "Above range"
         case .unknown: "Not enough data"
         }
-        let range = "\(Format.weight(band.lowerBound, unit: unit, includeUnit: false)) to \(Format.weight(band.upperBound, unit: unit))/week"
-        return "\(status) · target \(range)"
+        let range = "\(Format.weight(band.lowerBound, unit: unit, includeUnit: false)) to \(Format.weight(band.upperBound, unit: unit)) a week"
+        return "\(goal) · \(status) · target \(range)"
     }
 
-    // MARK: Decision (Pro)
+    // MARK: Pro offer (free)
 
-    @ViewBuilder private var decision: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            switch review.recommendation {
-            case .learningBaseline(let items):
-                Text("Vector is learning your baseline. No changes yet.")
-                    .font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                BaselineChecklist(items: items)
-                Button("Done") { model.keepCurrentTargets(review) }.buttonStyle(.secondary)
-            case .onTrack(let reason), .watch(let reason), .improveAdherence(let reason):
-                Text(title).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                explanation(reason)
-                Button("Continue Current Plan") { model.applyReview(review) }.buttonStyle(.primary)
-            case .adjustCalories(let from, let to, let reason):
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(Format.integer(from)) → \(Format.integer(to))")
-                        .font(VFont.metricHero).foregroundStyle(VColor.textPrimary)
-                    Text("kcal a day").font(VFont.secondary).foregroundStyle(VColor.textSecondary)
+    /// What Pro would add, stated plainly. No blurred or fake decision.
+    private var proOffer: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text("Unlock your digital coach")
+                .font(VFont.title3)
+                .foregroundStyle(VColor.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Text("Pro reads these numbers each week and makes one decision: change your calories, progress a lift, or change nothing. It shows the evidence and how confident it is.")
+                .font(VFont.secondary)
+                .foregroundStyle(VColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("See Vector Pro") {
+                model.track(.paywallViewed, ["trigger": .string(PaywallTrigger.coach.rawValue)])
+                showsPaywall = true
+            }
+            .buttonStyle(.outlinedCapsule)
+            .padding(.top, Space.xxs)
+        }
+        .padding(.horizontal, Space.fieldInset)
+        .padding(.top, Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Actions
+
+    private var actions: some View {
+        PinnedActionBar {
+            if model.isPro, case .adjustCalories = review.recommendation {
+                Button("Apply adjustment") {
+                    model.applyReview(review)
+                    applied = true
+                    dismiss()
+                }
+                .buttonStyle(.accentCapsule)
+                Button("Keep current") {
+                    model.keepCurrentTargets(review)
+                    dismiss()
+                }
+                .buttonStyle(.textAction)
+            } else if model.isPro, !isBaseline {
+                // On track, watch or consistency: acknowledging records the decision.
+                Button("Done") {
+                    model.applyReview(review)
+                    dismiss()
+                }
+                .buttonStyle(.accentCapsule)
+            } else {
+                Button("Done") {
+                    model.keepCurrentTargets(review)
+                    dismiss()
+                }
+                .buttonStyle(.accentCapsule)
+            }
+        }
+    }
+
+    private var isBaseline: Bool {
+        if case .learningBaseline = review.recommendation { return true }
+        return false
+    }
+}
+
+/// The baseline checklist in white ink, for the hero field.
+private struct HeroBaselineChecklist: View {
+    var items: [BaselineItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            ForEach(items) { item in
+                HStack(spacing: Space.xs) {
+                    Image(systemName: item.isComplete ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(item.isComplete ? VColor.ringWorkouts : VColor.heroTextSecondary)
+                        .accessibilityHidden(true)
+                    Text("\(item.done) of \(item.needed) \(item.label)")
+                        .font(VFont.secondary.monospacedDigit())
+                        .foregroundStyle(VColor.heroText)
                 }
                 .accessibilityElement(children: .combine)
-                explanation(reason)
-                AdaptiveStack {
-                    Button("Keep Current") { model.keepCurrentTargets(review) }.buttonStyle(.secondary)
-                    Button("Apply Adjustment") { model.applyReview(review) }.buttonStyle(.primary)
-                }
-            }
-            if let outcome = review.previousOutcome {
-                Text(outcome.summary)
-                    .font(VFont.caption)
-                    .foregroundStyle(VColor.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var title: String {
-        switch review.recommendation {
-        case .onTrack: "Everything is on track. No changes."
-        case .watch: "Hold steady for one more week."
-        case .improveAdherence: "Focus on consistency first."
-        default: ""
-        }
-    }
-
-    private func explanation(_ reason: String) -> some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            Text(reason)
-                .font(VFont.secondary)
-                .foregroundStyle(VColor.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-            DisclosureGroup("Evidence", isExpanded: $showsEvidence) {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(review.evidence, id: \.self) { LabeledContent($0.label, value: $0.value) }
-                    Text("Expenditure is estimated from your logged food and weight trend. Calorie changes are limited to 100–250 kcal and never go below 1,200 kcal.")
-                        .foregroundStyle(VColor.textTertiary)
-                        .padding(.top, 2)
-                }
-                .font(VFont.caption.monospacedDigit())
-                .padding(.top, Space.xs)
-            }
-            .font(VFont.secondaryEmphasized)
-            .tint(VColor.textSecondary)
-        }
-    }
-
-    // MARK: Locked (free)
-
-    private var locked: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            HStack {
-                Text("Unlock your digital coach").font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                Spacer()
-                ProBadge()
-            }
-            Text("Pro reads this week's numbers and tells you what to change: calories, progression, or nothing at all.")
-                .font(VFont.secondary)
-                .foregroundStyle(VColor.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-            AdaptiveStack {
-                Button("Done") { model.keepCurrentTargets(review) }.buttonStyle(.secondary)
-                Button("See Pro") { model.sheet = .paywall(.coach) }.buttonStyle(.primary)
+                .accessibilityValue(item.isComplete ? "Complete" : "Not yet")
             }
         }
     }

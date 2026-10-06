@@ -54,11 +54,11 @@ final class VectorUITests: XCTestCase {
         launch(sampleData: true)
         tap(button("Start Workout"))
         tap(app.buttons["Complete set"].firstMatch)
-        XCTAssertTrue(waitForText("REST", timeout: 3))
+        XCTAssertTrue(waitForText("Skip rest", timeout: 3))
         tap(button("Skip"))
         tap(button("Finish"))
         tap(button("Finish Workout"))
-        XCTAssertTrue(waitForText("WORKOUT COMPLETE"))
+        XCTAssertTrue(waitForText("Workout complete"))
     }
 
     func testMealScanReviewAddsMeal() {

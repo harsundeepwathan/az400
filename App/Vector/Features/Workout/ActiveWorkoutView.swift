@@ -16,7 +16,15 @@ enum SetField: Hashable {
 /// The gym-floor screen. Design priorities, in order: one-tap set
 /// completion, large targets, zero modal interruptions (no paywalls, no
 /// confirmations except finishing), and state that survives anything.
+///
+/// Layout (Fields): a pinned training-green nav row (collapse, title and
+/// elapsed time, Finish), then the exercises in order. The current exercise
+/// opens with the training field holding its name, target and the rest
+/// ring; the set tables sit on the ground with hairlines.
 struct ActiveWorkoutView: View {
+    /// Coordinate space of the scroll view, used to tell whether the header ring is on screen.
+    static let scrollSpace = "activeWorkoutScroll"
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
     @FocusState private var focusedField: SetField?
@@ -25,6 +33,10 @@ struct ActiveWorkoutView: View {
     @State private var showsFinishDialog = false
     @State private var restEditorIndex: Int?
     @State private var prPositions: Set<SetPosition> = []
+    @State private var ringVisible = true
+
+    /// The compact bar takes over only when the header ring is scrolled away.
+    private var showsRestBar: Bool { model.restTimer != nil && !ringVisible }
 
     var body: some View {
         @Bindable var model = model
@@ -32,50 +44,70 @@ struct ActiveWorkoutView: View {
             NavigationStack {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: Space.md) {
-                            WorkoutHeader(workout: workout)
+                        VStack(alignment: .leading, spacing: 0) {
+                            if workout.session.exercises.isEmpty {
+                                emptyState
+                            }
                             ForEach(Array(workout.session.exercises.enumerated()), id: \.element.id) { index, log in
+                                let isCurrent = index == workout.currentExerciseIndex
+                                // The field's edge is its own separator; plain sections get a hairline.
+                                if index > 0, !isCurrent {
+                                    Hairline()
+                                }
                                 ExerciseLogCard(
                                     index: index,
                                     log: log,
                                     workout: workout,
+                                    isCurrent: isCurrent,
                                     focusedField: $focusedField,
                                     prPositions: prPositions,
                                     onShowDetail: { detailExercise = ExerciseDetailContext(exerciseID: log.exerciseID, index: index) },
-                                    onEditRest: { restEditorIndex = index }
+                                    onEditRest: { restEditorIndex = index },
+                                    onRingVisibilityChange: updateRingVisibility
                                 )
                                 .id(log.id)
                             }
-                            addExerciseButton
+                            if !workout.session.exercises.isEmpty {
+                                addExerciseButton
+                            }
                         }
-                        .padding(.horizontal, Space.gutter)
                         .padding(.bottom, Space.xxl)
                     }
+                    .coordinateSpace(name: Self.scrollSpace)
                     .scrollDismissesKeyboard(.interactively)
                     .onChange(of: model.lastCompletion) { _, completion in
                         guard let completion else { return }
                         if completion.isPersonalRecord { prPositions.insert(completion.position) }
                         guard let next = completion.nextFocus, workout.session.exercises.indices.contains(next.exercise) else { return }
                         if next.exercise != completion.position.exercise {
-                            withAnimation(Motion.smooth) {
+                            withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) {
                                 proxy.scrollTo(workout.session.exercises[next.exercise].id, anchor: .top)
                             }
                         }
                     }
                 }
-                .screenBackground()
+                .background(VColor.ground.ignoresSafeArea())
+                // Under the nav row, over the content: the record toast never covers the clock.
+                .overlay(alignment: .top) { WorkoutToastHost(toast: $model.toast) }
+                .safeAreaInset(edge: .top, spacing: 0) { navRow(workout) }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if model.restTimer != nil {
+                    if showsRestBar {
                         RestTimerBar()
-                            .padding(.horizontal, Space.gutter)
-                            .padding(.bottom, Space.xs)
                             .transition(Motion.slide(.bottom, reduceMotion: reduceMotion))
                     }
                 }
-                .animation(Motion.smooth, value: model.restTimer)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { toolbar(workout) }
-                .overlay(alignment: .top) { ToastHost(toast: $model.toast) }
+                .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: showsRestBar)
+                .toolbar(.hidden, for: .navigationBar)
+                .toolbar { keyboardToolbar(workout) }
+                .task(id: model.restTimer) {
+                    // Fires the foreground "rest over" haptic exactly at the end date,
+                    // wherever the countdown is being shown.
+                    guard let timer = model.restTimer else { return }
+                    let delay = timer.remaining(at: model.now())
+                    if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+                    guard !Task.isCancelled else { return }
+                    model.restDidFinish()
+                }
                 .sheet(item: $detailExercise) { context in
                     if let exercise = model.catalog[context.exerciseID] {
                         ExerciseDetailView(exercise: exercise, workoutIndex: context.index)
@@ -102,44 +134,92 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private func toolbar(_ workout: ActiveWorkout) -> some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button {
-                model.minimizeWorkout()
-            } label: {
-                Image(systemName: "chevron.down")
-                    .font(.system(.body, weight: .semibold))
-                    .frame(width: Size.minTouch, height: Size.minTouch)
-            }
-            .accessibilityLabel("Minimize workout")
-        }
-        ToolbarItem(placement: .principal) {
-            VStack(spacing: 0) {
-                Text(workout.session.name).font(VFont.headline).foregroundStyle(VColor.textPrimary)
-                if !workout.session.exercises.isEmpty {
-                    Text("Exercise \(min(workout.currentExerciseIndex + 1, workout.session.exercises.count)) of \(workout.session.exercises.count)")
-                        .font(VFont.caption)
+    /// Only the current exercise's header reports; a stale report from the
+    /// previous current exercise (e.g. its onDisappear) is ignored.
+    private func updateRingVisibility(_ index: Int, _ visible: Bool) {
+        guard model.activeWorkout?.currentExerciseIndex == index, ringVisible != visible else { return }
+        ringVisible = visible
+    }
+
+    // MARK: Nav row
+
+    /// Custom nav row on the training field: collapse, title over elapsed
+    /// time, and Finish, which fills in once every set is done.
+    private func navRow(_ workout: ActiveWorkout) -> some View {
+        ZStack {
+            TimelineView(.periodic(from: workout.session.startedAt, by: 1)) { context in
+                let elapsed = context.date.timeIntervalSince(workout.session.startedAt)
+                VStack(spacing: 0) {
+                    Text(workout.session.name)
+                        .font(VFont.headline)
+                        .foregroundStyle(VColor.textPrimary)
+                    Text(Format.clock(elapsed))
+                        .font(VFont.caption.monospacedDigit())
                         .foregroundStyle(VColor.textSecondary)
-                        .contentTransition(.numericText())
                 }
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(workout.session.name)
+                .accessibilityValue("Elapsed time \(Format.duration(elapsed)). \(workout.completedSets) of \(workout.totalSets) sets done.")
+                .accessibilityAddTraits(.isHeader)
             }
-            .accessibilityElement(children: .combine)
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button("Finish") {
-                focusedField = nil
-                if workout.isComplete {
-                    model.finishWorkout()
-                } else {
-                    showsFinishDialog = true
+            // Keep the title clear of the side buttons.
+            .padding(.horizontal, Size.minTouch * 2)
+            HStack(spacing: 0) {
+                Button {
+                    focusedField = nil
+                    model.minimizeWorkout()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(.body, weight: .semibold))
+                        .foregroundStyle(VColor.inkTraining)
+                        .frame(width: Size.minTouch, height: Size.minTouch)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Minimize workout")
+                Spacer(minLength: Space.xs)
+                finishButton(workout)
             }
-            .font(VFont.bodyEmphasized)
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .tint(workout.isComplete ? VColor.success : VColor.accent)
         }
+        .padding(.horizontal, Space.xs)
+        .frame(minHeight: Size.minTouch)
+        .background(VColor.fieldTraining.ignoresSafeArea(edges: .top))
+    }
+
+    private func finishButton(_ workout: ActiveWorkout) -> some View {
+        let prominent = workout.isComplete
+        return Button {
+            focusedField = nil
+            if workout.isComplete {
+                model.finishWorkout()
+            } else {
+                showsFinishDialog = true
+            }
+        } label: {
+            Text("Finish")
+                .font(VFont.bodyEmphasized)
+                .foregroundStyle(prominent ? VColor.textOnAccent : VColor.inkTraining)
+                .padding(.horizontal, prominent ? Space.md : Space.xs)
+                .padding(.vertical, Space.xs)
+                .background {
+                    if prominent {
+                        Capsule().fill(VColor.accent)
+                    }
+                }
+                .frame(minHeight: Size.minTouch)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .animation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion), value: prominent)
+        .accessibilityHint(prominent ? "Every set is done" : "")
+    }
+
+    // MARK: Keyboard
+
+    @ToolbarContentBuilder
+    private func keyboardToolbar(_ workout: ActiveWorkout) -> some ToolbarContent {
         ToolbarItemGroup(placement: .keyboard) {
             KeyboardStepper(field: focusedField, workout: workout)
             Spacer()
@@ -160,14 +240,45 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    // MARK: Add exercise
+
     private var addExerciseButton: some View {
-        Button {
-            showsAddExercise = true
-        } label: {
-            Label("Add Exercise", systemImage: "plus")
+        VStack(spacing: 0) {
+            Hairline()
+            Button {
+                showsAddExercise = true
+            } label: {
+                Label("Add exercise", systemImage: Icon.add)
+            }
+            .buttonStyle(.quietCapsule)
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.top, Space.lg)
         }
-        .buttonStyle(.secondary)
+    }
+
+    /// An empty session: the training field with one way forward.
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text("No exercises yet")
+                .font(VFont.fieldTitle)
+                .foregroundStyle(VColor.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Text("Add the first exercise to start logging sets.")
+                .font(VFont.secondary)
+                .foregroundStyle(VColor.textSecondary)
+            Button {
+                showsAddExercise = true
+            } label: {
+                Label("Add exercise", systemImage: Icon.add)
+            }
+            .buttonStyle(.accentCapsule)
+            .padding(.top, Space.xs)
+        }
+        .padding(.horizontal, Space.fieldInset)
         .padding(.top, Space.xs)
+        .padding(.bottom, Space.fieldVertical)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(VColor.fieldTraining)
     }
 
     private func finishTitle(_ workout: ActiveWorkout) -> String {
@@ -192,35 +303,60 @@ private struct RestEditorContext: Identifiable {
     var id: Int { index }
 }
 
-/// Elapsed clock and progress, pinned at the top of the session.
-private struct WorkoutHeader: View {
-    var workout: ActiveWorkout
+/// The workout's own toast: a material capsule under the nav row. A personal
+/// record reads "New record" with a seal (the model posts it with the trophy
+/// symbol; the workout shows records as data, not prizes). The model already
+/// fires the success haptic; this announces it for VoiceOver and clears it
+/// after 2.5 s.
+private struct WorkoutToastHost: View {
+    @Binding var toast: ToastMessage?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(spacing: Space.sm) {
-            TimelineView(.periodic(from: workout.session.startedAt, by: 1)) { context in
-                Text(Format.clock(context.date.timeIntervalSince(workout.session.startedAt), alwaysShowHours: true))
-                    .font(VFont.metricHero)
-                    .foregroundStyle(VColor.textPrimary)
-                    .accessibilityLabel("Elapsed time \(Format.duration(context.date.timeIntervalSince(workout.session.startedAt)))")
+        ZStack {
+            if let toast {
+                let isRecord = toast.symbol == Icon.trophy
+                let title = isRecord ? "New record" : toast.title
+                HStack(spacing: Space.xs) {
+                    Image(systemName: isRecord ? "checkmark.seal" : toast.symbol)
+                        .font(VFont.secondaryEmphasized)
+                        .foregroundStyle(VColor.inkTraining)
+                        .accessibilityHidden(true)
+                    Text(title)
+                        .font(VFont.secondaryEmphasized)
+                        .foregroundStyle(VColor.textPrimary)
+                    if let subtitle = toast.subtitle {
+                        Text(subtitle)
+                            .font(VFont.secondary)
+                            .foregroundStyle(VColor.textSecondary)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(.horizontal, Space.md)
+                .padding(.vertical, Space.sm)
+                .background(.regularMaterial, in: Capsule())
+                // Floating chrome is the one place a shadow is allowed.
+                .shadow(color: Elevation.floating.shadow.color, radius: Elevation.floating.shadow.radius,
+                        y: Elevation.floating.shadow.y)
+                .padding(.horizontal, Space.gutter)
+                .padding(.top, Space.xxs)
+                .accessibilityElement(children: .combine)
+                .transition(Motion.slide(.top, reduceMotion: reduceMotion))
+                .onTapGesture { dismiss() }
+                .task(id: toast.id) {
+                    let message: String = [title, toast.subtitle].compactMap { $0 }.joined(separator: ". ")
+                    AccessibilityNotification.Announcement(message).post()
+                    try? await Task.sleep(for: .seconds(2.5))
+                    guard !Task.isCancelled else { return }
+                    dismiss()
+                }
             }
-            HStack(spacing: Space.sm) {
-                LinearProgress(progress: workout.progress, tint: workout.isComplete ? VColor.success : VColor.accent, height: 6)
-                Text("\(workout.completedSets)/\(workout.totalSets)")
-                    .font(VFont.captionEmphasized.monospacedDigit())
-                    .foregroundStyle(VColor.textSecondary)
-                    .contentTransition(.numericText())
-            }
-            HStack {
-                Label(Format.volume(workout.session.exercises.reduce(0) { $0 + $1.volume }), systemImage: "scalemass")
-                Spacer()
-                Label("\(workout.completedSets) sets", systemImage: Icon.check)
-            }
-            .font(VFont.caption.monospacedDigit())
-            .foregroundStyle(VColor.textSecondary)
         }
-        .padding(.top, Space.xs)
-        .padding(.bottom, Space.xxs)
+        .animation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion), value: toast)
+    }
+
+    private func dismiss() {
+        withAnimation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion)) { toast = nil }
     }
 }
 

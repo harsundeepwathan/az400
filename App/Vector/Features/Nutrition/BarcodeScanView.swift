@@ -44,9 +44,9 @@ struct BarcodeScanView: View {
                         .keyboardType(.numberPad)
                         .padding(.horizontal, Space.md)
                         .frame(minHeight: Size.minTouch)
-                        .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
+                        .background(VColor.quietFill, in: Capsule())
                     Button("Look up") { lookup(code) }
-                        .buttonStyle(.secondary(compact: true))
+                        .buttonStyle(.outlinedCapsule)
                         .disabled(code.count < 6)
                 }
 
@@ -63,11 +63,12 @@ struct BarcodeScanView: View {
                             .font(VFont.secondary)
                             .foregroundStyle(VColor.textSecondary)
                         HStack {
-                            Button("Search") { model.sheet = .foodSearch(meal) }.buttonStyle(.secondary(compact: true))
-                            Button("Quick Add") { model.sheet = .quickAdd(meal) }.buttonStyle(.secondary(compact: true))
+                            Button("Search") { model.sheet = .foodSearch(meal) }.buttonStyle(.outlinedCapsule)
+                            Button("Quick Add") { model.sheet = .quickAdd(meal) }.buttonStyle(.outlinedCapsule)
                         }
                     }
-                    .card()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Space.md)
                 }
                 Spacer()
             }

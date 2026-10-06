@@ -1,7 +1,7 @@
 import SwiftUI
 import VectorCore
 
-/// The daily command center ("Fields"). An evergreen hero field holds the
+/// The daily command center ("Fields"). A dark hero field holds the
 /// day's three rings; the coach statement and the weekly check-in sit on the
 /// plain ground; each area (training, nutrition, body) owns a full-bleed
 /// tinted field. Fields run edge to edge with content inset inside them.
@@ -10,11 +10,9 @@ struct TodayView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsCheckIn = false
 
-    private static let checkInID = "today.weeklyCheckIn"
-
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
+            ScrollViewReader { _ in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         TodayHero()
@@ -26,7 +24,7 @@ struct TodayView: View {
                         }
                         TodayTrainingField()
                         if model.showsWeeklyCheckIn, let review = model.weeklyReview {
-                            checkIn(review, proxy: proxy)
+                            checkIn(review)
                                 .transition(.opacity)
                         }
                         TodayNutritionField()
@@ -46,34 +44,23 @@ struct TodayView: View {
             .onChange(of: model.showsWeeklyCheckIn) { _, shows in
                 if !shows { showsCheckIn = false }
             }
+            .weeklyCheckInSheet(isPresented: $showsCheckIn)
         }
     }
 
-    /// The check-in row on the plain ground; Review expands the full
-    /// check-in in place and scrolls it into view.
-    private func checkIn(_ review: WeeklyReview, proxy: ScrollViewProxy) -> some View {
+    /// The check-in row on the plain ground; Review opens the full
+    /// check-in as a large sheet.
+    private func checkIn(_ review: WeeklyReview) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            CheckInRow(review: review, isExpanded: showsCheckIn) {
-                withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) {
-                    showsCheckIn.toggle()
-                    if showsCheckIn { proxy.scrollTo(Self.checkInID, anchor: .top) }
-                }
-            }
-            if showsCheckIn {
-                WeeklyCheckInCard(review: review)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.bottom, Space.lg)
-                    .transition(.opacity)
-            }
+            CheckInRow(review: review) { showsCheckIn = true }
             Hairline()
         }
-        .id(Self.checkInID)
     }
 }
 
 // MARK: - Hero field
 
-/// Large title, date and avatar on the evergreen field, then the rings and
+/// Large title, date and avatar on the dark hero field, then the rings and
 /// their legend. The field runs up under the status bar.
 private struct TodayHero: View {
     @Environment(AppModel.self) private var model
@@ -323,7 +310,6 @@ private struct DoneLabelStyle: LabelStyle {
 /// an outlined Review capsule.
 private struct CheckInRow: View {
     var review: WeeklyReview
-    var isExpanded: Bool
     var onReview: () -> Void
     @Environment(AppModel.self) private var model
 
@@ -394,9 +380,9 @@ private struct CheckInRow: View {
     }
 
     private var button: some View {
-        Button(isExpanded ? "Hide" : "Review", action: onReview)
+        Button("Review", action: onReview)
             .buttonStyle(.outlinedCapsule)
-            .accessibilityHint(isExpanded ? "Hides the weekly check-in" : "Shows the weekly check-in")
+            .accessibilityHint("Opens the weekly check-in")
     }
 }
 

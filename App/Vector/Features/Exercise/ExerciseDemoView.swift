@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import VectorCore
 
 /// Two-frame demonstration (start and end position) that alternates like a
@@ -30,10 +31,10 @@ struct ExerciseDemoView: View {
                         .overlay(alignment: .bottomLeading) {
                             Text(showEnd ? "Finish" : "Start")
                                 .font(VFont.captionEmphasized)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(VColor.textPrimary)
                                 .padding(.horizontal, Space.xs)
                                 .padding(.vertical, 4)
-                                .background(.black.opacity(0.45), in: Capsule())
+                                .background(.regularMaterial, in: Capsule())
                                 .padding(Space.sm)
                                 .contentTransition(.opacity)
                         }
@@ -71,18 +72,19 @@ struct ExerciseDemoView: View {
             if let label {
                 Text(label)
                     .font(VFont.captionEmphasized)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(VColor.textPrimary)
                     .padding(.horizontal, Space.xs)
                     .padding(.vertical, 4)
-                    .background(.black.opacity(0.45), in: Capsule())
+                    .background(.regularMaterial, in: Capsule())
                     .padding(Space.xs)
             }
         }
     }
 
     private var placeholder: some View {
+        // Flat fill, no gradient (Fields: flat surfaces only).
         ZStack {
-            LinearGradient(colors: [VColor.accentSoft, VColor.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
+            VColor.surfaceSunken
             Image(systemName: exercise.symbol)
                 .font(.system(size: 64, weight: .light))
                 .foregroundStyle(VColor.accentText)
@@ -92,12 +94,19 @@ struct ExerciseDemoView: View {
 
 /// Small square thumbnail (first frame) for lists.
 struct ExerciseThumbnail: View {
+    /// Leading thumbnail size in exercise rows (Train hero, alternatives).
+    static let rowSize: CGFloat = 56
+
     var exercise: Exercise
     var size: CGFloat = 40
 
     var body: some View {
         Group {
-            if let url = exercise.imageURLs.first {
+            // Bundled studio photography first (Assets › Photos), then the
+            // library's demonstration image, then the exercise's symbol.
+            if let photo = UIImage(named: "exercise-\(exercise.id)") {
+                Image(uiImage: photo).resizable().scaledToFill()
+            } else if let url = exercise.imageURLs.first {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {
                         image.resizable().scaledToFill()
@@ -112,5 +121,21 @@ struct ExerciseThumbnail: View {
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
         .accessibilityHidden(true)
+    }
+}
+
+/// Reserved slot for an exercise or workout thumbnail when there is no
+/// exercise to draw from: a flat rounded square with a neutral symbol.
+struct ExerciseThumbnailPlaceholder: View {
+    var size: CGFloat = ExerciseThumbnail.rowSize
+    var symbol: String = Icon.train
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.38, weight: .regular))
+            .foregroundStyle(VColor.textTertiary)
+            .frame(width: size, height: size)
+            .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+            .accessibilityHidden(true)
     }
 }

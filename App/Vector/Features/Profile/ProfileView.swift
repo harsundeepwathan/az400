@@ -1,6 +1,9 @@
 import SwiftUI
 import VectorCore
 
+/// Profile and settings ("Fields"): a settings-shaped screen, so a native
+/// inset grouped list. Identity first, then Pro status, then one section per
+/// area. Explanations live in section footers.
 struct ProfileView: View {
     /// Opened from the avatar on Today (it is no longer a tab).
     var isSheet = false
@@ -17,156 +20,18 @@ struct ProfileView: View {
         NavigationStack {
             List {
                 if let profile = model.profile {
-                    Section {
-                        HStack(spacing: Space.md) {
-                            Text(String(model.firstName.prefix(1)).uppercased())
-                                .font(VFont.title)
-                                .foregroundStyle(VColor.accentText)
-                                .frame(width: 56, height: 56)
-                                .background(VColor.accentSoft, in: Circle())
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(profile.name.isEmpty ? "Athlete" : profile.name).font(VFont.title3)
-                                Text("\(profile.goal.title) · \(profile.experience.title)")
-                                    .font(VFont.secondary)
-                                    .foregroundStyle(VColor.textSecondary)
-                            }
-                        }
-                        .padding(.vertical, Space.xxs)
-                    }
-
-                    Section {
-                        if model.isPro {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Vector Pro").font(VFont.bodyEmphasized)
-                                    Text("All features unlocked").font(VFont.caption).foregroundStyle(VColor.textSecondary)
-                                }
-                            } icon: { Image(systemName: "checkmark.seal.fill").foregroundStyle(VColor.accentText) }
-                            Link("Manage Subscription", destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
-                        } else {
-                            Button {
-                                model.presentPaywall(.profile)
-                            } label: {
-                                HStack(spacing: Space.md) {
-                                    IconBadge(symbol: Icon.recommendation, tint: VColor.textOnAccent, fill: VColor.accent)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Upgrade to Pro").font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                                        Text("AI coaching, daily meal scans, advanced analytics")
-                                            .font(VFont.caption)
-                                            .foregroundStyle(VColor.textSecondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Section("Training") {
-                        Picker("Goal", selection: Binding(get: { profile.goal }, set: { goal in
-                            // One goal drives both training and calorie direction.
-                            model.updateProfile { $0.goal = goal; $0.nutritionGoal = goal.nutritionGoal }
-                        })) {
-                            ForEach(TrainingGoal.selectable + (profile.goal == .improveFitness ? [.improveFitness] : [])) {
-                                Text($0.title).tag($0)
-                            }
-                        }
-                        Picker("Experience", selection: binding(\.experience)) {
-                            ForEach(ExperienceLevel.allCases) { Text($0.title).tag($0) }
-                        }
-                        Stepper("Days per week: \(profile.daysPerWeek)", value: binding(\.daysPerWeek), in: 2...6)
-                        Picker("Equipment", selection: binding(\.equipment)) {
-                            ForEach(EquipmentAccess.allCases) { Text($0.title).tag($0) }
-                        }
-                        Toggle("Rest timer notifications", isOn: binding(\.restTimerNotifications))
-                        Toggle("Log effort (RPE) after sets", isOn: $logsEffort)
-                        if !profile.avoidedExerciseIDs.isEmpty {
-                            NavigationLink("Avoided exercises (\(profile.avoidedExerciseIDs.count))") { AvoidedExercisesView() }
-                        }
-                    }
-
-                    Section("Nutrition") {
-                        Button {
-                            showsTargets = true
-                        } label: {
-                            HStack {
-                                Text("Daily targets").foregroundStyle(VColor.textPrimary)
-                                Spacer()
-                                Text("\(Format.integer(profile.targets.calories)) kcal · P \(Format.grams(profile.targets.protein))")
-                                    .font(VFont.secondary.monospacedDigit())
-                                    .foregroundStyle(VColor.textSecondary)
-                            }
-                        }
-                        NavigationLink {
-                            DietaryPreferencesView()
-                        } label: {
-                            LabeledContent("Dietary preferences",
-                                           value: (profile.dietaryPreferences ?? []).isEmpty ? "None"
-                                               : (profile.dietaryPreferences ?? []).map(\.title).sorted().joined(separator: ", "))
-                        }
-                    }
-
-                    Section("Body") {
-                        Picker("Units", selection: binding(\.unit)) {
-                            Text("Kilograms").tag(WeightUnit.kilograms)
-                            Text("Pounds").tag(WeightUnit.pounds)
-                        }
-                        Button {
-                            model.sheet = .bodyWeight
-                        } label: {
-                            HStack {
-                                Text("Log weigh-in").foregroundStyle(VColor.textPrimary)
-                                Spacer()
-                                if let latest = model.latestBodyWeight {
-                                    Text(Format.weight(latest.kilograms, unit: profile.unit))
-                                        .foregroundStyle(VColor.textSecondary)
-                                }
-                            }
-                        }
-                        LabeledContent("Target weight", value: Format.weight(profile.targetWeightKg, unit: profile.unit))
-                    }
-
-                    Section {
-                        Toggle(isOn: $iCloudSync) {
-                            Label("iCloud Sync", systemImage: "icloud")
-                        }
-                        if let synced = model.lastSyncedAt {
-                            LabeledContent("Last synced", value: synced.formatted(.relative(presentation: .named)))
-                        } else if iCloudSync, model.sync?.isAvailable == false {
-                            Text("Sign in to iCloud in Settings to sync between your devices.")
-                                .font(VFont.caption)
-                                .foregroundStyle(VColor.textSecondary)
-                        }
-                    } header: {
-                        Text("Sync")
-                    } footer: {
-                        Text("Workouts, food logs and settings sync through your private iCloud account. Changes to this setting apply the next time you open Vector.")
-                    }
-
-                    Section {
-                        Toggle(isOn: $healthConnected) {
-                            Label("Apple Health", systemImage: "heart.fill")
-                        }
-                        .onChange(of: healthConnected) { _, on in
-                            guard on, let health = model.health else { return }
-                            Task { try? await health.requestAuthorization() }
-                        }
-                    } header: {
-                        Text("Connections")
-                    } footer: {
-                        Text("Writes finished workouts to Health and reads body weight. Open Vector on Apple Watch to log sets from your wrist.")
-                    }
+                    identity(profile)
+                    proSection
+                    trainingSection(profile)
+                    nutritionSection(profile)
+                    bodySection(profile)
+                    syncSection
 
                     if model.isAccountAvailable {
                         AccountSection()
                     }
 
-                    Section("Data") {
-                        if let exportURL {
-                            ShareLink("Export data (JSON)", item: exportURL)
-                        } else {
-                            Button("Prepare data export") { exportURL = model.exportData() }
-                        }
-                        Button("Reset all data", role: .destructive) { showsResetConfirm = true }
-                    }
+                    dataSection
 
                     #if DEBUG
                     Section("Developer") {
@@ -176,23 +41,297 @@ struct ProfileView: View {
                     }
                     #endif
 
-                    Section {
-                        LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                    aboutSection
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(VColor.accent)
+            .toolbar {
+                if isSheet {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                            .foregroundStyle(VColor.accentText)
                     }
                 }
             }
-            .navigationTitle("Profile")
-            .toolbar {
-                if isSheet {
-                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                }
-            }
             .sheet(isPresented: $showsTargets) { TargetsEditor() }
-            .confirmationDialog("Reset all data?", isPresented: $showsResetConfirm, titleVisibility: .visible) {
-                Button("Reset Everything", role: .destructive) { model.resetAll() }
+            .confirmationDialog("Delete all data?", isPresented: $showsResetConfirm, titleVisibility: .visible) {
+                Button("Delete everything", role: .destructive) { model.resetAll() }
             } message: {
                 Text("Workouts, food logs and your plan will be permanently deleted from this device.")
             }
+        }
+    }
+
+    // MARK: Identity and Pro
+
+    private func identity(_ profile: UserProfile) -> some View {
+        Section {
+            NavigationLink {
+                PersonalDetailsView()
+            } label: {
+                HStack(spacing: Space.md) {
+                    avatar(profile)
+                        .font(VFont.title)
+                        .foregroundStyle(VColor.textSecondary)
+                        .frame(width: 56, height: 56)
+                        .background(VColor.quietFill, in: Circle())
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(profile.name.isEmpty ? "Add your name" : profile.name)
+                            .font(VFont.title3)
+                            .foregroundStyle(VColor.textPrimary)
+                        Text("\(profile.goal.title) \u{00B7} \(profile.experience.title)")
+                            .font(VFont.secondary)
+                            .foregroundStyle(VColor.textSecondary)
+                    }
+                }
+                .padding(.vertical, Space.xxs)
+            }
+            .accessibilityHint("Edits your name")
+        }
+    }
+
+    /// Neutral initials; a person symbol when there's no name.
+    @ViewBuilder private func avatar(_ profile: UserProfile) -> some View {
+        if let first = profile.name.first {
+            Text(String(first).uppercased())
+        } else {
+            Image(systemName: "person.fill")
+        }
+    }
+
+    private var proSection: some View {
+        Section {
+            if model.isPro {
+                Link(destination: URL(string: "https://apps.apple.com/account/subscriptions")!) {
+                    LabeledContent {
+                        Text("Active").foregroundStyle(VColor.textSecondary)
+                    } label: {
+                        SettingsLabel("Vector Pro", symbol: Icon.recommendation)
+                    }
+                }
+            } else {
+                Button {
+                    model.presentPaywall(.profile)
+                } label: {
+                    LabeledContent {
+                        Text("Upgrade").foregroundStyle(VColor.accentText)
+                    } label: {
+                        SettingsLabel("Vector Pro", symbol: Icon.recommendation)
+                    }
+                }
+            }
+        } footer: {
+            Text(model.isPro
+                 ? "Manage or cancel in your Apple ID settings."
+                 : "A weekly check-in that decides what to change, with the evidence. Logging stays free.")
+        }
+    }
+
+    // MARK: Areas
+
+    private func trainingSection(_ profile: UserProfile) -> some View {
+        Section {
+            Picker(selection: binding(\.daysPerWeek)) {
+                ForEach(2...6, id: \.self) { Text("\($0)").tag($0) }
+            } label: {
+                SettingsLabel("Days per week", symbol: "calendar")
+            }
+            .pickerStyle(.navigationLink)
+            Picker(selection: binding(\.experience)) {
+                ForEach(ExperienceLevel.allCases) { Text($0.title).tag($0) }
+            } label: {
+                SettingsLabel("Experience", symbol: "chart.bar")
+            }
+            .pickerStyle(.navigationLink)
+            Picker(selection: binding(\.equipment)) {
+                ForEach(EquipmentAccess.allCases) { Text($0.title).tag($0) }
+            } label: {
+                SettingsLabel("Equipment", symbol: Icon.train)
+            }
+            .pickerStyle(.navigationLink)
+            Toggle(isOn: binding(\.restTimerNotifications)) {
+                SettingsLabel("Rest timer notifications", symbol: "bell")
+            }
+            Toggle(isOn: $logsEffort) {
+                SettingsLabel("Log effort (RPE) after sets", symbol: Icon.timer)
+            }
+            if !profile.avoidedExerciseIDs.isEmpty {
+                NavigationLink {
+                    AvoidedExercisesView()
+                } label: {
+                    LabeledContent {
+                        Text("\(profile.avoidedExerciseIDs.count)")
+                    } label: {
+                        SettingsLabel("Avoided exercises", symbol: "nosign")
+                    }
+                }
+            }
+        } header: {
+            Text("Training")
+        } footer: {
+            Text("Effort helps the coach decide when to add weight.")
+        }
+    }
+
+    private func nutritionSection(_ profile: UserProfile) -> some View {
+        Section("Nutrition") {
+            Button {
+                showsTargets = true
+            } label: {
+                LabeledContent {
+                    HStack(spacing: Space.xs) {
+                        Text("\(Format.integer(profile.targets.calories)) kcal")
+                            .monospacedDigit()
+                        Image(systemName: Icon.chevron)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(VColor.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                } label: {
+                    SettingsLabel("Daily targets", symbol: "target")
+                }
+            }
+            .accessibilityValue("\(Format.integer(profile.targets.calories)) kilocalories, protein \(Format.grams(profile.targets.protein))")
+            NavigationLink {
+                DietaryPreferencesView()
+            } label: {
+                LabeledContent {
+                    Text(dietLine(profile))
+                } label: {
+                    SettingsLabel("Dietary preferences", symbol: Icon.nutrition)
+                }
+            }
+        }
+    }
+
+    private func dietLine(_ profile: UserProfile) -> String {
+        let set = profile.dietaryPreferences ?? []
+        return set.isEmpty ? "None" : set.map(\.title).sorted().joined(separator: ", ")
+    }
+
+    private func bodySection(_ profile: UserProfile) -> some View {
+        Section {
+            Picker(selection: Binding(get: { profile.goal }, set: { goal in
+                // One goal drives both training and calorie direction.
+                model.updateProfile { $0.goal = goal; $0.nutritionGoal = goal.nutritionGoal }
+            })) {
+                ForEach(TrainingGoal.selectable + (profile.goal == .improveFitness ? [.improveFitness] : [])) {
+                    Text($0.title).tag($0)
+                }
+            } label: {
+                SettingsLabel("Goal", symbol: "scope")
+            }
+            .pickerStyle(.navigationLink)
+            Picker(selection: binding(\.unit)) {
+                Text("Kilograms").tag(WeightUnit.kilograms)
+                Text("Pounds").tag(WeightUnit.pounds)
+            } label: {
+                SettingsLabel("Units", symbol: "scalemass")
+            }
+            .pickerStyle(.navigationLink)
+            Button {
+                model.sheet = .bodyWeight
+            } label: {
+                LabeledContent {
+                    if let latest = model.latestBodyWeight {
+                        Text(Format.weight(latest.kilograms, unit: profile.unit)).monospacedDigit()
+                    }
+                } label: {
+                    SettingsLabel("Log weigh-in", symbol: "plus.circle")
+                }
+            }
+            LabeledContent {
+                Text(Format.weight(profile.targetWeightKg, unit: profile.unit)).monospacedDigit()
+            } label: {
+                SettingsLabel("Target weight", symbol: "flag")
+            }
+        } header: {
+            Text("Body")
+        } footer: {
+            Text("Changing your goal changes the direction of your calorie target.")
+        }
+    }
+
+    // MARK: Sync
+
+    private var syncSection: some View {
+        Section {
+            Toggle(isOn: $iCloudSync) {
+                SettingsLabel("iCloud sync", symbol: "icloud")
+            }
+            if let synced = model.lastSyncedAt {
+                LabeledContent {
+                    Text(synced.formatted(.relative(presentation: .named)))
+                } label: {
+                    SettingsLabel("Last synced", symbol: "arrow.triangle.2.circlepath")
+                }
+            } else if iCloudSync, model.sync?.isAvailable == false {
+                Text("Sign in to iCloud in Settings to sync between your devices.")
+                    .font(VFont.secondary)
+                    .foregroundStyle(VColor.textSecondary)
+            }
+            Toggle(isOn: $healthConnected) {
+                SettingsLabel("Apple Health", symbol: "heart")
+            }
+            .onChange(of: healthConnected) { _, on in
+                guard on, let health = model.health else { return }
+                Task { try? await health.requestAuthorization() }
+            }
+        } header: {
+            Text("Sync and connections")
+        } footer: {
+            Text("Workouts, food logs and settings sync through your private iCloud account; changes to sync apply the next time you open Vector. Health receives finished workouts and shares body weight. Open Vector on Apple Watch to log sets from your wrist.")
+        }
+    }
+
+    // MARK: Data and about
+
+    private var dataSection: some View {
+        Section {
+            if let exportURL {
+                ShareLink(item: exportURL) {
+                    SettingsLabel("Export your data (JSON)", symbol: "square.and.arrow.up")
+                }
+            } else {
+                Button {
+                    exportURL = model.exportData()
+                } label: {
+                    SettingsLabel("Prepare data export", symbol: "doc")
+                }
+            }
+            Button(role: .destructive) {
+                showsResetConfirm = true
+            } label: {
+                SettingsLabel("Delete all data", symbol: "trash", tint: VColor.danger)
+            }
+        } header: {
+            Text("Data")
+        } footer: {
+            Text("Deleting removes workouts, food logs and your plan from this device.")
+        }
+    }
+
+    private var aboutSection: some View {
+        Section {
+            Link(destination: AppConfig.privacyURL) {
+                SettingsLabel("Privacy policy", symbol: "lock")
+            }
+            Link(destination: AppConfig.termsURL) {
+                SettingsLabel("Terms of use", symbol: "doc.text")
+            }
+            LabeledContent {
+                Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+            } label: {
+                SettingsLabel("Version", symbol: Icon.info)
+            }
+        } header: {
+            Text("About")
+        } footer: {
+            Text(SafetyGuidance.scope)
         }
     }
 
@@ -204,6 +343,37 @@ struct ProfileView: View {
             get: { model.profile?[keyPath: keyPath] ?? fallback! },
             set: { value in model.updateProfile { $0[keyPath: keyPath] = value } }
         )
+    }
+}
+
+/// The identity row's edit screen. Goal and experience live in their own sections.
+private struct PersonalDetailsView: View {
+    @Environment(AppModel.self) private var model
+    @State private var name = ""
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("First name", text: $name)
+                    .textContentType(.givenName)
+                    .submitLabel(.done)
+                    .onSubmit(save)
+            } header: {
+                Text("Name")
+            } footer: {
+                Text("Used only to greet you in the app.")
+            }
+        }
+        .navigationTitle("Your details")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { name = model.profile?.name ?? "" }
+        .onDisappear(perform: save)
+    }
+
+    private func save() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != model.profile?.name else { return }
+        model.updateProfile { $0.name = trimmed }
     }
 }
 
@@ -234,8 +404,9 @@ private struct TargetsEditor: View {
                     }
                 }
             }
-            .navigationTitle("Daily Targets")
+            .navigationTitle("Daily targets")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(VColor.accent)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -279,7 +450,8 @@ private struct DietaryPreferencesView: View {
                 Text("The coach only suggests foods that fit. Search always shows every food.")
             }
         }
-        .navigationTitle("Dietary Preferences")
+        .listStyle(.insetGrouped)
+        .navigationTitle("Dietary preferences")
     }
 }
 
@@ -297,6 +469,7 @@ private struct AvoidedExercisesView: View {
                 }
             }
         }
-        .navigationTitle("Avoided Exercises")
+        .listStyle(.insetGrouped)
+        .navigationTitle("Avoided exercises")
     }
 }

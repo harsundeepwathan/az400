@@ -34,7 +34,8 @@ struct DiscomfortReportSheet: View {
                         HStack(spacing: Space.xs) {
                             ForEach(commonAreas, id: \.self) { area in
                                 Button(area) { location = area }
-                                    .buttonStyle(.secondary(compact: true))
+                                    .buttonStyle(QuietCapsuleButtonStyle(fullWidth: false))
+                                    .accessibilityAddTraits(location == area ? .isSelected : [])
                             }
                         }
                     }
@@ -47,12 +48,12 @@ struct DiscomfortReportSheet: View {
                     Text("Saved on this device and in your iCloud only\(exerciseName.map { ", with \($0)" } ?? ""). Vector doesn't use notes to make recommendations.")
                 }
             }
-            .navigationTitle("Report Discomfort")
+            .navigationTitle("Report discomfort")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save Note") {
+                    Button("Save note") {
                         model.reportDiscomfort(exerciseID: exerciseID, location: location, timing: timing)
                         dismiss()
                     }

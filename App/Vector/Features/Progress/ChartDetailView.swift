@@ -24,9 +24,9 @@ struct ChartDetailView: View {
         NavigationStack {
             List {
                 Section {
-                    RangePicker(selection: $detail.range,
-                                isLocked: { $0.requiresPro && !model.isPro },
-                                onLockedTap: { model.presentPaywall(.history) })
+                    FieldRangePicker(selection: $detail.range,
+                                     isLocked: { $0.requiresPro && !model.isPro },
+                                     onLockedTap: { model.presentPaywall(.history) })
                         .listRowInsets(EdgeInsets(top: Space.sm, leading: Space.md, bottom: Space.sm, trailing: Space.md))
                     chart(points)
                         .padding(.vertical, Space.sm)
@@ -38,6 +38,7 @@ struct ChartDetailView: View {
                             Spacer()
                             Text(format(point.value)).font(VFont.data)
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }
@@ -49,9 +50,9 @@ struct ChartDetailView: View {
 
     private var title: String {
         switch detail.kind {
-        case .volume: "Training Volume"
-        case .frequency: "Workout Frequency"
-        case .bodyWeight: "Body Weight"
+        case .volume: "Training volume"
+        case .frequency: "Workouts per week"
+        case .bodyWeight: "Body weight"
         case .strength(let id): model.catalog[id]?.name ?? "Strength"
         }
     }
@@ -78,14 +79,18 @@ struct ChartDetailView: View {
     private func chart(_ points: [ChartPoint]) -> some View {
         switch detail.kind {
         case .volume:
-            ProgressChart(points: points, style: .bars, unit: detail.range.bucket, valueFormatter: { Format.compact($0) }, height: 260)
+            PeriodBarChart(points: points, unit: detail.range.bucket, valueFormatter: { Format.compact($0) },
+                           accessibilityTitle: "Training volume", height: 260)
         case .frequency:
-            ProgressChart(points: points, style: .bars, unit: .weekOfYear, valueFormatter: { Format.integer($0) }, height: 260)
+            PeriodBarChart(points: points, unit: .weekOfYear, valueFormatter: { Format.integer($0) },
+                           goal: Double(model.profile?.daysPerWeek ?? 4), goalLabel: "Goal",
+                           accessibilityTitle: "Workouts per week", height: 260)
         case .bodyWeight:
-            ProgressChart(points: points, style: .trend(smoothed: model.analytics.smoothedTrend(points)),
-                          valueFormatter: { Format.estimate($0, unit: model.unit) }, height: 260)
+            WeightTrendChart(points: points, trend: model.analytics.smoothedTrend(points), tint: VColor.inkBody,
+                             valueFormatter: { Format.estimate($0, unit: model.unit) }, height: 260)
         case .strength:
-            ProgressChart(points: points, style: .line, valueFormatter: { Format.estimate($0, unit: model.unit) }, height: 260)
+            EstimateLineChart(points: points, tint: VColor.inkTraining,
+                              valueFormatter: { Format.estimate($0, unit: model.unit) }, height: 260)
         }
     }
 }

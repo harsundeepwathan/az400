@@ -167,7 +167,7 @@ struct FoodSearchView: View {
                 .font(VFont.secondary)
                 .foregroundStyle(VColor.textSecondary)
             Button("Quick Add") { model.sheet = .quickAdd(selectedMeal) }
-                .buttonStyle(.secondary(compact: true))
+                .buttonStyle(.outlinedCapsule)
         }
         .padding(.vertical, Space.xs)
     }
@@ -233,25 +233,26 @@ struct PortionEditor: View {
                             Button(multipleLabel(multiple)) {
                                 withAnimation(Motion.snappy) { grams = food.servingGrams * multiple }
                             }
-                            .buttonStyle(QuietButtonStyle())
+                            .buttonStyle(.quietCapsule)
                             .overlay {
                                 if abs(grams - food.servingGrams * multiple) < 0.5 {
-                                    RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
-                                        .strokeBorder(VColor.accentText, lineWidth: 2)
+                                    Capsule().strokeBorder(VColor.accentText, lineWidth: 2)
                                 }
                             }
+                            .accessibilityAddTraits(abs(grams - food.servingGrams * multiple) < 0.5 ? .isSelected : [])
                         }
                     }
                     GramsField(grams: $grams)
                 }
                 Spacer()
-                PrimaryButton("Add to \(meal.displayName)") {
+                Button("Add to \(meal.displayName)") {
                     model.log([FoodEntry(date: model.calendar.isDate(date, inSameDayAs: model.now()) ? model.now() : date,
                                          meal: meal, name: food.name, foodID: food.id, grams: grams,
                                          macros: macros, source: .search)])
                     dismiss()
                     onLogged()
                 }
+                .buttonStyle(.accentCapsule)
                 .disabled(grams <= 0)
             }
             .padding(Space.gutter)
@@ -287,7 +288,7 @@ struct GramsField: View {
     var body: some View {
         HStack(spacing: Space.xs) {
             Button { grams = max(grams - 10, 0) } label: { Image(systemName: "minus").frame(width: Size.minTouch, height: Size.minTouch) }
-                .buttonStyle(QuietButtonStyle())
+                .buttonStyle(.quietCapsule)
                 .frame(width: 56)
                 .accessibilityLabel("Minus 10 grams")
             HStack(spacing: 4) {
@@ -303,7 +304,7 @@ struct GramsField: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Grams")
             Button { grams += 10 } label: { Image(systemName: "plus").frame(width: Size.minTouch, height: Size.minTouch) }
-                .buttonStyle(QuietButtonStyle())
+                .buttonStyle(.quietCapsule)
                 .frame(width: 56)
                 .accessibilityLabel("Plus 10 grams")
         }
@@ -460,13 +461,14 @@ struct FoodEntryEditor: View {
                             .font(VFont.bodyEmphasized)
                             .foregroundStyle(VColor.danger)
                             .frame(maxWidth: .infinity, minHeight: Size.buttonHeight)
-                            .background(VColor.dangerSoft, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+                            .background(VColor.dangerSoft, in: Capsule())
                     }
                     .buttonStyle(.pressable)
-                    PrimaryButton("Save") {
+                    Button("Save") {
                         model.update(entry)
                         dismiss()
                     }
+                    .buttonStyle(.accentCapsule)
                 }
             }
             .padding(Space.gutter)
@@ -546,13 +548,14 @@ struct BodyWeightEntryView: View {
                 HStack(spacing: Space.xs) {
                     ForEach([-0.5, -0.1, 0.1, 0.5], id: \.self) { step in
                         Button(step > 0 ? "+\(step.formatted())" : "\u{2212}\(abs(step).formatted())") { value = max(value + step, 0) }
-                            .buttonStyle(QuietButtonStyle())
+                            .buttonStyle(.quietCapsule)
                     }
                 }
-                PrimaryButton("Save Weigh-in") {
+                Button("Save weigh-in") {
                     model.logBodyWeight(model.unit.toKilograms(value))
                     dismiss()
                 }
+                .buttonStyle(.accentCapsule)
             }
             .padding(Space.gutter)
             .navigationTitle("Body Weight")

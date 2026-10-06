@@ -1,8 +1,10 @@
 import SwiftUI
 import VectorCore
 
-/// Short, one-question-per-screen onboarding that ends in a personalised
-/// plan: the "aha" moment where the app shows it already knows what to do.
+/// Short, one-question-per-screen onboarding ("Fields") that ends in a
+/// personalised plan: the moment the app shows it already knows what to do.
+/// Questions are large titles over full-width selectable rows, with a thin
+/// progress bar on top and Continue pinned to the bottom.
 struct OnboardingFlow: View {
     @Environment(AppModel.self) private var model
     @State private var answers = OnboardingAnswers(name: "")
@@ -27,22 +29,25 @@ struct OnboardingFlow: View {
                 case .welcome: WelcomeStep { go(.name) }
                 case .name: NameStep(name: $answers.name) { go(.goal) }
                 case .goal:
-                    ChoiceStep(title: "What's your main goal?", subtitle: "We'll tune your training and nutrition around it.",
+                    ChoiceStep(title: "What's your main goal?",
+                               subtitle: "Vector sets your training and calories from this. You can change it any time.",
                                options: TrainingGoal.selectable, selection: answers.goal,
-                               label: { ($0.title, $0.detail, $0.symbol) }) {
-                        answers.goal = $0
-                        answers.nutritionGoal = $0.nutritionGoal
-                        go(.experience)
-                    }
+                               label: { ($0.title, $0.detail, Self.goalSymbol($0)) },
+                               onSelect: { answers.goal = $0; answers.nutritionGoal = $0.nutritionGoal },
+                               onContinue: { go(.experience) })
                 case .experience:
-                    ChoiceStep(title: "How experienced are you?", subtitle: "This sets your starting volume and progression speed.",
+                    ChoiceStep(title: "How experienced are you?", subtitle: "This sets your starting volume and how fast you progress.",
                                options: ExperienceLevel.allCases, selection: answers.experience,
-                               label: { ($0.title, $0.detail, nil) }) { answers.experience = $0; go(.frequency) }
+                               label: { ($0.title, $0.detail, nil) },
+                               onSelect: { answers.experience = $0 },
+                               onContinue: { go(.frequency) })
                 case .frequency: FrequencyStep(days: $answers.daysPerWeek) { go(.equipment) }
                 case .equipment:
                     ChoiceStep(title: "What equipment do you have?", subtitle: "Every exercise in your plan will match it.",
                                options: EquipmentAccess.allCases, selection: answers.equipment,
-                               label: { ($0.title, $0.detail, $0.symbol) }) { answers.equipment = $0; go(.nutrition) }
+                               label: { ($0.title, $0.detail, $0.symbol) },
+                               onSelect: { answers.equipment = $0 },
+                               onContinue: { go(.nutrition) })
                 case .nutrition: DietStep(selection: $answers.dietaryPreferences) { go(.body) }
                 case .body: BodyStep(answers: $answers) { generate() }
                 case .generating: GeneratingStep()
@@ -53,35 +58,58 @@ struct OnboardingFlow: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                    removal: .move(edge: .leading).combined(with: .opacity)))
+            .transition(.asymmetric(insertion: Motion.slide(.trailing, reduceMotion: reduceMotion),
+                                    removal: Motion.slide(.leading, reduceMotion: reduceMotion)))
             .id(step)
         }
         .screenBackground()
         .sensoryFeedback(.selection, trigger: step)
     }
 
+    /// Goal symbols from the design: one per direction of change.
+    static func goalSymbol(_ goal: TrainingGoal) -> String {
+        switch goal {
+        case .buildMuscle: Icon.train
+        case .loseFat: "flame"
+        case .getStronger: "arrow.up.right"
+        case .maintain: "equal.circle"
+        case .recomposition: "arrow.left.arrow.right"
+        case .improveFitness: "heart"
+        }
+    }
+
+    /// Back chevron, "Step 2 of 7" and a thin progress bar.
     private var topBar: some View {
         let index = Step.questions.firstIndex(of: step) ?? 0
-        return HStack(spacing: Space.sm) {
-            Button {
-                let previous = Step(rawValue: step.rawValue - 1) ?? .welcome
-                withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) { step = previous }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(.body, weight: .semibold))
-                    .frame(width: Size.minTouch, height: Size.minTouch)
+        let count = Step.questions.count
+        return VStack(spacing: Space.xs) {
+            ZStack {
+                Text("Step \(index + 1) of \(count)")
+                    .font(VFont.secondary.monospacedDigit())
+                    .foregroundStyle(VColor.textSecondary)
+                HStack {
+                    Button {
+                        let previous = Step(rawValue: step.rawValue - 1) ?? .welcome
+                        go(previous)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(.title3, weight: .semibold))
+                            .foregroundStyle(VColor.accentText)
+                            .frame(width: Size.minTouch, height: Size.minTouch)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back")
+                    Spacer()
+                }
             }
-            .foregroundStyle(VColor.textPrimary)
-            .accessibilityLabel("Back")
-            LinearProgress(progress: Double(index + 1) / Double(Step.questions.count), height: 4)
-            Text("\(index + 1)/\(Step.questions.count)")
-                .font(VFont.caption.monospacedDigit())
-                .foregroundStyle(VColor.textSecondary)
-                .frame(width: 32)
+            ProgressView(value: Double(index + 1), total: Double(count))
+                .tint(VColor.accent)
+                .padding(.horizontal, Space.fieldInset)
+                .accessibilityHidden(true)
         }
-        .padding(.horizontal, Space.gutter)
-        .padding(.top, Space.xs)
+        .padding(.horizontal, Space.xs)
+        .padding(.top, Space.xxs)
     }
 
     private func go(_ next: Step) {
@@ -103,8 +131,11 @@ struct OnboardingFlow: View {
     }
 }
 
-// MARK: - Steps
+// MARK: - Scaffold
 
+/// A question: large title and one-line explanation on the plain ground,
+/// the answers below (full width; steps inset their own content), and the
+/// primary action pinned to the bottom.
 private struct StepScaffold<Content: View>: View {
     var title: String
     var subtitle: String?
@@ -114,98 +145,143 @@ private struct StepScaffold<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            VStack(alignment: .leading, spacing: Space.xs) {
-                Text(title)
-                    .font(VFont.largeTitle)
-                    .foregroundStyle(VColor.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let subtitle {
-                    Text(subtitle).font(VFont.body).foregroundStyle(VColor.textSecondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text(title)
+                        .font(VFont.largeTitle)
+                        .foregroundStyle(VColor.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(VFont.body)
+                            .foregroundStyle(VColor.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.top, Space.lg)
+                .padding(.bottom, Space.lg)
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let primaryTitle, let onPrimary {
+                PinnedActionBar {
+                    Button(primaryTitle, action: onPrimary)
+                        .buttonStyle(.accentCapsule)
+                        .disabled(!primaryEnabled)
                 }
             }
-            .padding(.top, Space.lg)
-            ScrollView { content }
-                .scrollBounceBehavior(.basedOnSize)
-            if let primaryTitle, let onPrimary {
-                Button(primaryTitle, action: onPrimary)
-                    .buttonStyle(.primary)
-                    .disabled(!primaryEnabled)
-            }
         }
-        .padding(.horizontal, Space.gutter)
-        .padding(.bottom, Space.md)
     }
 }
+
+// MARK: - Welcome
 
 private struct WelcomeStep: View {
     var onStart: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            Spacer()
-            Image(systemName: "arrow.up.right")
-                .font(.system(size: 34, weight: .heavy))
-                .foregroundStyle(VColor.textOnAccent)
-                .frame(width: 72, height: 72)
-                .background(VColor.accent, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: Space.sm) {
-                Text("Train smarter.\nEat with intent.\nSee the progress.")
-                    .font(.system(.largeTitle, weight: .heavy))
-                    .foregroundStyle(VColor.textPrimary)
-                Text("Vector is your intelligent training and nutrition companion. Answer a few questions and we'll build your plan.")
-                    .font(VFont.body)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HeroField(spacing: Space.md) {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(.title, weight: .bold))
+                        .foregroundStyle(VColor.heroTextSecondary)
+                        .accessibilityHidden(true)
+                    Text("A coach that decides what to change each week, and shows why.")
+                        .font(VFont.largeTitle)
+                        .foregroundStyle(VColor.heroText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Answer a few questions and Vector builds your training plan and calorie targets.")
+                        .font(VFont.body)
+                        .foregroundStyle(VColor.heroTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, Space.xl)
+                // The field runs up under the status bar and into the overscroll.
+                .background { VColor.heroField.padding(.top, -1000) }
+
+                VStack(alignment: .leading, spacing: 0) {
+                    feature(Icon.train, tint: VColor.inkTraining, "A program that tells you what to lift next")
+                    Hairline(leading: 32 + Space.md)
+                    feature(Icon.scan, tint: VColor.inkNutrition, "Log meals from a photo, as an estimate you can edit")
+                    Hairline(leading: 32 + Space.md)
+                    feature(Icon.progress, tint: VColor.inkBody, "Progress you can see, with the reasons why")
+                }
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.top, Space.md)
+            }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            PinnedActionBar(spacing: Space.xs) {
+                Button("Get started", action: onStart)
+                    .buttonStyle(.accentCapsule)
+                Text("Takes about a minute. No account needed.")
+                    .font(VFont.caption)
                     .foregroundStyle(VColor.textSecondary)
             }
-            VStack(alignment: .leading, spacing: Space.sm) {
-                feature("dumbbell", "A program that tells you what to lift next")
-                feature(Icon.scan, "Log meals from a photo in seconds")
-                feature(Icon.progress, "Progress you can see, with the reasons why")
-            }
-            .padding(.top, Space.xs)
-            Spacer()
-            PrimaryButton("Get Started", action: onStart)
-            Text("Takes about a minute. No account needed.")
-                .font(VFont.caption)
-                .foregroundStyle(VColor.textSecondary)
-                .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, Space.gutter)
-        .padding(.bottom, Space.md)
     }
 
-    private func feature(_ symbol: String, _ text: String) -> some View {
-        HStack(spacing: Space.sm) {
-            IconBadge(symbol: symbol, size: 32)
-            Text(text).font(VFont.secondaryEmphasized).foregroundStyle(VColor.textPrimary)
+    private func feature(_ symbol: String, tint: Color, _ text: String) -> some View {
+        HStack(spacing: Space.md) {
+            Image(systemName: symbol)
+                .font(.system(.title3, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 32)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(VFont.body)
+                .foregroundStyle(VColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.vertical, Space.sm)
+        .frame(maxWidth: .infinity, minHeight: Size.minTouch, alignment: .leading)
     }
 }
+
+// MARK: - Questions
 
 private struct NameStep: View {
     @Binding var name: String
     var onNext: () -> Void
     @FocusState private var focused: Bool
 
+    private var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
+
     var body: some View {
         StepScaffold(title: "What should we call you?", subtitle: "Just a first name is fine.",
-                     primaryTitle: "Continue", primaryEnabled: !name.trimmingCharacters(in: .whitespaces).isEmpty,
-                     onPrimary: onNext) {
-            TextField("First name", text: $name)
-                .font(VFont.title)
-                .textContentType(.givenName)
-                .submitLabel(.continue)
-                .focused($focused)
-                .onSubmit { if !name.trimmingCharacters(in: .whitespaces).isEmpty { onNext() } }
-                .padding(Space.md)
-                .background(VColor.surface, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+                     primaryTitle: "Continue", primaryEnabled: isValid, onPrimary: onNext) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                TextField("First name", text: $name)
+                    .font(VFont.title)
+                    .foregroundStyle(VColor.textPrimary)
+                    .textContentType(.givenName)
+                    .submitLabel(.continue)
+                    .focused($focused)
+                    .onSubmit { if isValid { onNext() } }
+                    .frame(minHeight: Size.minTouch)
+                Rectangle()
+                    .fill(focused ? VColor.accent : VColor.separator)
+                    .frame(height: focused ? 2 : 0.5)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, Space.fieldInset)
         }
         .onAppear { focused = true }
     }
 }
 
-/// Single-select list of option cards. Selecting advances automatically.
+/// Single-select, full-width rows. The selected row takes the training
+/// field wash and a checkmark; Continue moves on.
 private struct ChoiceStep<Option: Hashable & Identifiable>: View {
     var title: String
     var subtitle: String
@@ -213,49 +289,64 @@ private struct ChoiceStep<Option: Hashable & Identifiable>: View {
     var selection: Option
     var label: (Option) -> (String, String, String?)
     var onSelect: (Option) -> Void
-    @State private var tapped: Option?
+    var onContinue: () -> Void
 
     var body: some View {
-        StepScaffold(title: title, subtitle: subtitle) {
-            VStack(spacing: Space.sm) {
-                ForEach(options) { option in
+        StepScaffold(title: title, subtitle: subtitle, primaryTitle: "Continue", onPrimary: onContinue) {
+            VStack(spacing: 0) {
+                ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
                     let (title, detail, symbol) = label(option)
-                    let isSelected = (tapped ?? selection) == option
-                    Button {
-                        tapped = option
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(220))
-                            onSelect(option)
-                        }
-                    } label: {
-                        HStack(spacing: Space.md) {
-                            if let symbol {
-                                IconBadge(symbol: symbol,
-                                          tint: isSelected ? VColor.textOnAccent : VColor.accentText,
-                                          fill: isSelected ? VColor.accent : VColor.accentSoft, size: 40)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(title).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                                Text(detail).font(VFont.secondary).foregroundStyle(VColor.textSecondary)
-                            }
-                            Spacer()
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
-                                .foregroundStyle(isSelected ? VColor.accentText : VColor.separator)
-                        }
-                        .padding(Space.md)
-                        .background(VColor.surface, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                                .strokeBorder(isSelected ? VColor.accentText : .clear, lineWidth: 2)
-                        }
+                    let isSelected = selection == option
+                    row(option: option, title: title, detail: detail, symbol: symbol, isSelected: isSelected)
+                    if index < options.count - 1, !isSelected, options[index + 1] != selection {
+                        Hairline(leading: symbol == nil ? Space.fieldInset : Space.fieldInset + 32 + Space.md)
                     }
-                    .buttonStyle(.pressable)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
-            .sensoryFeedback(.selection, trigger: tapped)
+            .accessibilityElement(children: .contain)
+            .sensoryFeedback(.selection, trigger: selection)
         }
+    }
+
+    private func row(option: Option, title: String, detail: String, symbol: String?, isSelected: Bool) -> some View {
+        Button {
+            onSelect(option)
+        } label: {
+            HStack(spacing: Space.md) {
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.system(.title3, weight: .semibold))
+                        .foregroundStyle(isSelected ? VColor.inkTraining : VColor.textSecondary)
+                        .frame(width: 32)
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(VFont.headline)
+                        .foregroundStyle(VColor.textPrimary)
+                    Text(detail)
+                        .font(VFont.secondary)
+                        .foregroundStyle(VColor.textSecondary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Space.sm)
+                Image(systemName: "checkmark")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundStyle(VColor.accentText)
+                    .opacity(isSelected ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.vertical, Space.md)
+            .frame(maxWidth: .infinity, minHeight: Size.minTouch, alignment: .leading)
+            .background {
+                if isSelected { VColor.fieldTraining }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -263,6 +354,7 @@ private struct ChoiceStep<Option: Hashable & Identifiable>: View {
 private struct DietStep: View {
     @Binding var selection: Set<DietaryPreference>
     var onNext: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         StepScaffold(title: "Any dietary preferences?", subtitle: "Used for food suggestions. Choose any that apply.",
@@ -271,7 +363,7 @@ private struct DietStep: View {
                 ForEach(DietaryPreference.allCases) { preference in
                     let isOn = selection.contains(preference)
                     Button {
-                        withAnimation(Motion.snappy) {
+                        withAnimation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion)) {
                             if isOn { selection.remove(preference) } else { selection.insert(preference) }
                         }
                     } label: {
@@ -280,12 +372,14 @@ private struct DietStep: View {
                             .foregroundStyle(isOn ? VColor.textOnAccent : VColor.textPrimary)
                             .padding(.horizontal, Space.md)
                             .frame(minHeight: Size.minTouch)
-                            .background(isOn ? VColor.accent : VColor.surface, in: Capsule())
+                            .background(isOn ? VColor.accent : VColor.quietFill, in: Capsule())
+                            .contentShape(Capsule())
                     }
                     .buttonStyle(.pressable)
                     .accessibilityAddTraits(isOn ? .isSelected : [])
                 }
             }
+            .padding(.horizontal, Space.fieldInset)
             .sensoryFeedback(.selection, trigger: selection)
         }
     }
@@ -294,34 +388,38 @@ private struct DietStep: View {
 private struct FrequencyStep: View {
     @Binding var days: Int
     var onNext: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         StepScaffold(title: "How many days a week can you train?", subtitle: "Be realistic. Consistency beats ambition.",
                      primaryTitle: "Continue", onPrimary: onNext) {
-            VStack(spacing: Space.lg) {
+            VStack(alignment: .leading, spacing: Space.lg) {
                 HStack(spacing: Space.xs) {
                     ForEach(2...6, id: \.self) { value in
+                        let isSelected = days == value
                         Button {
-                            withAnimation(Motion.snappy) { days = value }
+                            withAnimation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion)) { days = value }
                         } label: {
                             Text("\(value)")
                                 .font(VFont.metric)
-                                .foregroundStyle(days == value ? VColor.textOnAccent : VColor.textPrimary)
-                                .frame(maxWidth: .infinity, minHeight: 72)
-                                .background(days == value ? VColor.accent : VColor.surface,
+                                .foregroundStyle(isSelected ? VColor.textOnAccent : VColor.textPrimary)
+                                .frame(maxWidth: .infinity, minHeight: 64)
+                                .background(isSelected ? VColor.accent : VColor.quietFill,
                                             in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.pressable)
                         .accessibilityLabel("\(value) days")
-                        .accessibilityAddTraits(days == value ? .isSelected : [])
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                 }
                 Text(description)
-                    .font(VFont.secondary)
+                    .font(VFont.body)
                     .foregroundStyle(VColor.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
                     .contentTransition(.opacity)
             }
+            .padding(.horizontal, Space.fieldInset)
             .sensoryFeedback(.selection, trigger: days)
         }
     }
@@ -343,8 +441,8 @@ private struct BodyStep: View {
 
     var body: some View {
         StepScaffold(title: "A few body details", subtitle: "Used only to calculate your calorie and protein targets.",
-                     primaryTitle: "Build My Plan", onPrimary: onNext) {
-            VStack(spacing: Space.md) {
+                     primaryTitle: "Build my plan", onPrimary: onNext) {
+            VStack(alignment: .leading, spacing: Space.md) {
                 Picker("Units", selection: $answers.unit) {
                     Text("kg").tag(WeightUnit.kilograms)
                     Text("lb").tag(WeightUnit.pounds)
@@ -359,35 +457,42 @@ private struct BodyStep: View {
                             Text("Prefer not to say").tag(BiologicalSex.unspecified)
                         }
                         .labelsHidden()
+                        .tint(VColor.accentText)
                     }
-                    Hairline(leading: Space.md)
+                    Hairline()
                     row("Age") {
                         Stepper("\(answers.age)", value: $answers.age, in: 14...90)
                             .font(VFont.data)
                     }
-                    Hairline(leading: Space.md)
+                    Hairline()
                     row("Height") {
                         Stepper("\(Int(answers.heightCm)) cm", value: $answers.heightCm, in: 130...220, step: 1)
                             .font(VFont.data)
                     }
-                    Hairline(leading: Space.md)
+                    Hairline()
                     row("Weight") { weightStepper($answers.weightKg) }
-                    Hairline(leading: Space.md)
+                    Hairline()
                     row("Target weight") { weightStepper($answers.targetWeightKg) }
                 }
-                .background(VColor.surface, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
             }
+            .padding(.horizontal, Space.fieldInset)
         }
     }
 
     private func row<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack {
-            Text(title).font(VFont.body).foregroundStyle(VColor.textPrimary)
-            Spacer()
-            content()
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                Text(title).font(VFont.body).foregroundStyle(VColor.textPrimary)
+                Spacer()
+                content()
+            }
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                Text(title).font(VFont.body).foregroundStyle(VColor.textPrimary)
+                content()
+            }
+            .padding(.vertical, Space.xs)
         }
-        .padding(.horizontal, Space.md)
-        .frame(minHeight: 52)
+        .frame(minHeight: Size.setRowHeight)
     }
 
     private func weightStepper(_ value: Binding<Double>) -> some View {
@@ -397,22 +502,26 @@ private struct BodyStep: View {
     }
 }
 
+// MARK: - Plan
+
 private struct GeneratingStep: View {
     @State private var visible = 0
-    private let lines = ["Choosing your split", "Matching exercises to your equipment", "Setting rep ranges", "Calculating calories & macros"]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let lines = ["Choosing your split", "Matching exercises to your equipment", "Setting rep ranges", "Calculating calories and macros"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             Spacer()
-            ProgressView().controlSize(.large).tint(VColor.accentText)
+            ProgressView().controlSize(.large).tint(VColor.accent)
             Text("Building your plan")
                 .font(VFont.largeTitle)
                 .foregroundStyle(VColor.textPrimary)
+                .accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: Space.sm) {
                 ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                     HStack(spacing: Space.sm) {
                         Image(systemName: index < visible ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(index < visible ? VColor.success : VColor.separator)
+                            .foregroundStyle(index < visible ? VColor.accentText : VColor.textTertiary)
                             .contentTransition(.symbolEffect(.replace))
                         Text(line)
                             .font(VFont.body)
@@ -422,12 +531,12 @@ private struct GeneratingStep: View {
             }
             Spacer()
         }
-        .padding(.horizontal, Space.gutter)
+        .padding(.horizontal, Space.fieldInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .task {
             for index in 1...lines.count {
-                try? await Task.sleep(for: .milliseconds(400))
-                withAnimation(Motion.snappy) { visible = index }
+                try? await Task.sleep(for: .milliseconds(reduceMotion ? 80 : 400))
+                withAnimation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion)) { visible = index }
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: visible)
@@ -435,70 +544,86 @@ private struct GeneratingStep: View {
     }
 }
 
+/// The plan reveal: the plan itself on the hero field, then why.
 private struct PlanReadyStep: View {
     var plan: GeneratedPlan
     var onStart: () -> Void
-    @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Space.lg) {
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text("Here's where you start, \(plan.profile.name.isEmpty ? "athlete" : plan.profile.name).")
-                            .font(VFont.largeTitle)
-                            .foregroundStyle(VColor.textPrimary)
-                    }
-                    .padding(.top, Space.xl)
-
-                    VStack(alignment: .leading, spacing: Space.md) {
-                        planRow(symbol: Icon.train, title: "Training", value: plan.program.name.components(separatedBy: " — ").first ?? plan.program.name,
-                                detail: "\(plan.program.daysPerWeek) days / week · \(plan.program.workouts.map(\.name).joined(separator: ", "))")
-                        Hairline()
-                        planRow(symbol: Icon.flame, title: "Calories", value: "\(Format.integer(plan.targets.calories)) kcal",
-                                detail: "per day · \(plan.profile.nutritionGoal.title.lowercased())")
-                        Hairline()
-                        planRow(symbol: "bolt.heart", title: "Protein", value: Format.grams(plan.targets.protein),
-                                detail: "Carbs \(Format.grams(plan.targets.carbs)) · Fat \(Format.grams(plan.targets.fat))")
-                    }
-                    .card(padding: Space.lg)
-                    .scaleEffect(appeared ? 1 : 0.96)
-                    .opacity(appeared ? 1 : 0)
-
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        Text("Why this plan").font(VFont.headline).foregroundStyle(VColor.textPrimary)
-                        ForEach(plan.rationale, id: \.self) { line in
-                            Label(line, systemImage: "checkmark")
-                                .font(VFont.secondary)
-                                .foregroundStyle(VColor.textSecondary)
-                        }
-                    }
-                    .opacity(appeared ? 1 : 0)
-                }
-            }
-            PrimaryButton("Start My Plan", action: onStart)
-            Text("You can change anything later in Profile.")
-                .font(VFont.caption)
-                .foregroundStyle(VColor.textSecondary)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(.horizontal, Space.gutter)
-        .padding(.bottom, Space.md)
-        .onAppear { withAnimation(Motion.celebrate.delay(0.1)) { appeared = true } }
-        .sensoryFeedback(.success, trigger: appeared)
+    private var programName: String {
+        plan.program.name.components(separatedBy: " — ").first ?? plan.program.name
     }
 
-    private func planRow(symbol: String, title: String, value: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: Space.md) {
-            IconBadge(symbol: symbol)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(VFont.caption).foregroundStyle(VColor.textSecondary)
-                Text(value).font(VFont.title3).foregroundStyle(VColor.textPrimary)
-                Text(detail).font(VFont.secondary).foregroundStyle(VColor.textSecondary)
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HeroField(spacing: Space.sm) {
+                    Text(plan.profile.name.isEmpty ? "Here's where you start." : "Here's where you start, \(plan.profile.name).")
+                        .font(VFont.title3)
+                        .foregroundStyle(VColor.heroTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("\(programName), \(plan.program.daysPerWeek) days \u{00B7} \(Format.integer(plan.targets.calories)) kcal")
+                        .font(VFont.largeTitle)
+                        .foregroundStyle(VColor.heroText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityLabel("\(programName), \(plan.program.daysPerWeek) days a week, \(Format.integer(plan.targets.calories)) kilocalories a day")
+                    Text("Protein \(Format.grams(plan.targets.protein)) \u{00B7} Carbs \(Format.grams(plan.targets.carbs)) \u{00B7} Fat \(Format.grams(plan.targets.fat)) a day, \(plan.profile.nutritionGoal.title.lowercased())")
+                        .font(VFont.secondary.monospacedDigit())
+                        .foregroundStyle(VColor.heroTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HeroHairline()
+                        .padding(.vertical, Space.xxs)
+                    Label(plan.program.workouts.map(\.name).joined(separator: ", "), systemImage: Icon.train)
+                        .font(VFont.secondary)
+                        .foregroundStyle(VColor.heroTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, Space.xl)
+                .background { VColor.heroField.padding(.top, -1000) }
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Why this plan")
+                        .font(VFont.title)
+                        .foregroundStyle(VColor.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.bottom, Space.xs)
+                    ForEach(Array(plan.rationale.enumerated()), id: \.offset) { index, line in
+                        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                            Image(systemName: "checkmark")
+                                .font(.system(.subheadline, weight: .semibold))
+                                .foregroundStyle(VColor.accentText)
+                                .accessibilityHidden(true)
+                            Text(line)
+                                .font(VFont.body)
+                                .foregroundStyle(VColor.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, Space.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if index < plan.rationale.count - 1 { Hairline() }
+                    }
+                }
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.top, Space.lg)
+                .opacity(appeared ? 1 : 0)
             }
         }
-        .accessibilityElement(children: .combine)
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            PinnedActionBar(spacing: Space.xs) {
+                Button("Start my plan", action: onStart)
+                    .buttonStyle(.accentCapsule)
+                Text("You can change anything later in Profile.")
+                    .font(VFont.caption)
+                    .foregroundStyle(VColor.textSecondary)
+            }
+        }
+        .onAppear {
+            withAnimation(Motion.adaptive(Motion.gentle.delay(0.1), reduceMotion: reduceMotion)) { appeared = true }
+        }
+        .sensoryFeedback(.success, trigger: appeared)
     }
 }
 

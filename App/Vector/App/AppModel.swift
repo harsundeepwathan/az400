@@ -262,7 +262,7 @@ final class AppModel {
         if let sessionsCache, sessionsCache.day == day { return sessionsCache.value }
         let cutoff = policy.historyCutoff(tier: data.tier, now: now())
         let value = all
-            .filter { $0.isFinished && (cutoff.map { cutoff in $0.startedAt >= cutoff } ?? true) }
+            .filter { session in session.isFinished && (cutoff.map { session.startedAt >= $0 } ?? true) }
             .sorted { $0.startedAt > $1.startedAt }
         sessionsCache = (day, value)
         return value

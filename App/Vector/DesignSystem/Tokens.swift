@@ -3,49 +3,47 @@ import UIKit
 
 // MARK: - Color
 
-/// Semantic color tokens ("Fields"). A plain ground (white, #0C0F0E in dark)
-/// with one deep evergreen hero field holding the day's rings, then one
-/// full-bleed tinted field per area: training green, nutrition peach, body
-/// lavender. Each field has its own ink colour for the category label. One
-/// green accent marks the action. Status is always paired with an icon or
-/// label. Contrast notes are in docs/02-design-system.md.
+/// Semantic color tokens ("Fields · Cobalt"). Blue, white and black: a white
+/// ground (true black in dark) with one near-black hero field holding the
+/// day's rings, then full-bleed tinted fields per area in pale cobalt and
+/// cool grey. Black ink, one cobalt accent for every action. Status is always
+/// paired with an icon or label. Contrast notes are in docs/02-design-system.md.
 ///
 /// Legacy names (`background`, `surface`, `surfaceSunken`, `training`…) map
-/// onto the Fields palette so screens not yet redesigned keep compiling.
+/// onto this palette so every screen picks it up.
 enum VColor {
     // Ground
     /// The screen ground. Fields sit on it edge to edge.
-    static let ground = Color(light: 0xFFFFFF, dark: 0x0C0F0E)
+    static let ground = Color(light: 0xFFFFFF, dark: 0x000000)
     static let background = ground
-    /// Legacy cell fill for screens not yet moved to fields: a faint ink wash
-    /// so existing cards still read on the white ground.
-    static let surface = Color(light: 0xF4F6F5, dark: 0x161B19)
-    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x1D2321)
+    /// Legacy cell fill: a faint cool-grey wash.
+    static let surface = Color(light: 0xF4F5F8, dark: 0x111318)
+    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x181B22)
     /// Fills for inputs, wells and chips.
-    static let surfaceSunken = Color(light: 0xEBEEEC, dark: 0x1F2523)
-    /// Hairlines: ink at 10% (white at 8% in dark), so they read on any field.
-    static let separator = Color(light: 0x0F1412, dark: 0xFFFFFF, lightAlpha: 0.10, darkAlpha: 0.08)
+    static let surfaceSunken = Color(light: 0xECEEF3, dark: 0x1C1F27)
+    /// Hairlines: ink at 10% (white at 10% in dark), so they read on any field.
+    static let separator = Color(light: 0x0B0C0F, dark: 0xFFFFFF, lightAlpha: 0.10, darkAlpha: 0.10)
     /// Unfilled part of bars and tracks on the ground or a field.
-    static let track = Color(light: 0x0F1412, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.10)
-    /// Quiet capsule buttons: ink at 6% (white at 8% in dark).
-    static let quietFill = Color(light: 0x0F1412, dark: 0xFFFFFF, lightAlpha: 0.06, darkAlpha: 0.08)
+    static let track = Color(light: 0x0B0C0F, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.12)
+    /// Quiet capsule buttons: ink at 6% (white at 10% in dark).
+    static let quietFill = Color(light: 0x0B0C0F, dark: 0xFFFFFF, lightAlpha: 0.06, darkAlpha: 0.10)
 
     // Text
-    static let textPrimary = Color(light: 0x0F1412, dark: 0xEEF2F0)
-    static let textSecondary = Color(light: 0x56605B, dark: 0x9DA8A3)
-    static let textTertiary = Color(light: 0x6C7671, dark: 0x85908B)
-    /// Ink on the accent: white in light mode, deep green on the brighter dark-mode accent.
-    static let textOnAccent = Color(light: 0xFFFFFF, dark: 0x04150D)
+    static let textPrimary = Color(light: 0x0B0C0F, dark: 0xF4F5F7)
+    static let textSecondary = Color(light: 0x5A5F69, dark: 0xA3A8B3)
+    static let textTertiary = Color(light: 0x6B707B, dark: 0x8A8F9A)
+    /// Ink on the accent: white in light mode, deep navy on the brighter dark-mode accent.
+    static let textOnAccent = Color(light: 0xFFFFFF, dark: 0x050A1F)
 
-    // Accent: the one action colour (primary buttons, links, selection, tab selection).
-    static let accent = Color(light: 0x0F7A52, dark: 0x3FCB8A)
-    static let accentText = accent
-    static let accentSoft = Color(light: 0xE9F4EE, dark: 0x10201A)
+    // Accent: cobalt, the one action colour (primary buttons, links, selection, tab selection).
+    static let accent = Color(light: 0x2346E0, dark: 0x7C93FF)
+    static let accentText = Color(light: 0x1F3FD0, dark: 0x8FA2FF)
+    static let accentSoft = Color(light: 0xEEF2FF, dark: 0x111833)
 
-    // Hero field: the evergreen band at the top of Today with the rings.
-    static let heroField = Color(light: 0x0F3D30, dark: 0x0B2C23)
+    // Hero field: the near-black band at the top of Today with the rings.
+    static let heroField = Color(light: 0x0B0C0F, dark: 0x0E1220)
     static let heroText = Color.white
-    static let heroTextSecondary = Color(light: 0xA8C9BC, dark: 0x93B8AA)
+    static let heroTextSecondary = Color(light: 0xA9AFBC, dark: 0x9AA2B8)
     /// Ring track on the hero field (white at 12%).
     static let heroTrack = Color.white.opacity(0.12)
     /// Legend hairlines on the hero field (white at 14%).
@@ -53,18 +51,18 @@ enum VColor {
     /// Quiet fill on the hero field (avatar).
     static let heroQuiet = Color.white.opacity(0.14)
 
-    // Rings: same in both appearances (they always sit on the hero field).
-    static let ringWorkouts = Color(light: 0x9EE07A, dark: 0x9EE07A)
-    static let ringCalories = Color(light: 0xFF8A5C, dark: 0xFF8A5C)
-    static let ringProtein = Color(light: 0x7CC3FF, dark: 0x7CC3FF)
+    // Rings: cobalt, sky and white; they always sit on the dark hero field.
+    static let ringWorkouts = Color(light: 0x4F6BFF, dark: 0x4F6BFF)
+    static let ringCalories = Color(light: 0x8DBBFF, dark: 0x8DBBFF)
+    static let ringProtein = Color(light: 0xF4F5F7, dark: 0xF4F5F7)
 
     // Area fields and their ink (category label, links, highlighted data).
-    static let fieldTraining = Color(light: 0xE9F4EE, dark: 0x10201A)
-    static let inkTraining = Color(light: 0x0F6B48, dark: 0x5FD6A0)
-    static let fieldNutrition = Color(light: 0xFFF1E8, dark: 0x22160F)
-    static let inkNutrition = Color(light: 0xB4460F, dark: 0xFF9B66)
-    static let fieldBody = Color(light: 0xF0EFFC, dark: 0x17162A)
-    static let inkBody = Color(light: 0x4F45C2, dark: 0xABA3FF)
+    static let fieldTraining = Color(light: 0xEEF2FF, dark: 0x0D1328)
+    static let inkTraining = Color(light: 0x1F3FD0, dark: 0x8FA2FF)
+    static let fieldNutrition = Color(light: 0xF4F5F8, dark: 0x111318)
+    static let inkNutrition = Color(light: 0x0B0C0F, dark: 0xF4F5F7)
+    static let fieldBody = Color(light: 0xF7F8FB, dark: 0x0C0E13)
+    static let inkBody = Color(light: 0x1F3FD0, dark: 0x8FA2FF)
 
     // Status: always paired with an icon or label, never color alone.
     static let success = accent
@@ -80,15 +78,15 @@ enum VColor {
     static let nutrition = inkNutrition
     static let body = inkBody
 
-    // Macros: a categorical set, always direct-labeled.
-    static let protein = Color(light: 0x2C6EE8, dark: 0x6AA9FF)
-    static let carbs = Color(light: 0x0E9A8E, dark: 0x3FCFC1)
-    static let fat = Color(light: 0xC98A06, dark: 0xF2BF4F)
-    static let calories = Color(light: 0xE8611E, dark: 0xFF8A4F)
+    // Macros and calories: three blues and black, always direct-labeled.
+    static let protein = Color(light: 0x2346E0, dark: 0x7C93FF)
+    static let carbs = Color(light: 0x6FA3FF, dark: 0x9CC2FF)
+    static let fat = Color(light: 0x0B0C0F, dark: 0xD6D9E0)
+    static let calories = Color(light: 0x1A2A6C, dark: 0xB7C4FF)
 
     // Data visualization
     static let chartPrimary = accent
-    static let chartMuted = Color(light: 0xD5DAD7, dark: 0x2C3431)
+    static let chartMuted = Color(light: 0xD8DCE6, dark: 0x2A2F3B)
     static let chartGrid = separator
     static let chartTarget = accentSoft
 

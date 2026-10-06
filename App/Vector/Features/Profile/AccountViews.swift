@@ -45,7 +45,7 @@ struct AccountSection: View {
                 if let allowance = model.scanAllowance {
                     LabeledContent("AI meal scans", value: allowanceText(allowance))
                 }
-                Button("Sign Out") { Task { await model.signOut() } }
+                Button("Sign out") { Task { await model.signOut() } }
             } else {
                 AccountSignInButton()
                     .listRowInsets(EdgeInsets(top: Space.xs, leading: Space.md, bottom: Space.xs, trailing: Space.md))
@@ -56,7 +56,7 @@ struct AccountSection: View {
                 Button(role: .destructive) {
                     confirmsDelete = true
                 } label: {
-                    if isDeleting { ProgressView() } else { Text("Delete Account") }
+                    if isDeleting { ProgressView() } else { Text("Delete account") }
                 }
                 .disabled(isDeleting)
             }
@@ -68,7 +68,7 @@ struct AccountSection: View {
                  : "Optional. An account is needed for AI meal scans and keeps your Pro subscription linked. Apple shares only a private account identifier, not your name or email.")
         }
         .confirmationDialog("Delete your account?", isPresented: $confirmsDelete, titleVisibility: .visible) {
-            Button("Delete Account", role: .destructive) {
+            Button("Delete account", role: .destructive) {
                 isDeleting = true
                 Task {
                     let deleted = await model.deleteAccount()
@@ -85,8 +85,8 @@ struct AccountSection: View {
             Text("Check your connection and try again. Nothing was deleted.")
         }
         .confirmationDialog("Account deleted. Also erase this device's data?", isPresented: $offersLocalErase, titleVisibility: .visible) {
-            Button("Erase Workouts and Food Logs", role: .destructive) { model.resetAll() }
-            Button("Keep on This Device", role: .cancel) {}
+            Button("Erase workouts and food logs", role: .destructive) { model.resetAll() }
+            Button("Keep on this device", role: .cancel) {}
         } message: {
             Text("Your logs are stored on this device and in your iCloud, not on our servers.")
         }

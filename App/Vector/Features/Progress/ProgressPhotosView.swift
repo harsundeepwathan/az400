@@ -34,19 +34,20 @@ struct ProgressPhotosView: View {
                         NavigationLink {
                             ProgressPhotoCompareView()
                         } label: {
-                            Label("Compare Two Dates", systemImage: "rectangle.split.2x1")
+                            Label("Compare two dates", systemImage: "rectangle.split.2x1")
                         }
-                        .buttonStyle(.secondary)
+                        .buttonStyle(.outlinedCapsule)
                     }
                     grid(photos)
                 }
                 addButtons
             }
-            .padding(.horizontal, Space.gutter)
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.top, Space.md)
             .padding(.bottom, Space.xl)
         }
         .screenBackground()
-        .navigationTitle("Progress Photos")
+        .navigationTitle("Progress photos")
         .navigationBarTitleDisplayMode(.inline)
         // No orphan cleanup here: if AppData failed to load, its photo list is
         // empty and a cleanup would delete every photo. `resetAll()` does it.
@@ -86,23 +87,25 @@ struct ProgressPhotosView: View {
                 .foregroundStyle(VColor.textSecondary)
                 .accessibilityHidden(true)
             Text("Photos are stored only on this iPhone. They're never uploaded, not synced to iCloud and not included in backups, so they won't move to a new phone.")
-                .font(VFont.caption)
+                .font(VFont.fieldCaption)
                 .foregroundStyle(VColor.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, Space.xxs)
         .accessibilityElement(children: .combine)
     }
 
     private var addButtons: some View {
         VStack(spacing: Space.xs) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                PrimaryButton("Take Photo", symbol: "camera") { showsCamera = true }
+                Button { showsCamera = true } label: {
+                    Label("Take photo", systemImage: "camera")
+                }
+                .buttonStyle(.accentCapsule)
             }
             PhotosPicker(selection: $pickerItem, matching: .images) {
-                Label("Choose from Library", systemImage: "photo.on.rectangle")
+                Label("Choose from library", systemImage: "photo.on.rectangle")
             }
-            .buttonStyle(.secondary)
+            .buttonStyle(.quietCapsule)
         }
     }
 
@@ -111,7 +114,7 @@ struct ProgressPhotosView: View {
         return VStack(alignment: .leading, spacing: Space.lg) {
             ForEach(days.keys.sorted(by: >), id: \.self) { day in
                 VStack(alignment: .leading, spacing: Space.xs) {
-                    SectionHeader(Format.shortDate(day, calendar: model.calendar))
+                    CanvasTitle(Format.shortDate(day, calendar: model.calendar), font: VFont.headline)
                     LazyVGrid(columns: columns, spacing: Space.xs) {
                         ForEach((days[day] ?? []).sorted { $0.pose.sortIndex < $1.pose.sortIndex }) { photo in
                             Button { viewing = photo } label: {
@@ -213,9 +216,12 @@ struct PhotoSaveView: View {
                 DatePicker("Date", selection: $date, in: ...model.now(), displayedComponents: .date)
                     .font(VFont.body)
                 Spacer(minLength: 0)
-                PrimaryButton("Save to This iPhone", symbol: "lock") {
+                Button {
                     if model.addProgressPhoto(pending.image, pose: pose, date: date) { dismiss() }
+                } label: {
+                    Label("Save to this iPhone", systemImage: "lock")
                 }
+                .buttonStyle(.accentCapsule)
             }
             .padding(Space.gutter)
             .screenBackground()

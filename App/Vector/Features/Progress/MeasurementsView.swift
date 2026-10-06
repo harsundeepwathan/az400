@@ -1,61 +1,6 @@
 import SwiftUI
 import VectorCore
 
-/// Entry point on the Progress dashboard: measurements and progress photos.
-struct BodyProgressLinks: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader("Body")
-            VStack(spacing: 0) {
-                NavigationLink {
-                    MeasurementsView()
-                } label: {
-                    row(symbol: "ruler", title: "Measurements", detail: measurementsDetail)
-                }
-                Hairline(leading: 62)
-                NavigationLink {
-                    ProgressPhotosView()
-                } label: {
-                    row(symbol: "person.crop.rectangle", title: "Progress photos", detail: photosDetail)
-                }
-            }
-            .buttonStyle(.plain)
-            .card(padding: 0)
-        }
-    }
-
-    private var measurementsDetail: String {
-        guard let latest = model.bodyMeasurements.last else { return "Waist, hips, chest, arm, thigh, neck" }
-        return "Last logged " + Format.relativeDays(from: latest.date, to: model.now(), calendar: model.calendar).lowercased()
-    }
-
-    private var photosDetail: String {
-        let count = model.progressPhotos.count
-        return count == 0 ? "Stored only on this iPhone" : "\(count) photo\(count == 1 ? "" : "s") on this iPhone"
-    }
-
-    private func row(symbol: String, title: String, detail: String) -> some View {
-        HStack(spacing: Space.sm) {
-            IconBadge(symbol: symbol, size: 34)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                Text(detail).font(VFont.caption).foregroundStyle(VColor.textSecondary)
-            }
-            Spacer()
-            Image(systemName: Icon.chevron)
-                .font(.system(.footnote, weight: .semibold))
-                .foregroundStyle(VColor.textTertiary)
-        }
-        .padding(.horizontal, Space.md)
-        .padding(.vertical, Space.sm)
-        .frame(minHeight: Size.minTouch)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// Tape measurements: the latest value per site with its change over the
 /// range, a chart of logged values for one site, and the history.
 struct MeasurementsView: View {
@@ -75,15 +20,16 @@ struct MeasurementsView: View {
                         editing = BodyMeasurementEntry(date: model.now())
                     }
                 } else {
-                    RangePicker(selection: $range,
-                                isLocked: { $0.requiresPro && !model.isPro },
-                                onLockedTap: { model.presentPaywall(.history) })
+                    FieldRangePicker(selection: $range, tint: VColor.inkBody,
+                                     isLocked: { $0.requiresPro && !model.isPro },
+                                     onLockedTap: { model.presentPaywall(.history) })
                     summaries(entries)
                     chart(entries)
                     history(entries)
                 }
             }
-            .padding(.horizontal, Space.gutter)
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.top, Space.md)
             .padding(.bottom, Space.xl)
             .animation(Motion.smooth, value: range)
         }
@@ -114,33 +60,37 @@ struct MeasurementsView: View {
         let summaries = model.measurementsEngine.summaries(entries, range: range, now: model.now())
         let unit = model.lengthUnit
         let current = currentSite(entries)
-        return LazyVGrid(columns: [GridItem(.flexible(), spacing: Space.sm), GridItem(.flexible())], spacing: Space.sm) {
-            ForEach(summaries) { summary in
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(summaries.enumerated()), id: \.element.id) { index, summary in
+                if index > 0 { RowHairline() }
                 Button {
                     withAnimation(Motion.snappy) { selectedSite = summary.site }
                 } label: {
-                    VStack(alignment: .leading, spacing: Space.xxs) {
+                    HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                        Image(systemName: "checkmark")
+                            .font(.system(.footnote, weight: .bold))
+                            .foregroundStyle(VColor.accentText)
+                            .opacity(current == summary.site ? 1 : 0)
+                            .frame(width: 18)
+                            .accessibilityHidden(true)
                         Text(summary.site.displayName)
-                            .font(VFont.caption)
-                            .foregroundStyle(VColor.textSecondary)
-                        Text(Format.length(summary.latestCm, unit: unit))
-                            .font(VFont.metric)
+                            .font(current == summary.site ? VFont.bodyEmphasized : VFont.body)
                             .foregroundStyle(VColor.textPrimary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                        Text(summary.changeCm.map { Format.signedLength($0, unit: unit) + " " + range.label } ?? "No change yet")
-                            .font(VFont.caption.monospacedDigit())
-                            .foregroundStyle(VColor.textTertiary)
-                    }
-                    .card(padding: Space.sm, radius: Radius.md)
-                    .overlay {
-                        if current == summary.site {
-                            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                                .strokeBorder(VColor.accent, lineWidth: 1.5)
+                        Spacer(minLength: Space.sm)
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(Format.length(summary.latestCm, unit: unit))
+                                .font(VFont.data)
+                                .foregroundStyle(VColor.textPrimary)
+                            Text(summary.changeCm.map { Format.signedLength($0, unit: unit) + " " + range.label } ?? "No change yet")
+                                .font(VFont.fieldCaption.monospacedDigit())
+                                .foregroundStyle(VColor.textSecondary)
                         }
                     }
+                    .padding(.vertical, Space.sm)
+                    .frame(minHeight: Size.minTouch)
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.pressable)
+                .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(current == summary.site ? .isSelected : [])
                 .accessibilityHint("Shows the chart for \(summary.site.displayName.lowercased())")
@@ -177,7 +127,7 @@ struct MeasurementsView: View {
         let recent = Array(entries.reversed().prefix(20))
         let unit = model.lengthUnit
         return VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader("History")
+            CanvasTitle("History")
             VStack(spacing: 0) {
                 ForEach(Array(recent.enumerated()), id: \.element.id) { index, entry in
                     Button { editing = entry } label: {
@@ -192,21 +142,19 @@ struct MeasurementsView: View {
                                 .foregroundStyle(VColor.textSecondary)
                                 .multilineTextAlignment(.trailing)
                         }
-                        .padding(.horizontal, Space.md)
                         .padding(.vertical, Space.sm)
                         .frame(minHeight: Size.minTouch)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
                     .accessibilityHint("Edit or delete")
-                    if index < recent.count - 1 { Hairline(leading: Space.md) }
+                    if index < recent.count - 1 { RowHairline() }
                 }
             }
-            .card(padding: 0)
             Text("Values in \(unit.symbol). Tap an entry to edit or delete it.")
-                .font(VFont.caption)
-                .foregroundStyle(VColor.textTertiary)
-                .padding(.horizontal, Space.xxs)
+                .font(VFont.fieldCaption)
+                .foregroundStyle(VColor.textSecondary)
         }
     }
 }

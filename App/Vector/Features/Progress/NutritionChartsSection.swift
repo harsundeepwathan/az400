@@ -9,6 +9,7 @@ struct NutritionChartsSection: View {
     @Environment(AppModel.self) private var model
     @State private var range: TimeRange = .month
     @State private var detail: NutritionChartDetail?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let targets = model.nutritionTargets, !model.foodEntries.isEmpty {
@@ -17,38 +18,43 @@ struct NutritionChartsSection: View {
             let series = engine.series(model.foodEntries, targets: targets, range: range, now: now)
             let adherence = engine.proteinAdherence(model.foodEntries, targets: targets, range: range, now: now)
 
-            VStack(alignment: .leading, spacing: Space.sm) {
-                SectionHeader("Nutrition")
-                NutritionRangePicker(selection: $range)
+            VStack(alignment: .leading, spacing: 0) {
+                RowHairline()
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    CanvasTitle("Nutrition")
+                    FieldRangePicker(ranges: NutritionChartEngine.ranges, selection: $range)
+                    StatLine(items: [
+                        .init(value: adherence.daysLogged > 0 ? "\(adherence.daysHit) of \(adherence.daysLogged)" : "0",
+                              label: adherence.daysLogged > 0 ? "days on protein target" : "days logged"),
+                        .init(value: "\(adherence.streak)", label: adherence.streak == 1 ? "day protein streak" : "days protein streak")
+                    ])
+                    .padding(.top, Space.xxs)
 
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: Space.sm), GridItem(.flexible())], spacing: Space.sm) {
-                    MetricCard(label: "Protein days on target",
-                               value: adherence.daysLogged > 0 ? "\(adherence.daysHit) of \(adherence.daysLogged)" : "No days logged",
-                               symbol: "checkmark.circle")
-                    MetricCard(label: "Protein streak", value: "\(adherence.streak)",
-                               unit: adherence.streak == 1 ? "day" : "days", symbol: Icon.flame)
-                }
-
-                ForEach(NutritionMetric.allCases) { metric in
-                    ChartCard(title: metric.title, subtitle: metric.subtitle(range: range, targets: targets),
-                              onExpand: series.isEmpty ? nil : { detail = NutritionChartDetail(metric: metric, range: range) }) {
-                        if series.isEmpty {
-                            Text("No meals logged in this period.")
-                                .font(VFont.secondary)
-                                .foregroundStyle(VColor.textSecondary)
-                                .frame(maxWidth: .infinity, minHeight: 120)
-                        } else {
-                            NutritionBarChart(series: series, metric: metric)
+                    ForEach(NutritionMetric.allCases) { metric in
+                        ChartCard(title: metric.title, subtitle: metric.subtitle(range: range, targets: targets),
+                                  onExpand: series.isEmpty ? nil : { detail = NutritionChartDetail(metric: metric, range: range) }) {
+                            if series.isEmpty {
+                                Text("No meals logged in this period.")
+                                    .font(VFont.secondary)
+                                    .foregroundStyle(VColor.textSecondary)
+                                    .frame(maxWidth: .infinity, minHeight: 120)
+                            } else {
+                                NutritionBarChart(series: series, metric: metric)
+                            }
                         }
+                        .padding(.top, Space.md)
                     }
-                }
 
-                Text("Days without a logged meal are left blank, not counted as zero. Targets are your current targets.")
-                    .font(VFont.caption)
-                    .foregroundStyle(VColor.textTertiary)
-                    .padding(.horizontal, Space.xxs)
+                    Text("Days without a logged meal are left blank, not counted as zero. Targets are your current targets.")
+                        .font(VFont.fieldCaption)
+                        .foregroundStyle(VColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.vertical, Space.xl)
             }
-            .animation(Motion.smooth, value: range)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: range)
             .sheet(item: $detail) { NutritionChartDetailView(detail: $0) }
         }
     }
@@ -107,42 +113,6 @@ struct NutritionChartDetail: Identifiable, Hashable {
     var metric: NutritionMetric
     var range: TimeRange
     var id: String { "\(metric.rawValue)-\(range.rawValue)" }
-}
-
-// MARK: - Range picker
-
-/// 7D · 1M · 3M. Same look as the dashboard's `RangePicker`, limited to the
-/// ranges nutrition charts support (all free).
-struct NutritionRangePicker: View {
-    @Binding var selection: TimeRange
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(NutritionChartEngine.ranges) { range in
-                Button {
-                    withAnimation(Motion.snappy) { selection = range }
-                } label: {
-                    Text(range.label)
-                        .font(VFont.captionEmphasized.monospacedDigit())
-                        .foregroundStyle(selection == range ? VColor.textPrimary : VColor.textSecondary)
-                        .frame(maxWidth: .infinity, minHeight: 32)
-                        .background {
-                            if selection == range {
-                                RoundedRectangle(cornerRadius: Radius.xs, style: .continuous).fill(VColor.surface)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(range.label)
-                .accessibilityAddTraits(selection == range ? .isSelected : [])
-            }
-        }
-        .padding(3)
-        .background(VColor.surfaceSunken, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
-        .frame(minHeight: Size.minTouch)
-        .sensoryFeedback(.selection, trigger: selection)
-    }
 }
 
 // MARK: - Chart
@@ -253,7 +223,7 @@ struct NutritionChartDetailView: View {
                     let series = NutritionChartEngine(calendar: model.calendar)
                         .series(model.foodEntries, targets: targets, range: detail.range, now: model.now())
                     Section {
-                        NutritionRangePicker(selection: $detail.range)
+                        FieldRangePicker(ranges: NutritionChartEngine.ranges, selection: $detail.range)
                             .listRowInsets(EdgeInsets(top: Space.sm, leading: Space.md, bottom: Space.sm, trailing: Space.md))
                         NutritionBarChart(series: series, metric: detail.metric, height: 260)
                             .padding(.vertical, Space.sm)

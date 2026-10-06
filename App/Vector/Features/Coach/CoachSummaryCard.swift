@@ -65,7 +65,7 @@ struct CoachSummaryCard: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Button("Try again") { Task { await load(force: true) } }
-                        .buttonStyle(.secondary(compact: true))
+                        .buttonStyle(QuietCapsuleButtonStyle(fullWidth: false))
                 }
             }
         }

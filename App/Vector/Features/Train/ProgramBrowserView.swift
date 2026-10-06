@@ -97,10 +97,11 @@ struct ProgramBrowserView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: Space.md) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("Matched to your goal (\(model.profile?.goal.title.lowercased() ?? "")) and equipment (\(model.profile?.equipment.title.lowercased() ?? "")). Your history and PRs carry over whichever you pick.")
                         .font(VFont.secondary)
                         .foregroundStyle(VColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Space.xs) {
@@ -112,15 +113,16 @@ struct ProgramBrowserView: View {
                                         .font(VFont.captionEmphasized)
                                         .foregroundStyle(filter == option ? VColor.textOnAccent : VColor.textPrimary)
                                         .padding(.horizontal, Space.md)
-                                        .frame(minHeight: 36)
-                                        .background(filter == option ? VColor.accent : VColor.surface, in: Capsule())
-                                        .overlay(Capsule().strokeBorder(filter == option ? .clear : VColor.separator, lineWidth: 1))
+                                        .frame(minHeight: Size.minTouch)
+                                        .background(filter == option ? VColor.accent : VColor.quietFill, in: Capsule())
+                                        .contentShape(Capsule())
                                 }
                                 .buttonStyle(.pressable)
                                 .accessibilityAddTraits(filter == option ? .isSelected : [])
                             }
                         }
                     }
+                    .padding(.vertical, Space.md)
                     .sensoryFeedback(.selection, trigger: filter)
 
                     if filtered.isEmpty {
@@ -135,6 +137,7 @@ struct ProgramBrowserView: View {
                             ProgramCard(program: program,
                                         isCurrent: program.daysPerWeek == model.program?.daysPerWeek && program.name == model.program?.name,
                                         matchesSchedule: program.daysPerWeek == model.profile?.daysPerWeek)
+                                .overlay(alignment: .top) { if index > 0 { Hairline() } }
                         }
                         .buttonStyle(.pressable)
                         // Cards rise in with a short stagger on appear and on every filter change.
@@ -144,7 +147,8 @@ struct ProgramBrowserView: View {
                         .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
                     }
                 }
-                .padding(Space.gutter)
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.vertical, Space.md)
                 .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: filter)
             }
             .screenBackground()
@@ -161,6 +165,9 @@ struct ProgramBrowserView: View {
     }
 }
 
+/// One program as a canvas row: name, days and level, the week bar and the
+/// workouts it rotates through. Status ("Current", "Fits your schedule") is
+/// a label with a symbol, never colour alone. No card.
 private struct ProgramCard: View {
     var program: TrainingProgram
     var isCurrent: Bool
@@ -169,41 +176,43 @@ private struct ProgramCard: View {
     var body: some View {
         let profile = ProgramProfile.forDays(program.daysPerWeek)
         VStack(alignment: .leading, spacing: Space.sm) {
-            HStack(alignment: .top) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(program.name.components(separatedBy: " — ").first ?? program.name)
                         .font(VFont.headline)
                         .foregroundStyle(VColor.textPrimary)
                         .multilineTextAlignment(.leading)
-                    Text("\(program.daysPerWeek) days / week · \(profile.level)")
+                    Text("\(program.daysPerWeek) days a week · \(profile.level)")
                         .font(VFont.secondary)
                         .foregroundStyle(VColor.textSecondary)
                 }
-                Spacer()
+                Spacer(minLength: Space.xs)
                 if isCurrent {
-                    Chip(text: "Current", tint: VColor.accentText, fill: VColor.accentSoft)
+                    Label("Current", systemImage: Icon.check)
+                        .font(VFont.secondaryEmphasized)
+                        .foregroundStyle(VColor.accentText)
                 } else if matchesSchedule {
-                    Chip(text: "Matches your schedule", tint: VColor.success, fill: VColor.successSoft)
+                    Label("Fits your schedule", systemImage: "calendar")
+                        .font(VFont.fieldCaption)
+                        .foregroundStyle(VColor.textSecondary)
                 }
             }
             WeekBar(trainingDays: profile.trainingDays)
             HStack {
                 Text(uniqueNames(program).joined(separator: " · "))
-                    .font(VFont.caption)
+                    .font(VFont.fieldCaption)
                     .foregroundStyle(VColor.textSecondary)
-                    .lineLimit(1)
-                Spacer()
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: Space.xs)
                 Image(systemName: Icon.chevron)
                     .font(.system(.footnote, weight: .semibold))
                     .foregroundStyle(VColor.textTertiary)
             }
         }
-        .card()
-        .overlay {
-            if isCurrent {
-                RoundedRectangle(cornerRadius: Radius.lg, style: .continuous).strokeBorder(VColor.accentText, lineWidth: 2)
-            }
-        }
+        .padding(.vertical, Space.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 
@@ -222,7 +231,7 @@ private struct WeekBar: View {
         HStack(spacing: 4) {
             ForEach(0..<7, id: \.self) { day in
                 Capsule()
-                    .fill(trainingDays.contains(day) ? VColor.accentText : VColor.surfaceSunken)
+                    .fill(trainingDays.contains(day) ? VColor.accentText : VColor.track)
                     .frame(height: 6)
             }
         }
@@ -248,40 +257,26 @@ struct ProgramDetailView: View {
     var body: some View {
         ZStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Space.lg) {
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(profile.level)
-                            .font(VFont.sectionHeading)
-                            .foregroundStyle(VColor.textSecondary)
-                        Text(program.name.components(separatedBy: " — ").first ?? program.name)
-                            .font(VFont.largeTitle)
-                            .foregroundStyle(VColor.textPrimary)
-                        Text(profile.blurb)
-                            .font(VFont.body)
-                            .foregroundStyle(VColor.textSecondary)
-                    }
-
-                    HStack(spacing: Space.sm) {
-                        MetricCard(label: "Days", value: "\(program.daysPerWeek)")
-                        MetricCard(label: "Avg session", value: "\(averageMinutes) min")
-                        MetricCard(label: "Sets / week", value: "\(program.workouts.reduce(0) { $0 + $1.totalSets })")
-                    }
-
+                VStack(alignment: .leading, spacing: 0) {
+                    hero
                     schedule
                     workouts
-
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        Text("Why this program").font(VFont.headline).foregroundStyle(VColor.textPrimary)
-                        ForEach(profile.reasons, id: \.self) { reason in
-                            Label(reason, systemImage: "checkmark")
-                                .font(VFont.secondary)
-                                .foregroundStyle(VColor.textSecondary)
+                    CanvasSection("Why this program") {
+                        VStack(alignment: .leading, spacing: Space.sm) {
+                            ForEach(profile.reasons, id: \.self) { reason in
+                                Label {
+                                    Text(reason).fixedSize(horizontal: false, vertical: true)
+                                } icon: {
+                                    Image(systemName: Icon.check).foregroundStyle(VColor.accentText)
+                                }
+                                .font(VFont.body)
+                                .foregroundStyle(VColor.textPrimary)
+                            }
                         }
+                        .padding(.top, Space.xxs)
                     }
-                    .card()
                 }
-                .padding(.horizontal, Space.gutter)
-                .padding(.bottom, 120)
+                .padding(.bottom, Space.xl)
             }
             .screenBackground()
             .safeAreaInset(edge: .bottom) {
@@ -291,9 +286,9 @@ struct ProgramDetailView: View {
                             .font(VFont.bodyEmphasized)
                             .foregroundStyle(VColor.accentText)
                             .frame(maxWidth: .infinity, minHeight: Size.buttonHeight)
-                            .background(VColor.accentSoft, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                     } else {
-                        PrimaryButton("Switch to this program") { confirming = true }
+                        Button("Switch to this program") { confirming = true }
+                            .buttonStyle(.accentCapsule)
                     }
                 }
                 .padding(.horizontal, Space.gutter)
@@ -321,6 +316,38 @@ struct ProgramDetailView: View {
         .sensoryFeedback(.success, trigger: switched)
     }
 
+    /// Training field: level as the category label, the program name at
+    /// large-title size, the pitch, then days · minutes · sets in one line.
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Label(profile.level, systemImage: Icon.train)
+                .font(VFont.secondaryEmphasized)
+                .foregroundStyle(VColor.inkTraining)
+            Text(program.name.components(separatedBy: " — ").first ?? program.name)
+                .font(VFont.largeTitle)
+                .foregroundStyle(VColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, 6)
+            Text(profile.blurb)
+                .font(VFont.secondary)
+                .foregroundStyle(VColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+            CanvasStatLine(stats: [
+                .init(value: "\(program.daysPerWeek)", label: "days"),
+                .init(value: "~\(averageMinutes)", label: "min a session"),
+                .init(value: "\(program.workouts.reduce(0) { $0 + $1.totalSets })", label: "sets a week")
+            ])
+            .padding(.top, Space.md)
+        }
+        .padding(.horizontal, Space.fieldInset)
+        .padding(.top, Space.xs)
+        .padding(.bottom, Space.fieldVertical)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fieldHeroBackground(VColor.fieldTraining)
+    }
+
     private var averageMinutes: Int {
         guard !program.workouts.isEmpty else { return 0 }
         return program.workouts.reduce(0) { $0 + $1.estimatedMinutes(catalog: model.catalog) } / program.workouts.count
@@ -328,8 +355,7 @@ struct ProgramDetailView: View {
 
     /// Mon–Sun with each training day labelled; days pop in one after another.
     private var schedule: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            Text("Your week").font(VFont.headline).foregroundStyle(VColor.textPrimary)
+        CanvasSection("Your week", showsTopRule: false) {
             HStack(spacing: 6) {
                 ForEach(0..<7, id: \.self) { day in
                     let slot = profile.trainingDays.firstIndex(of: day)
@@ -342,7 +368,7 @@ struct ProgramDetailView: View {
                             .foregroundStyle(slot == nil ? VColor.textTertiary : VColor.accentText)
                             .frame(maxWidth: .infinity, minHeight: 62)
                             .padding(.horizontal, 2)
-                            .background(slot == nil ? VColor.surfaceSunken : VColor.accentSoft,
+                            .background(slot == nil ? VColor.quietFill : VColor.fieldTraining,
                                         in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
                             .scaleEffect(scheduleShown ? 1 : 0.6)
                             .opacity(scheduleShown ? 1 : 0)
@@ -351,17 +377,15 @@ struct ProgramDetailView: View {
                     }
                 }
             }
-        }
-        .card()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Trains " + profile.trainingDays.enumerated().map { index, day in
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Trains " + profile.trainingDays.enumerated().map { index, day in
             "\(Self.weekdays[day]): \(program.workouts[safe: index]?.name ?? "")"
         }.joined(separator: ", "))
+        }
     }
 
     private var workouts: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader("Workouts")
+        CanvasSection("Workouts") {
             VStack(spacing: 0) {
                 ForEach(Array(program.workouts.enumerated()), id: \.element.id) { index, template in
                     let isOpen = expanded == template.id
@@ -373,10 +397,10 @@ struct ProgramDetailView: View {
                         } label: {
                             HStack(spacing: Space.sm) {
                                 Text("\(index + 1)")
-                                    .font(VFont.secondaryEmphasized)
+                                    .font(VFont.bodyEmphasized.monospacedDigit())
                                     .foregroundStyle(VColor.accentText)
-                                    .frame(width: 36, height: 36)
-                                    .background(VColor.accentSoft, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                                    .frame(minWidth: Space.lg, alignment: .leading)
+                                    .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(template.name).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
                                     Text("\(template.exercises.count) exercises · ~\(template.estimatedMinutes(catalog: model.catalog)) min")
@@ -389,7 +413,8 @@ struct ProgramDetailView: View {
                                     .foregroundStyle(VColor.textTertiary)
                                     .rotationEffect(.degrees(isOpen ? 90 : 0))
                             }
-                            .padding(Space.md)
+                            .padding(.vertical, Space.sm)
+                            .frame(minHeight: Size.minTouch)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -414,17 +439,15 @@ struct ProgramDetailView: View {
                                     }
                                 }
                             }
-                            .padding(.leading, 64)
-                            .padding(.trailing, Space.md)
+                            .padding(.leading, Space.lg + Space.sm)
                             .padding(.bottom, Space.sm)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
                     .clipped()
-                    if index < program.workouts.count - 1 { Hairline(leading: Space.md) }
+                    if index < program.workouts.count - 1 { Hairline() }
                 }
             }
-            .card(padding: 0)
             .sensoryFeedback(.selection, trigger: expanded)
         }
     }

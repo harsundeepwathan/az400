@@ -52,7 +52,7 @@ struct CoachView: View {
             .screenBackground()
             .navigationTitle("Coach")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.foregroundStyle(VColor.accentText) } }
         }
     }
 }
@@ -105,7 +105,7 @@ struct RecommendationsView: View {
                 .padding(Space.gutter)
             }
             .screenBackground()
-            .navigationTitle("Next Session")
+            .navigationTitle("Next session")
             .navigationBarTitleDisplayMode(.large)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(item: $adjusting) { rec in
@@ -142,7 +142,7 @@ private struct ProUpsell: View {
                 .font(VFont.secondary)
                 .foregroundStyle(VColor.textSecondary)
             Button("Unlock all recommendations") { model.presentPaywall(.progressionMoment) }
-                .buttonStyle(.primary)
+                .buttonStyle(.accentCapsule)
         }
         .card()
     }
@@ -168,13 +168,14 @@ struct AdjustTargetView: View {
                         minus: { weight = max(weight - increment, 0) }, plus: { weight += increment })
                 stepper(title: "reps", value: "\(reps)",
                         minus: { reps = max(reps - 1, 1) }, plus: { reps += 1 })
-                PrimaryButton("Use \(Format.weight(weight, unit: model.unit)) × \(reps)") {
+                Button("Use \(Format.weight(weight, unit: model.unit)) × \(reps)") {
                     model.setTarget(exerciseID: recommendation.exerciseID, weight: weight, reps: reps)
                     // Choosing a different target than recommended counts as declining it.
                     let matches = weight == recommendation.weight && reps == recommendation.reps
                     model.trackProgression(recommendation, accepted: matches)
                     dismiss()
                 }
+                .buttonStyle(.accentCapsule)
             }
             .padding(Space.gutter)
             .navigationTitle(model.catalog[recommendation.exerciseID]?.name ?? "Adjust")
@@ -191,16 +192,18 @@ struct AdjustTargetView: View {
     private func stepper(title: String, value: String, minus: @escaping () -> Void, plus: @escaping () -> Void) -> some View {
         HStack {
             Button(action: minus) { Image(systemName: "minus").frame(width: 56, height: 56) }
-                .buttonStyle(QuietButtonStyle(height: 56))
+                .buttonStyle(QuietCapsuleButtonStyle())
                 .frame(width: 64)
+                .accessibilityLabel("Decrease \(title)")
             VStack(spacing: 0) {
                 Text(value).font(VFont.metricHero).foregroundStyle(VColor.textPrimary).contentTransition(.numericText())
                 Text(title).font(VFont.caption).foregroundStyle(VColor.textSecondary)
             }
             .frame(maxWidth: .infinity)
             Button(action: plus) { Image(systemName: "plus").frame(width: 56, height: 56) }
-                .buttonStyle(QuietButtonStyle(height: 56))
+                .buttonStyle(QuietCapsuleButtonStyle())
                 .frame(width: 64)
+                .accessibilityLabel("Increase \(title)")
         }
         .sensoryFeedback(.selection, trigger: value)
     }

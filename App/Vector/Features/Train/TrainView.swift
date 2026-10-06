@@ -1,138 +1,163 @@
 import SwiftUI
 import VectorCore
 
-/// Program overview. The next workout is emphasized; the rest of the
-/// rotation is a compact vertical list (replacing the old carousel, which
-/// showed one workout at a time and hid the plan).
+/// Train tab ("Fields"). A training field runs under the status bar with the
+/// large title, the program menu and the next workout: its name at 34 pt,
+/// the program line, every exercise with its sets and load, and the one
+/// accent capsule ("Start Lower A"). Below it, on the open canvas: Routines
+/// (swipe for "Start now", context menu for Edit / Duplicate), the last
+/// three sessions, and a push row to the exercise library. No cards.
+///
+/// The screen is a plain `List` so routine rows get native swipe actions and
+/// context menus; every row draws its own hairline so spacing and rules
+/// match the canvas screens built on `ScrollView`.
 struct TrainView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var path = NavigationPath()
     @State private var editing: WorkoutTemplate?
     @State private var showsProgramBrowser = false
     @State private var showsProgramEditor = false
-    @State private var showsHistory = false
+
+    /// Pushes that aren't model values.
+    enum Route: Hashable {
+        case history, library
+    }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Space.section) {
-                    if let program = model.program {
-                        programHeader(program)
-                        if let next = program.nextWorkout {
-                            NextWorkoutCard(template: next)
-                        }
-                        VStack(alignment: .leading, spacing: Space.sm) {
-                            SectionHeader("Up next in rotation")
-                            VStack(spacing: 0) {
-                                let rest = Array(program.upcoming.dropFirst())
-                                ForEach(Array(rest.enumerated()), id: \.element.id) { index, template in
-                                    WorkoutRow(template: template, onEdit: { editing = template })
-                                    if index < rest.count - 1 { Hairline(leading: Space.md) }
-                                }
-                            }
-                            .card(padding: 0)
-                        }
-                    } else {
-                        EmptyStateView(symbol: "list.bullet.rectangle", title: "No program yet",
-                                       message: "Pick a program that matches your schedule, or build your own workout.",
-                                       actionTitle: "Browse Programs") { showsProgramBrowser = true }
-                    }
+        NavigationStack(path: $path) {
+            List {
+                TrainHero(path: $path,
+                          onBrowsePrograms: { showsProgramBrowser = true },
+                          onEditProgram: { showsProgramEditor = true },
+                          onCreateWorkout: createWorkout)
+                    .fieldRow(VColor.fieldTraining)
 
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        SectionHeader("My workouts")
-                        if model.customTemplates.isEmpty {
-                            Button {
-                                createWorkout()
-                            } label: {
-                                HStack(spacing: Space.sm) {
-                                    IconBadge(symbol: Icon.add)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Create a workout").font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                                        Text("Build a routine from 600+ exercises").font(VFont.secondary).foregroundStyle(VColor.textSecondary)
-                                    }
-                                    Spacer()
-                                }
-                                .card()
-                            }
-                            .buttonStyle(.pressable)
-                        } else {
-                            VStack(spacing: 0) {
-                                ForEach(Array(model.customTemplates.enumerated()), id: \.element.id) { index, template in
-                                    WorkoutRow(template: template, onEdit: { editing = template })
-                                    if index < model.customTemplates.count - 1 { Hairline(leading: Space.md) }
-                                }
-                            }
-                            .card(padding: 0)
-                        }
-                    }
-
-                    if !model.sessions.isEmpty {
-                        VStack(alignment: .leading, spacing: Space.sm) {
-                            SectionHeader("History", actionTitle: "See All") { showsHistory = true }
-                            VStack(spacing: 0) {
-                                let recent = Array(model.sessions.prefix(3))
-                                ForEach(Array(recent.enumerated()), id: \.element.id) { index, session in
-                                    NavigationLink(value: session) {
-                                        HStack {
-                                            SessionRow(session: session)
-                                            Image(systemName: Icon.chevron).font(.caption.weight(.semibold)).foregroundStyle(VColor.textTertiary)
-                                        }
-                                        .padding(.horizontal, Space.md)
-                                        .padding(.vertical, Space.sm)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    if index < recent.count - 1 { Hairline(leading: Space.md) }
-                                }
-                            }
-                            .card(padding: 0)
-                        }
-                    }
-
-                    HStack(spacing: Space.xs) {
-                        QuickActionButton(title: "Create Workout", symbol: "plus.square.on.square") { createWorkout() }
-                        QuickActionButton(title: "Browse Programs", symbol: "square.grid.2x2") { showsProgramBrowser = true }
-                        QuickActionButton(title: "Empty Workout", symbol: "bolt") { model.startEmptyWorkout() }
-                    }
-                }
-                .padding(.horizontal, Space.gutter)
-                .padding(.bottom, Space.xl)
+                routines
+                history
+                libraryRow
             }
-            .screenBackground()
-            .navigationTitle("Training")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Edit Program", systemImage: "slider.horizontal.3") { showsProgramEditor = true }
-                            .disabled(model.program == nil)
-                        Button("Browse Programs", systemImage: "square.grid.2x2") { showsProgramBrowser = true }
-                        Button("Create Workout", systemImage: "plus") { createWorkout() }
-                        Button("Workout History", systemImage: "clock.arrow.circlepath") { showsHistory = true }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .frame(width: Size.minTouch, height: Size.minTouch)
-                    }
-                    .accessibilityLabel("Training options")
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .environment(\.defaultMinListRowHeight, 0)
+            // The training field's colour behind the status bar and in the
+            // top overscroll; rows below carry their own ground.
+            .background {
+                VStack(spacing: 0) {
+                    VColor.fieldTraining.frame(height: 600)
+                    VColor.ground
                 }
+                .ignoresSafeArea()
             }
+            .toolbar(.hidden, for: .navigationBar)
+            .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: model.program?.nextIndex)
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
             .navigationDestination(for: WorkoutSession.self) { SessionDetailView(session: $0) }
-            .navigationDestination(isPresented: $showsHistory) { WorkoutHistoryView() }
+            .navigationDestination(for: ExerciseRoute.self) { route in
+                if let exercise = model.catalog[route.id] {
+                    ExerciseDetailScreen(exercise: exercise)
+                }
+            }
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .history: WorkoutHistoryView()
+                case .library: ExerciseLibraryView()
+                }
+            }
             .sheet(item: $editing) { TemplateEditorView(template: $0) }
             .sheet(isPresented: $showsProgramBrowser) { ProgramBrowserView() }
             .sheet(isPresented: $showsProgramEditor) { ProgramEditorView() }
         }
     }
 
-    private func programHeader(_ program: TrainingProgram) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(program.name)
-                .font(VFont.title3)
-                .foregroundStyle(VColor.textPrimary)
-            Text("\(program.workouts.count) workouts · \(program.subtitle)")
+    // MARK: Routines
+
+    private var allRoutines: [WorkoutTemplate] {
+        (model.program?.workouts ?? []) + model.customTemplates
+    }
+
+    @ViewBuilder private var routines: some View {
+        let items = allRoutines
+        CanvasSectionTitle("Routines", actionTitle: model.program == nil ? nil : "Edit") { showsProgramEditor = true }
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.top, Space.md)
+            .padding(.bottom, Space.xxs)
+            .canvasRow()
+
+        ForEach(Array(items.enumerated()), id: \.element.id) { index, template in
+            RoutineRow(template: template, showsRule: index > 0,
+                       open: { path.append(template) },
+                       onEdit: { editing = template })
+                .canvasRow()
+        }
+
+        CanvasTextAction(title: "New routine", symbol: Icon.add, action: createWorkout)
+            .padding(.horizontal, Space.fieldInset)
+            .overlay(alignment: .top) {
+                if !items.isEmpty { Hairline().padding(.horizontal, Space.fieldInset) }
+            }
+            .padding(.bottom, Space.md)
+            .canvasRow()
+            .accessibilityHint(model.canCreateRoutine ? "Creates a routine" : "You've reached the free routine limit. Opens Vector Pro.")
+    }
+
+    // MARK: History
+
+    @ViewBuilder private var history: some View {
+        let recent = Array(model.sessions.prefix(3))
+        CanvasSectionTitle("History", actionTitle: model.sessions.isEmpty && !model.hasHiddenHistory ? nil : "See all") {
+            path.append(Route.history)
+        }
+        .padding(.horizontal, Space.fieldInset)
+        .padding(.top, Space.md)
+        .padding(.bottom, Space.xxs)
+        .overlay(alignment: .top) { Hairline() }
+        .canvasRow()
+
+        if recent.isEmpty {
+            Text("Finished workouts appear here with every set you logged.")
                 .font(VFont.secondary)
                 .foregroundStyle(VColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Space.fieldInset)
+                .padding(.bottom, Space.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .canvasRow()
         }
-        .padding(.horizontal, Space.xxs)
+
+        ForEach(Array(recent.enumerated()), id: \.element.id) { index, session in
+            Button {
+                path.append(session)
+            } label: {
+                SessionRow(session: session, showsChevron: true)
+                    .overlay(alignment: .top) { if index > 0 { Hairline() } }
+                    .padding(.horizontal, Space.fieldInset)
+            }
+            .padding(.bottom, index == recent.count - 1 ? Space.md : 0)
+            .canvasRow()
+        }
+    }
+
+    // MARK: Library
+
+    private var libraryRow: some View {
+        Button {
+            path.append(Route.library)
+        } label: {
+            HStack(spacing: Space.sm) {
+                Image(systemName: "book")
+                    .font(.system(.body))
+                    .foregroundStyle(VColor.textSecondary)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                CanvasRow(title: "Exercise library", subtitle: "Search by name, muscle or equipment", showsChevron: true)
+            }
+            .padding(.horizontal, Space.fieldInset)
+            .padding(.vertical, Space.xs)
+        }
+        .overlay(alignment: .top) { Hairline() }
+        .padding(.bottom, Space.xl)
+        .canvasRow()
     }
 
     private func createWorkout() {
@@ -144,107 +169,283 @@ struct TrainView: View {
     }
 }
 
-/// Hero card for the next workout in the rotation.
-private struct NextWorkoutCard: View {
-    var template: WorkoutTemplate
+// MARK: - Hero field
+
+/// The training field at the top of Train: large title and program menu,
+/// then the next workout (or the workout in progress, or a program prompt).
+private struct TrainHero: View {
+    @Binding var path: NavigationPath
+    var onBrowsePrograms: () -> Void
+    var onEditProgram: () -> Void
+    var onCreateWorkout: () -> Void
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let last = model.lastSession(for: template)
-        VStack(alignment: .leading, spacing: Space.md) {
-            NavigationLink(value: template) {
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    HStack {
-                        Chip(text: "Next", symbol: "arrow.right.circle.fill", tint: VColor.accentText, fill: VColor.accentSoft)
-                        Spacer()
-                        if let last {
-                            Text("Last: \(Format.shortDate(last.startedAt, calendar: model.calendar))")
-                                .font(VFont.caption)
-                                .foregroundStyle(VColor.textSecondary)
-                        }
-                    }
-                    Text(template.name)
-                        .font(VFont.largeTitle)
-                        .foregroundStyle(VColor.textPrimary)
-                    Text("\(template.exercises.count) exercises · ~\(template.estimatedMinutes(catalog: model.catalog)) min · \(template.totalSets) sets")
-                        .font(VFont.secondary)
-                        .foregroundStyle(VColor.textSecondary)
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(template.exercises.prefix(4)) { item in
-                            HStack {
-                                Text(model.catalog[item.exerciseID]?.name ?? item.exerciseID)
-                                    .font(VFont.secondary)
-                                    .foregroundStyle(VColor.textPrimary)
-                                Spacer()
-                                Text("\(item.sets) × \(item.repRange.label)")
-                                    .font(VFont.dataSecondary)
-                                    .foregroundStyle(VColor.textSecondary)
-                            }
-                        }
-                        if template.exercises.count > 4 {
-                            Text("+\(template.exercises.count - 4) more")
-                                .font(VFont.caption)
-                                .foregroundStyle(VColor.textTertiary)
-                        }
-                    }
-                    .padding(.top, Space.xs)
+        VStack(alignment: .leading, spacing: 0) {
+            CanvasLargeTitle("Train") { menu }
+            Group {
+                if let workout = model.activeWorkout {
+                    inProgress(workout)
+                } else if let next = model.nextWorkout {
+                    upNext(next)
+                } else {
+                    noProgram
                 }
             }
-            .buttonStyle(.pressable)
-
-            PrimaryButton("Start \(template.name)", symbol: "play.fill") { model.startWorkout(template) }
+            .padding(.top, Space.md)
         }
-        .card(padding: Space.lg)
+        .padding(.horizontal, Space.fieldInset)
+        .padding(.top, Space.xxs)
+        .padding(.bottom, Space.fieldVertical)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var menu: some View {
+        Menu {
+            Button("Browse programs", systemImage: "square.grid.2x2", action: onBrowsePrograms)
+            Button("Edit program", systemImage: "slider.horizontal.3", action: onEditProgram)
+                .disabled(model.program == nil)
+            Divider()
+            Button("New routine", systemImage: "plus", action: onCreateWorkout)
+            Button("Empty workout", systemImage: "bolt") { model.startEmptyWorkout() }
+            Button("Workout history", systemImage: "clock.arrow.circlepath") { path.append(TrainView.Route.history) }
+        } label: {
+            CanvasMoreMenuLabel()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Program options")
+    }
+
+    private func category(_ title: String) -> some View {
+        Label(title, systemImage: Icon.train)
+            .font(VFont.secondaryEmphasized)
+            .foregroundStyle(VColor.inkTraining)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: Next workout
+
+    private func upNext(_ template: WorkoutTemplate) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            category("Next workout")
+            Text(template.name)
+                .font(VFont.largeTitle)
+                .foregroundStyle(VColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            Text(programLine(template))
+                .font(VFont.secondary.monospacedDigit())
+                .foregroundStyle(VColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+
+            VStack(spacing: 0) {
+                ForEach(Array(template.exercises.enumerated()), id: \.element.id) { index, item in
+                    exerciseRow(item, index: index)
+                        .overlay(alignment: .top) {
+                            // Inset to the text edge, past the thumbnail.
+                            if index > 0 { Hairline(leading: ExerciseThumbnail.rowSize + Space.sm) }
+                        }
+                }
+            }
+            .padding(.top, Space.sm)
+
+            Button {
+                model.startWorkout(template)
+            } label: {
+                Label("Start \(template.name)", systemImage: "play.fill")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .buttonStyle(.accentCapsule)
+            .padding(.top, 18)
+        }
+    }
+
+    /// "Upper / Lower, 4 days a week · ~41 min"
+    private func programLine(_ template: WorkoutTemplate) -> String {
+        var parts: [String] = []
+        if let program = model.program, let name = model.programShortName {
+            parts.append("\(name), \(program.daysPerWeek) days a week")
+        }
+        parts.append("~\(template.estimatedMinutes(catalog: model.catalog)) min")
+        return parts.joined(separator: " · ")
+    }
+
+    private func exerciseRow(_ item: ExercisePrescription, index: Int) -> some View {
+        let exercise = model.catalog[item.exerciseID]
+        let name = exercise?.name ?? item.exerciseID
+        let muscles = exercise?.primaryMuscles.map(\.displayName).joined(separator: ", ")
+        let load = loadCaption(item, index: index, exercise: exercise)
+        return Button {
+            path.append(ExerciseRoute(id: item.exerciseID))
+        } label: {
+            HStack(spacing: Space.sm) {
+                if let exercise {
+                    ExerciseThumbnail(exercise: exercise, size: ExerciseThumbnail.rowSize)
+                } else {
+                    ExerciseThumbnailPlaceholder(size: ExerciseThumbnail.rowSize)
+                }
+                CanvasRow(title: name, subtitle: muscles, value: "\(item.sets) × \(item.repRange.label)",
+                          valueCaption: load?.text, minHeight: 50)
+            }
+            .padding(.vertical, Space.xxs)
+        }
+        .buttonStyle(.pressable)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(name)
+        .accessibilityValue("\(item.sets) sets of \(item.repRange.label) reps" + (load.map { ", \($0.spoken)" } ?? ""))
+        .accessibilityHint("Shows the exercise")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    /// The load under "3 × 8": the recommended or chosen weight, last
+    /// session's weight on the free tier (labelled as such), or bodyweight.
+    private func loadCaption(_ item: ExercisePrescription, index: Int, exercise: Exercise?) -> (text: String, spoken: String)? {
+        if let load = model.plannedLoad(for: item, at: index) {
+            let weight = Format.weight(load.weight, unit: model.unit)
+            switch load.source {
+            case .chosen: return (weight, "your target \(weight)")
+            case .recommended: return (weight, "recommended \(weight)")
+            case .lastSession: return ("Last \(weight)", "last time \(weight)")
+            }
+        }
+        if exercise?.equipment == .bodyweight { return ("Bodyweight", "bodyweight") }
+        return nil
+    }
+
+    // MARK: In progress
+
+    private func inProgress(_ workout: ActiveWorkout) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            category("Workout in progress")
+            Text(workout.session.name)
+                .font(VFont.largeTitle)
+                .foregroundStyle(VColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            Text("\(workout.completedSets) of \(workout.totalSets) sets done")
+                .font(VFont.secondary.monospacedDigit())
+                .foregroundStyle(VColor.textSecondary)
+                .padding(.top, 2)
+            LinearProgress(progress: workout.progress, tint: VColor.accent, height: 5)
+                .padding(.top, Space.sm)
+            Button {
+                model.resumeWorkout()
+            } label: {
+                Label("Resume workout", systemImage: "play.fill")
+            }
+            .buttonStyle(.accentCapsule)
+            .padding(.top, 18)
+        }
+    }
+
+    // MARK: No program
+
+    private var noProgram: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            category("Program")
+            Text("Pick a program")
+                .font(VFont.largeTitle)
+                .foregroundStyle(VColor.textPrimary)
+                .padding(.top, 6)
+            Text("Programs are matched to your goal and equipment. Or build your own routine.")
+                .font(VFont.secondary)
+                .foregroundStyle(VColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+            Button(action: onBrowsePrograms) {
+                Label("Browse programs", systemImage: "square.grid.2x2")
+            }
+            .buttonStyle(.accentCapsule)
+            .padding(.top, 18)
+            AdaptiveStack(spacing: Space.xs) {
+                Button("Build your own", action: onCreateWorkout)
+                    .buttonStyle(.quietCapsule)
+                Button("Empty workout") { model.startEmptyWorkout() }
+                    .buttonStyle(.quietCapsule)
+            }
+            .padding(.top, Space.xs)
+        }
     }
 }
 
-/// Compact rotation row with swipe actions and a context menu.
-struct WorkoutRow: View {
+// MARK: - Routine row
+
+/// One routine on the canvas: name, "6 exercises · ~41 min", then "Next" or
+/// the last date it was trained. Swipe for "Start now"; long-press for
+/// Start, Make next, Edit, Duplicate and Delete.
+struct RoutineRow: View {
     var template: WorkoutTemplate
+    var showsRule: Bool
+    var open: () -> Void
     var onEdit: () -> Void
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let last = model.lastSession(for: template)
-        NavigationLink(value: template) {
-            HStack(spacing: Space.sm) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(template.name)
-                        .font(VFont.bodyEmphasized)
-                        .foregroundStyle(VColor.textPrimary)
-                    Text("\(template.exercises.count) exercises · ~\(template.estimatedMinutes(catalog: model.catalog)) min")
-                        .font(VFont.secondary)
-                        .foregroundStyle(VColor.textSecondary)
-                }
-                Spacer()
-                if let last {
-                    Text("Last: \(Format.shortDate(last.startedAt, calendar: model.calendar))")
-                        .font(VFont.caption)
-                        .foregroundStyle(VColor.textTertiary)
-                }
-                Image(systemName: Icon.chevron)
-                    .font(.system(.footnote, weight: .semibold))
-                    .foregroundStyle(VColor.textTertiary)
-            }
-            .padding(.horizontal, Space.md)
-            .padding(.vertical, Space.sm)
-            .frame(minHeight: 60)
-            .contentShape(Rectangle())
+        Button(action: open) {
+            CanvasRow(title: template.name,
+                      subtitle: "\(template.exercises.count) exercises · ~\(template.estimatedMinutes(catalog: model.catalog)) min",
+                      detail: trailing, showsChevron: true)
+                .overlay(alignment: .top) { if showsRule { Hairline() } }
+                .padding(.horizontal, Space.fieldInset)
         }
-        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button {
+                model.startWorkout(template)
+            } label: {
+                Label("Start now", systemImage: "play.fill")
+            }
+            .tint(VColor.accent)
+        }
         .contextMenu {
-            Button("Start Workout", systemImage: "play.fill") { model.startWorkout(template) }
-            if model.isProgramTemplate(template) {
-                Button("Make Next", systemImage: "arrow.uturn.up") { withAnimation(Motion.smooth) { model.makeNext(template) } }
+            Button("Start workout", systemImage: "play.fill") { model.startWorkout(template) }
+            if model.isProgramTemplate(template), model.nextWorkout?.id != template.id {
+                Button("Make next", systemImage: "arrow.uturn.up") {
+                    withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) { model.makeNext(template) }
+                }
             }
             Button("Edit", systemImage: "pencil", action: onEdit)
             Button("Duplicate", systemImage: "plus.square.on.square") { model.duplicate(template) }
             Divider()
-            Button("Delete", systemImage: "trash", role: .destructive) { withAnimation { model.deleteTemplate(template) } }
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) { model.deleteTemplate(template) }
+            }
         }
+    }
+
+    private var trailing: String? {
+        if model.nextWorkout?.id == template.id { return "Next" }
+        return model.lastSession(for: template).map { Format.shortDate($0.startedAt, calendar: model.calendar) }
     }
 }
 
-#Preview {
+// MARK: - List row helpers
+
+private extension View {
+    /// A full-bleed row on the plain ground: no insets, no system separator.
+    func canvasRow() -> some View {
+        fieldRow(VColor.ground)
+    }
+
+    /// A full-bleed row with its own background (a field or the ground).
+    func fieldRow(_ background: Color) -> some View {
+        listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(background)
+    }
+}
+
+#Preview("Train") {
     TrainView().environment(AppModel.preview())
+}
+
+#Preview("Train · Dark · Pro") {
+    TrainView().environment(AppModel.preview(pro: true)).preferredColorScheme(.dark)
+}
+
+#Preview("Train · Empty") {
+    TrainView().environment(AppModel.preview(empty: true))
 }
