@@ -25,6 +25,7 @@ backend/api/                 Node + PostgreSQL: Sign in with Apple, AI meal scan
 tools/import_exercises.py    Regenerates the bundled exercise library from free-exercise-db
 docs/                        Audit & IA, design system, product/AI/monetization, Apple ecosystem
 .claude/skills/ui-ux-pro-max/ UI/UX Pro Max skill for Claude Code (MIT, vendored)
+.claude/agents/              The team: 18 specialist subagents (see docs/06-team.md)
 ```
 
 ## Getting started
@@ -86,3 +87,4 @@ Vector's own tokens in `docs/02-design-system.md` take precedence over the skill
 3. [Workouts, AI & monetization rules](docs/03-product-ai-monetization.md)
 4. [Apple ecosystem](docs/04-apple-ecosystem.md)
 5. [Launch audit, roadmap and P0 status](docs/05-launch-audit.md)
+6. [The team: 18 Claude Code subagents](docs/06-team.md)
