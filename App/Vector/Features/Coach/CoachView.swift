@@ -16,6 +16,10 @@ struct CoachView: View {
                         .font(VFont.secondary)
                         .foregroundStyle(VColor.textSecondary)
 
+                    if model.canShowCoachSummary {
+                        CoachSummaryCard()
+                    }
+
                     if model.isComputingInsights && model.insights.isEmpty {
                         ForEach(0..<2, id: \.self) { _ in
                             InsightCard(insight: CoachInsight(id: "placeholder", category: .training, tone: .neutral,

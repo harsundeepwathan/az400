@@ -3,7 +3,7 @@ import VectorCore
 
 /// "Am I actually progressing?" Volume is shown with context (vs the
 /// previous period), next to frequency, strength (estimated 1RM), body
-/// weight trend, PRs and per-muscle weekly sets.
+/// weight trend, PRs and per-muscle weekly sets, then calories and protein.
 struct ProgressDashboardView: View {
     @Environment(AppModel.self) private var model
     @State private var range: TimeRange = .month
@@ -30,6 +30,9 @@ struct ProgressDashboardView: View {
                         personalRecords
                         muscleBalance
                     }
+
+                    // Shown with or without workouts; hides itself until a meal is logged.
+                    NutritionChartsSection()
                 }
                 .padding(.horizontal, Space.gutter)
                 .padding(.bottom, Space.xl)
