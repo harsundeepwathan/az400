@@ -8,6 +8,7 @@ struct ProfileView: View {
     @State private var exportURL: URL?
     @State private var healthConnected = false
     @AppStorage(CloudSyncPreference.key) private var iCloudSync = true
+    @AppStorage("logsEffort") private var logsEffort = true
 
     var body: some View {
         NavigationStack {
@@ -70,6 +71,7 @@ struct ProfileView: View {
                             ForEach(EquipmentAccess.allCases) { Text($0.title).tag($0) }
                         }
                         Toggle("Rest timer notifications", isOn: binding(\.restTimerNotifications))
+                        Toggle("Log effort (RPE) after sets", isOn: $logsEffort)
                         if !profile.avoidedExerciseIDs.isEmpty {
                             NavigationLink("Avoided exercises (\(profile.avoidedExerciseIDs.count))") { AvoidedExercisesView() }
                         }

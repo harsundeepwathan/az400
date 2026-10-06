@@ -169,6 +169,13 @@ struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var muscle: MuscleGroup?
+    @State private var showsCreate = false
+
+    private var isBrowsing: Bool { query.trimmingCharacters(in: .whitespaces).isEmpty && muscle == nil }
+
+    private func available(_ exercises: [Exercise]) -> [Exercise] {
+        exercises.filter { !excluded.contains($0.id) }
+    }
 
     private var results: [Exercise] {
         model.catalog.search(query).filter { exercise in
@@ -177,6 +184,8 @@ struct ExercisePickerView: View {
     }
 
     var body: some View {
+        // Computed once per render, not per row.
+        let logged = Set(model.sessions.flatMap { $0.exercises.map(\.exerciseID) })
         NavigationStack {
             List {
                 Section {
@@ -190,36 +199,94 @@ struct ExercisePickerView: View {
                     .listRowInsets(EdgeInsets(top: 0, leading: Space.md, bottom: 0, trailing: Space.md))
                     .listRowBackground(Color.clear)
                 }
-                ForEach(results.prefix(150)) { exercise in
-                    Button {
-                        onPick(exercise)
-                        dismiss()
-                    } label: {
-                        HStack(spacing: Space.sm) {
-                            ExerciseThumbnail(exercise: exercise, size: 44)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(exercise.name).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                                Text(exercise.primaryMuscles.map(\.displayName).joined(separator: ", ") + " · " + exercise.equipment.displayName)
-                                    .font(VFont.secondary)
-                                    .foregroundStyle(VColor.textSecondary)
-                            }
-                            Spacer()
-                            if model.history(for: exercise.id).isEmpty == false {
-                                Image(systemName: "clock.arrow.circlepath")
-                                    .foregroundStyle(VColor.textTertiary)
-                                    .accessibilityLabel("Logged before")
-                            }
-                        }
+                if isBrowsing {
+                    let favorites = available(model.favoriteExercises)
+                    if !favorites.isEmpty {
+                        Section("Favourites") { ForEach(favorites) { row($0, logged: logged) } }
+                    }
+                    let recent = available(model.recentExerciseIDs.compactMap { model.catalog[$0] })
+                    if !recent.isEmpty {
+                        Section("Recent") { ForEach(recent.prefix(8)) { row($0, logged: logged) } }
+                    }
+                    let custom = available(model.customExercises)
+                    if !custom.isEmpty {
+                        Section("My Exercises") { ForEach(custom) { row($0, logged: logged) } }
                     }
                 }
+                Section {
+                    ForEach(results.prefix(150)) { row($0, logged: logged) }
+                } header: {
+                    if isBrowsing { Text("All Exercises") }
+                }
                 if results.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                    ContentUnavailableView {
+                        Label("No Results for \u{201C}\(query)\u{201D}", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Create it as your own exercise. Its history and progression work like any other.")
+                    } actions: {
+                        Button("Create \u{201C}\(query)\u{201D}") { showsCreate = true }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search exercises")
             .navigationTitle("Add Exercise")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("New Exercise", systemImage: "plus") { showsCreate = true }
+                }
+            }
+            .sheet(isPresented: $showsCreate) {
+                CustomExerciseSheet(initialName: query) { exercise in
+                    onPick(exercise)
+                    dismiss()
+                }
+            }
+        }
+    }
+
+    private func row(_ exercise: Exercise, logged: Set<String>) -> some View {
+        Button {
+            onPick(exercise)
+            dismiss()
+        } label: {
+            HStack(spacing: Space.sm) {
+                ExerciseThumbnail(exercise: exercise, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.name).font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
+                    Text(exercise.primaryMuscles.map(\.displayName).joined(separator: ", ") + " · " + exercise.equipment.displayName)
+                        .font(VFont.secondary)
+                        .foregroundStyle(VColor.textSecondary)
+                }
+                Spacer()
+                if model.isFavorite(exerciseID: exercise.id) {
+                    Image(systemName: "star.fill")
+                        .foregroundStyle(VColor.warning)
+                        .accessibilityLabel("Favourite")
+                }
+                if logged.contains(exercise.id) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .foregroundStyle(VColor.textTertiary)
+                        .accessibilityLabel("Logged before")
+                }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            let isFavorite = model.isFavorite(exerciseID: exercise.id)
+            Button(isFavorite ? "Unfavourite" : "Favourite", systemImage: isFavorite ? "star.slash" : "star") {
+                model.toggleFavorite(exerciseID: exercise.id)
+            }
+            .tint(VColor.warning)
+        }
+        .swipeActions(edge: .trailing) {
+            if model.canDelete(exercise) {
+                Button("Delete", systemImage: "trash", role: .destructive) { model.deleteCustomExercise(exercise) }
+            }
+        }
+        .accessibilityAction(named: model.isFavorite(exerciseID: exercise.id) ? "Remove from favourites" : "Add to favourites") {
+            model.toggleFavorite(exerciseID: exercise.id)
         }
     }
 
@@ -231,11 +298,70 @@ struct ExercisePickerView: View {
                 .font(VFont.captionEmphasized)
                 .foregroundStyle(muscle == value ? VColor.textOnAccent : VColor.textPrimary)
                 .padding(.horizontal, Space.sm)
-                .frame(minHeight: 32)
+                .frame(minHeight: Size.minTouch)
                 .background(muscle == value ? VColor.accent : VColor.surfaceSunken, in: Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(muscle == value ? .isSelected : [])
+    }
+}
+
+/// Create an exercise that isn't in the library. Three questions, sensible defaults.
+struct CustomExerciseSheet: View {
+    var initialName = ""
+    var onCreate: (Exercise) -> Void
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var muscle: MuscleGroup = .chest
+    @State private var equipment: Equipment = .dumbbell
+    @State private var isCompound = false
+
+    private var trimmed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var duplicate: Exercise? {
+        model.catalog.all.first { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $name)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
+                } footer: {
+                    if let duplicate {
+                        Text("\(duplicate.name) is already in the library.")
+                    }
+                }
+                Section {
+                    Picker("Main muscle", selection: $muscle) {
+                        ForEach(MuscleGroup.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    Picker("Equipment", selection: $equipment) {
+                        ForEach(Equipment.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    Toggle("Compound movement", isOn: $isCompound)
+                } footer: {
+                    Text(isCompound ? "Compound lifts default to 2:00 rest." : "Isolation exercises default to 1:30 rest. You can change rest during a workout.")
+                }
+            }
+            .navigationTitle("New Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        let exercise = model.addCustomExercise(name: trimmed, muscle: muscle, equipment: equipment, isCompound: isCompound)
+                        dismiss()
+                        onCreate(exercise)
+                    }
+                    .disabled(trimmed.isEmpty || duplicate != nil)
+                }
+            }
+            .onAppear { if name.isEmpty { name = initialName } }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

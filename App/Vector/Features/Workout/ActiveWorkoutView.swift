@@ -85,7 +85,7 @@ struct ActiveWorkoutView: View {
                 }
                 .sheet(item: Binding(get: { restEditorIndex.map(RestEditorContext.init) }, set: { restEditorIndex = $0?.index })) { context in
                     RestDurationPicker(index: context.index)
-                        .presentationDetents([.height(300)])
+                        .presentationDetents([.height(320)])
                 }
                 .confirmationDialog(finishTitle(workout), isPresented: $showsFinishDialog, titleVisibility: .visible) {
                     if workout.completedSets > 0 {
@@ -278,36 +278,67 @@ private struct RestDurationPicker: View {
     var index: Int
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    private let options = [30, 45, 60, 75, 90, 120, 150, 180, 240, 300]
+    @State private var custom: Int?
+    private static let presets = [30, 60, 90, 120, 180]
 
     var body: some View {
-        let current = model.activeWorkout?.session.exercises[safe: index]?.restSeconds ?? 90
+        let log = model.activeWorkout?.session.exercises[safe: index]
+        let current = log?.restSeconds ?? 90
+        let name = log.flatMap { model.catalog[$0.exerciseID]?.name } ?? "this exercise"
         NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.xs), count: 5), spacing: Space.xs) {
-                    ForEach(options, id: \.self) { seconds in
-                        Button(Format.clock(TimeInterval(seconds))) {
-                            model.updateWorkout { $0.setRest(seconds, forExercise: index) }
-                            dismiss()
+            VStack(alignment: .leading, spacing: Space.md) {
+                HStack(spacing: Space.xs) {
+                    ForEach(Self.presets, id: \.self) { seconds in
+                        Button {
+                            choose(seconds)
+                        } label: {
+                            Text(Format.clock(TimeInterval(seconds)))
+                                .font(VFont.bodyEmphasized.monospacedDigit())
+                                .foregroundStyle(seconds == current ? VColor.textOnAccent : VColor.textPrimary)
+                                .frame(maxWidth: .infinity, minHeight: Size.buttonHeight)
+                                .background(seconds == current ? VColor.accent : VColor.surfaceSunken,
+                                            in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
                         }
-                        .buttonStyle(QuietButtonStyle())
-                        .overlay {
-                            if seconds == current {
-                                RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
-                                    .strokeBorder(VColor.accentText, lineWidth: 2)
-                            }
-                        }
+                        .buttonStyle(.pressable)
+                        .accessibilityLabel(Format.duration(TimeInterval(seconds)))
+                        .accessibilityAddTraits(seconds == current ? .isSelected : [])
                     }
                 }
-                .padding(Space.gutter)
-                Text("Saved for this exercise in this workout. Default rest is set per exercise.")
+                HStack {
+                    Text("Custom").font(VFont.body).foregroundStyle(VColor.textPrimary)
+                    Spacer()
+                    Stepper(value: Binding(get: { custom ?? current }, set: { custom = $0 }), in: 0...600, step: 15) {
+                        Text(Format.clock(TimeInterval(custom ?? current)))
+                            .font(VFont.bodyEmphasized.monospacedDigit())
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .fixedSize()
+                }
+                .padding(.horizontal, Space.md)
+                .frame(minHeight: Size.buttonHeight)
+                .background(VColor.surface, in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
+                Text("Remembered for \(name). Rest starts automatically after each working set, not after warm-ups.")
                     .font(VFont.caption)
                     .foregroundStyle(VColor.textSecondary)
-                    .padding(.horizontal, Space.gutter)
+                Spacer(minLength: 0)
             }
+            .padding(Space.gutter)
             .navigationTitle("Rest Time")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        if let custom { choose(custom) } else { dismiss() }
+                    }
+                }
+            }
         }
+        .sensoryFeedback(.selection, trigger: custom)
+    }
+
+    private func choose(_ seconds: Int) {
+        model.setRest(seconds, forExercise: index)
+        dismiss()
     }
 }
 

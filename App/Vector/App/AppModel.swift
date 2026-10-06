@@ -14,7 +14,14 @@ import WidgetKit
 final class AppModel {
     // MARK: State
 
-    private(set) var data: AppData
+    private(set) var data: AppData {
+        didSet {
+            sessionsCache = nil
+            nutritionCache = [:]
+            recentExercisesCache = nil
+            if oldValue.customExercises != data.customExercises { rebuildCatalog() }
+        }
+    }
     var selectedTab: AppTab = .today
     var sheet: RootSheet?
     var cover: RootCover?
@@ -29,7 +36,9 @@ final class AppModel {
 
     // MARK: Dependencies
 
-    let catalog: ExerciseCatalog
+    /// Built-in library plus the user's custom exercises.
+    private(set) var catalog: ExerciseCatalog
+    @ObservationIgnored private let baseCatalog: ExerciseCatalog
     let foods: FoodDatabase
     /// Nil when no meal-scan backend is configured; the scanner then says so
     /// instead of returning made-up results.
@@ -49,12 +58,17 @@ final class AppModel {
     @ObservationIgnored var now: () -> Date
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var insightTask: Task<Void, Never>?
+    // Derived-data caches, cleared whenever `data` changes. Getters still read
+    // `data` first so SwiftUI observation tracks the dependency.
+    @ObservationIgnored private var sessionsCache: (day: Date, value: [WorkoutSession])?
+    @ObservationIgnored private var nutritionCache: [Date: DailyNutrition] = [:]
+    @ObservationIgnored private var recentExercisesCache: [String]?
 
-    let analytics: AnalyticsEngine
+    private(set) var analytics: AnalyticsEngine
     let nutritionEngine: NutritionEngine
     let progression = ProgressionEngine()
-    let insightEngine: InsightEngine
-    let substitutions: ExerciseSubstitutionEngine
+    private(set) var insightEngine: InsightEngine
+    private(set) var substitutions: ExerciseSubstitutionEngine
     let policy: EntitlementPolicy
 
     init(
@@ -75,6 +89,7 @@ final class AppModel {
         self.remoteFoods = remoteFoods
         self.sync = sync
         self.catalog = catalog
+        self.baseCatalog = catalog
         self.foods = foods
         self.calendar = calendar
         self.notifications = notifications
@@ -87,6 +102,7 @@ final class AppModel {
         substitutions = ExerciseSubstitutionEngine(catalog: catalog)
         policy = EntitlementPolicy(calendar: calendar)
         data = (try? store.load()) ?? AppData()
+        rebuildCatalog()
         recomputeInsights(immediately: true)
         if data.activeWorkout != nil { cover = .workout }
     }
@@ -99,6 +115,13 @@ final class AppModel {
         return AppModel(store: InMemoryStore(data), recognizer: DemoMealRecognizer(latency: .milliseconds(1500)))
     }
     #endif
+
+    private func rebuildCatalog() {
+        catalog = baseCatalog.adding(data.customExercises ?? [])
+        analytics = AnalyticsEngine(catalog: catalog, calendar: calendar)
+        insightEngine = InsightEngine(catalog: catalog, calendar: calendar)
+        substitutions = ExerciseSubstitutionEngine(catalog: catalog)
+    }
 
     // MARK: Persistence
 
@@ -214,10 +237,24 @@ final class AppModel {
 
     /// Finished sessions, newest first, limited to the free history window.
     var sessions: [WorkoutSession] {
+        let all = data.sessions
+        let day = calendar.startOfDay(for: now())
+        if let sessionsCache, sessionsCache.day == day { return sessionsCache.value }
         let cutoff = policy.historyCutoff(tier: data.tier, now: now())
-        return data.sessions
+        let value = all
             .filter { $0.isFinished && (cutoff.map { cutoff in $0.startedAt >= cutoff } ?? true) }
             .sorted { $0.startedAt > $1.startedAt }
+        sessionsCache = (day, value)
+        return value
+    }
+
+    /// Exercises trained most recently, for the picker.
+    var recentExerciseIDs: [String] {
+        let all = data.sessions
+        if let recentExercisesCache { return recentExercisesCache }
+        let value = analytics.recentExerciseIDs(all, limit: 12).filter { catalog[$0] != nil }
+        recentExercisesCache = value
+        return value
     }
 
     var hasHiddenHistory: Bool {
@@ -286,8 +323,13 @@ final class AppModel {
     // MARK: Derived: nutrition
 
     func nutrition(on day: Date) -> DailyNutrition {
-        nutritionEngine.daily(data.foodEntries, on: day,
-                              targets: data.profile?.targets ?? NutritionTargets(calories: 2000, protein: 120, carbs: 220, fat: 65))
+        let entries = data.foodEntries
+        let key = calendar.startOfDay(for: day)
+        if let cached = nutritionCache[key] { return cached }
+        let value = nutritionEngine.daily(entries, on: day,
+                                          targets: data.profile?.targets ?? NutritionTargets(calories: 2000, protein: 120, carbs: 220, fat: 65))
+        nutritionCache[key] = value
+        return value
     }
 
     func entries(on day: Date, meal: MealType) -> [FoodEntry] {

@@ -64,3 +64,23 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertNil(data.modifiedAt)
     }
 }
+
+final class SyncMergeRecordTests: XCTestCase {
+    func testCustomExercisesAndCheckInsUnionAndTombstone() {
+        let t0 = Date(timeIntervalSince1970: 1_790_000_000)
+        let a = Exercise.custom(name: "A", primaryMuscle: .chest, equipment: .cable)
+        let b = Exercise.custom(name: "B", primaryMuscle: .back, equipment: .cable)
+        let checkIn = NutritionCheckIn(date: t0, windowDays: 14, trendStartKg: 80, trendEndKg: 79.5, weeklyChangeKg: -0.25,
+                                       averageIntake: 2200, loggedDays: 12, estimatedExpenditure: 2475,
+                                       previousCalories: 2200, recommendedCalories: 2200)
+        let local = AppData(modifiedAt: t0, customExercises: [a], checkIns: [checkIn])
+        var remote = AppData(modifiedAt: t0.addingTimeInterval(60), customExercises: [b])
+        var merged = SyncMerge.merge(local: local, remote: remote)
+        XCTAssertEqual(Set(merged.customExercises?.map(\.name) ?? []), ["A", "B"])
+        XCTAssertEqual(merged.checkIns?.count, 1)
+
+        remote.deletedIDs = [Tombstone.exercise(a.id)]
+        merged = SyncMerge.merge(local: local, remote: remote)
+        XCTAssertEqual(merged.customExercises?.map(\.name), ["B"])
+    }
+}

@@ -7,6 +7,7 @@ public enum Tombstone {
     public static func template(_ id: UUID) -> String { "template:\(id)" }
     public static func savedMeal(_ id: UUID) -> String { "meal:\(id)" }
     public static func bodyWeight(_ id: UUID) -> String { "weight:\(id)" }
+    public static func exercise(_ id: String) -> String { "exercise:\(id)" }
 
     /// Tombstones for every record in a document (used by "reset all data").
     public static func all(in data: AppData) -> Set<String> {
@@ -16,6 +17,7 @@ public enum Tombstone {
         data.customTemplates.forEach { result.insert(template($0.id)) }
         data.savedMeals.forEach { result.insert(savedMeal($0.id)) }
         data.bodyWeights.forEach { result.insert(bodyWeight($0.id)) }
+        data.customExercises?.forEach { result.insert(exercise($0.id)) }
         return result
     }
 }
@@ -55,6 +57,12 @@ public enum SyncMerge {
         merged.savedMeals = union(newer.savedMeals, older.savedMeals, key: { Tombstone.savedMeal($0.id) })
         merged.bodyWeights = union(newer.bodyWeights, older.bodyWeights, key: { Tombstone.bodyWeight($0.id) })
             .sorted { $0.date < $1.date }
+        var exerciseIDs = Set<String>()
+        let exercises = ((newer.customExercises ?? []) + (older.customExercises ?? []))
+            .filter { !tombstones.contains(Tombstone.exercise($0.id)) && exerciseIDs.insert($0.id).inserted }
+        merged.customExercises = exercises.isEmpty ? nil : exercises
+        let checkIns = union(newer.checkIns ?? [], older.checkIns ?? [], key: { _ in "" }).sorted { $0.date < $1.date }
+        merged.checkIns = checkIns.isEmpty ? nil : checkIns
         merged.scanDates = Array(Set(local.scanDates + remote.scanDates)).sorted()
         merged.dismissedInsightIDs = local.dismissedInsightIDs.union(remote.dismissedInsightIDs)
         merged.lastUpgradeMoment = [local.lastUpgradeMoment, remote.lastUpgradeMoment].compactMap { $0 }.max()

@@ -9,6 +9,7 @@ struct TrainView: View {
     @State private var editing: WorkoutTemplate?
     @State private var showsProgramBrowser = false
     @State private var showsProgramEditor = false
+    @State private var showsHistory = false
 
     var body: some View {
         NavigationStack {
@@ -46,7 +47,7 @@ struct TrainView: View {
                                     IconBadge(symbol: Icon.add)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Create a workout").font(VFont.bodyEmphasized).foregroundStyle(VColor.textPrimary)
-                                        Text("Build a routine from 50+ exercises").font(VFont.secondary).foregroundStyle(VColor.textSecondary)
+                                        Text("Build a routine from 600+ exercises").font(VFont.secondary).foregroundStyle(VColor.textSecondary)
                                     }
                                     Spacer()
                                 }
@@ -58,6 +59,29 @@ struct TrainView: View {
                                 ForEach(Array(model.customTemplates.enumerated()), id: \.element.id) { index, template in
                                     WorkoutRow(template: template, onEdit: { editing = template })
                                     if index < model.customTemplates.count - 1 { Hairline(leading: Space.md) }
+                                }
+                            }
+                            .card(padding: 0)
+                        }
+                    }
+
+                    if !model.sessions.isEmpty {
+                        VStack(alignment: .leading, spacing: Space.sm) {
+                            SectionHeader("History", actionTitle: "See All") { showsHistory = true }
+                            VStack(spacing: 0) {
+                                let recent = Array(model.sessions.prefix(3))
+                                ForEach(Array(recent.enumerated()), id: \.element.id) { index, session in
+                                    NavigationLink(value: session) {
+                                        HStack {
+                                            SessionRow(session: session)
+                                            Image(systemName: Icon.chevron).font(.caption.weight(.semibold)).foregroundStyle(VColor.textTertiary)
+                                        }
+                                        .padding(.horizontal, Space.md)
+                                        .padding(.vertical, Space.sm)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    if index < recent.count - 1 { Hairline(leading: Space.md) }
                                 }
                             }
                             .card(padding: 0)
@@ -82,6 +106,7 @@ struct TrainView: View {
                             .disabled(model.program == nil)
                         Button("Browse Programs", systemImage: "square.grid.2x2") { showsProgramBrowser = true }
                         Button("Create Workout", systemImage: "plus") { createWorkout() }
+                        Button("Workout History", systemImage: "clock.arrow.circlepath") { showsHistory = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .frame(width: Size.minTouch, height: Size.minTouch)
@@ -90,6 +115,8 @@ struct TrainView: View {
                 }
             }
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
+            .navigationDestination(for: WorkoutSession.self) { SessionDetailView(session: $0) }
+            .navigationDestination(isPresented: $showsHistory) { WorkoutHistoryView() }
             .sheet(item: $editing) { TemplateEditorView(template: $0) }
             .sheet(isPresented: $showsProgramBrowser) { ProgramBrowserView() }
             .sheet(isPresented: $showsProgramEditor) { ProgramEditorView() }

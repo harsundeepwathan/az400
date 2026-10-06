@@ -41,7 +41,8 @@ extension AppModel {
                 }
             }
             let workout = ActiveWorkout.start(template: template, catalog: catalog, history: data.sessions,
-                                              overrides: overrides, unit: unit, now: now())
+                                              overrides: overrides, restPreferences: data.restPreferences ?? [:],
+                                              unit: unit, now: now())
             mutate({ $0.activeWorkout = workout; $0.restTimer = nil }, refreshInsights: false)
             Task { await notifications?.requestAuthorizationIfNeeded() }
         }
@@ -295,13 +296,69 @@ extension AppModel {
         let sets = data.activeWorkout?.session.exercises[safe: index]?.sets.count ?? 3
         let rec = progression.recommend(for: exercise, repRange: repRange, sets: sets,
                                         history: history(for: exercise.id), unit: unit)
-        updateWorkout { $0.replaceExercise(at: index, with: exercise, recommendation: rec) }
+        updateWorkout { $0.replaceExercise(at: index, with: exercise, recommendation: rec, restSeconds: restPreference(for: exercise.id)) }
     }
 
     func addExercise(_ exercise: Exercise) {
         let rec = progression.recommend(for: exercise, repRange: RepRange(8, 12), sets: 3,
                                         history: history(for: exercise.id), unit: unit)
-        updateWorkout { $0.addExercise(exercise, recommendation: rec) }
+        updateWorkout { $0.addExercise(exercise, recommendation: rec, restSeconds: restPreference(for: exercise.id)) }
+    }
+
+    // MARK: Rest preferences
+
+    func restPreference(for exerciseID: String) -> Int? { data.restPreferences?[exerciseID] }
+
+    /// Changes rest for this exercise now and remembers it for next time.
+    func setRest(_ seconds: Int, forExercise index: Int) {
+        guard let exerciseID = data.activeWorkout?.session.exercises[safe: index]?.exerciseID else { return }
+        updateWorkout { $0.setRest(seconds, forExercise: index) }
+        mutate({ data in
+            var preferences = data.restPreferences ?? [:]
+            preferences[exerciseID] = max(0, min(seconds, 600))
+            data.restPreferences = preferences
+        }, refreshInsights: false)
+    }
+
+    // MARK: Favourite and custom exercises
+
+    func isFavorite(exerciseID: String) -> Bool { data.favoriteExerciseIDs?.contains(exerciseID) ?? false }
+
+    func toggleFavorite(exerciseID: String) {
+        mutate({ data in
+            var favorites = data.favoriteExerciseIDs ?? []
+            if favorites.contains(exerciseID) { favorites.remove(exerciseID) } else { favorites.insert(exerciseID) }
+            data.favoriteExerciseIDs = favorites
+        }, refreshInsights: false)
+        Haptics.light()
+    }
+
+    var favoriteExercises: [Exercise] {
+        (data.favoriteExerciseIDs ?? []).compactMap { catalog[$0] }.sorted { $0.name < $1.name }
+    }
+
+    var customExercises: [Exercise] { data.customExercises ?? [] }
+
+    @discardableResult
+    func addCustomExercise(name: String, muscle: MuscleGroup, equipment: Equipment, isCompound: Bool) -> Exercise {
+        let exercise = Exercise.custom(name: name, primaryMuscle: muscle, equipment: equipment, isCompound: isCompound)
+        mutate({ $0.customExercises = ($0.customExercises ?? []) + [exercise] }, refreshInsights: false)
+        return exercise
+    }
+
+    /// Only exercises with no logged history can be deleted, so past workouts never lose their names.
+    func canDelete(_ exercise: Exercise) -> Bool {
+        exercise.isCustom && !data.sessions.contains { $0.exercises.contains { $0.exerciseID == exercise.id } }
+            && !(data.activeWorkout?.session.exercises.contains { $0.exerciseID == exercise.id } ?? false)
+    }
+
+    func deleteCustomExercise(_ exercise: Exercise) {
+        guard canDelete(exercise) else { return }
+        mutate({ data in
+            data.customExercises?.removeAll { $0.id == exercise.id }
+            data.favoriteExerciseIDs?.remove(exercise.id)
+            data.deletedIDs = (data.deletedIDs ?? []).union([Tombstone.exercise(exercise.id)])
+        }, refreshInsights: false)
     }
 
     func toggleAvoided(_ exerciseID: String) {
