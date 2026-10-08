@@ -17,26 +17,23 @@ struct WorkoutSummaryView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 12) {
                     hero
                     if !summary.records.isEmpty {
-                        records
-                        Hairline()
+                        records.widgetSurface()
                     }
-                    bestSets
+                    bestSets.widgetSurface()
                     if let next = summary.nextStep, next.action != .establishBaseline {
-                        Hairline()
-                        insight(next)
+                        insight(next).widgetSurface()
                     }
                 }
+                .padding(.top, Space.xs)
                 .padding(.bottom, Space.xl)
             }
-            .background(VColor.ground.ignoresSafeArea())
+            .background(WColor.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
-            // The bar takes the hero colour so the field runs up under the status bar.
-            .toolbarBackground(VColor.heroField, for: .navigationBar)
+            .toolbarBackground(WColor.canvas, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     if let shareImage {
@@ -102,10 +99,12 @@ struct WorkoutSummaryView: View {
                 .padding(.top, Space.md)
         }
         .padding(.horizontal, Space.fieldInset)
-        .padding(.top, Space.xs)
+        .padding(.top, Space.lg)
         .padding(.bottom, Space.fieldVertical)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VColor.heroField)
+        // The finish moment: a dark tile among the white ones.
+        .background(VColor.heroField, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .padding(.horizontal, Space.gutter)
         .scaleEffect(appeared || reduceMotion ? 1 : 0.98, anchor: .top)
         .opacity(appeared || reduceMotion ? 1 : 0)
     }

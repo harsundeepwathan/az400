@@ -44,16 +44,12 @@ struct ActiveWorkoutView: View {
             NavigationStack {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
+                        VStack(alignment: .leading, spacing: 12) {
                             if workout.session.exercises.isEmpty {
                                 emptyState
                             }
                             ForEach(Array(workout.session.exercises.enumerated()), id: \.element.id) { index, log in
                                 let isCurrent = index == workout.currentExerciseIndex
-                                // The field's edge is its own separator; plain sections get a hairline.
-                                if index > 0, !isCurrent {
-                                    Hairline()
-                                }
                                 ExerciseLogCard(
                                     index: index,
                                     log: log,
@@ -71,6 +67,7 @@ struct ActiveWorkoutView: View {
                                 addExerciseButton
                             }
                         }
+                        .padding(.top, Space.xs)
                         .padding(.bottom, Space.xxl)
                     }
                     .coordinateSpace(name: Self.scrollSpace)
@@ -86,7 +83,7 @@ struct ActiveWorkoutView: View {
                         }
                     }
                 }
-                .background(VColor.ground.ignoresSafeArea())
+                .background(WColor.canvas.ignoresSafeArea())
                 // Under the nav row, over the content: the record toast never covers the clock.
                 .overlay(alignment: .top) { WorkoutToastHost(toast: $model.toast) }
                 .safeAreaInset(edge: .top, spacing: 0) { navRow(workout) }
@@ -185,7 +182,7 @@ struct ActiveWorkoutView: View {
         }
         .padding(.horizontal, Space.xs)
         .frame(minHeight: Size.minTouch)
-        .background(VColor.fieldTraining.ignoresSafeArea(edges: .top))
+        .background(WColor.canvas.ignoresSafeArea(edges: .top))
     }
 
     private func finishButton(_ workout: ActiveWorkout) -> some View {
@@ -250,9 +247,9 @@ struct ActiveWorkoutView: View {
             } label: {
                 Label("Add exercise", systemImage: Icon.add)
             }
-            .buttonStyle(.quietCapsule)
-            .padding(.horizontal, Space.fieldInset)
-            .padding(.top, Space.lg)
+            .buttonStyle(.widgetSecondary)
+            .padding(.horizontal, Space.gutter)
+            .padding(.top, Space.xs)
         }
     }
 
@@ -271,7 +268,7 @@ struct ActiveWorkoutView: View {
             } label: {
                 Label("Add exercise", systemImage: Icon.add)
             }
-            .buttonStyle(.accentCapsule)
+            .buttonStyle(.widgetPrimary)
             .padding(.top, Space.xs)
         }
         .padding(.horizontal, Space.fieldInset)

@@ -70,8 +70,19 @@ struct ExerciseLogCard: View {
                 footer
             }
             .padding(.horizontal, Space.fieldInset)
+            .padding(.bottom, Space.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Each exercise is a tile; the current one glows and carries an outline.
+        .background {
+            if isCurrent { WidgetBackground(tint: .training) } else { WColor.tile }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.xl, style: .continuous)
+                .strokeBorder(isCurrent ? WidgetTint.training.accent.opacity(0.55) : WColor.edge, lineWidth: isCurrent ? 1.5 : 1)
+        }
+        .padding(.horizontal, Space.gutter)
         .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: isCurrent)
         .sheet(isPresented: $reportsDiscomfort) {
             DiscomfortReportSheet(exerciseID: log.exerciseID, exerciseName: exercise?.name)
@@ -102,10 +113,9 @@ struct ExerciseLogCard: View {
             }
         }
         .padding(.horizontal, Space.fieldInset)
-        .padding(.top, Space.xs)
-        .padding(.bottom, Space.lg)
+        .padding(.top, Space.md)
+        .padding(.bottom, Space.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VColor.fieldTraining)
         .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: model.restTimer != nil)
         .background {
             GeometryReader { proxy in
