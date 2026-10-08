@@ -1,0 +1,50 @@
+# Builds the iOS app (with its widget and watch targets) for the simulator and
+# runs the VectorCore tests. No signing: this checks that everything compiles.
+name: iOS build
+
+on:
+  push:
+    branches: [feature/vector-ios-app, main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: VectorCore tests
+        working-directory: Packages/VectorCore
+        run: swift test
+
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode
+        run: xcodebuild -version
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Vector.xcodeproj \
+            -scheme Vector \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Upload the build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
