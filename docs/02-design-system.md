@@ -16,6 +16,17 @@ Source of truth: `App/Vector/DesignSystem/Tokens.swift` and `DesignSystem/Compon
 
 Direction chosen with the vendored UI/UX Pro Max skill ("Minimalism & Swiss Style": spacious, high contrast, grid-based, essential). Its suggested energetic orange palette and condensed sports font were rejected as off-brief.
 
+## 2.0 Current direction: Widgets (October 2026)
+
+The app is moving to a widget dashboard, chosen by the owner from a reference. Today, Train, Nutrition, Progress, the active workout, the workout summary and Profile use it; other sheets still use the older tokens below until they're converted. The sections after this one describe the older system.
+
+- **Canvas and tiles.** Light first: white tiles on `#F2F4F8`; near-black tiles (`#12151C`) on `#07090D` in dark mode. Tiles have 28 pt corners, a 1 pt edge at 6 to 7% ink, 16 pt inner padding and 12 pt between tiles. Tokens: `WColor` in `Tokens.swift`.
+- **One hue per area**, glowing softly from one tile corner (`WidgetTint`): amber for Today's insight, blue for training and calories, teal for body. `ink` is for text (4.5:1 on its tile), `accent` for marks, `glow` for the wash.
+- **Components** (`Widgets.swift`): `WidgetTile` (header with symbol, title, optional accessory and an arrow that opens the full screen), `GradientRing`, `WidgetMacroRing`, `WeekBars`, `WidgetSparkline`, `ComparisonBars`, `WidgetBar`, `PageDots`, `WidgetScreenHeader`, `FloatingTabBar`. Lists keep native swipe actions by drawing consecutive rows as one tile (`tileRow(.first/.middle/.last/.only)`); self-contained sections use `widgetSurface()`.
+- **Actions.** One primary per tile: `widgetPrimary` (ink fill, white in dark, 16 pt corners). Secondary: `widgetSecondary` (soft fill). No capsule buttons in new work.
+- **Navigation.** A floating tab bar (Today, Train, Nutrition, Progress) with a + in the middle for quick logging (start or resume a workout, scan a meal, log food, quick add, weigh in). Profile opens from the avatar.
+- **Today's insight** comes from `DailyHighlightEngine` in VectorCore: a positive, checkable comparison from the user's own logs, never invented, never a dip, rotating daily; milestones for the first two weeks; hidden when nothing qualifies.
+
 ## 2.1 Color
 
 Every token has a hand-picked dark value, so dark mode is designed rather than inverted. Contrast ratios below were computed with the WCAG formula.

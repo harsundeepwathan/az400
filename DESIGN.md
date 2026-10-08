@@ -206,6 +206,9 @@ components:
     padding: "3px 7px"
 ---
 
+> **Superseded (October 2026).** The app now uses the widget dashboard described in `docs/02-design-system.md` §2.0 (tiles on a grey canvas, one hue per area, floating tab bar). This file records the earlier direction until every screen is converted.
+
+
 # Design System: Vector
 
 ## Overview
