@@ -3,8 +3,8 @@ import VectorCore
 
 // MARK: - Tile
 
-/// The unit of the widget dashboard: a rounded tile with its area's hue
-/// glowing from one corner, a header (symbol, title, optional accessory and
+/// The unit of the widget dashboard: a rounded tile (solid blue for Today's
+/// insight, plain otherwise), a header (symbol, title, optional accessory and
 /// an ↗ that opens the full screen) and free content below.
 struct WidgetTile<Accessory: View, Content: View>: View {
     var tint: WidgetTint
@@ -68,16 +68,11 @@ extension WidgetTile where Accessory == EmptyView {
     }
 }
 
-/// White (or near-black) tile with a soft wash of the area's hue in one corner.
+/// White (or near-black) tile; Today's insight is solid blue.
 struct WidgetBackground: View {
     var tint: WidgetTint
 
-    var body: some View {
-        WColor.tile.overlay {
-            RadialGradient(colors: [tint.glow, tint.glow.opacity(0)], center: tint.glowCorner,
-                           startRadius: 0, endRadius: 280)
-        }
-    }
+    var body: some View { tint.fill }
 }
 
 /// Small rounded label inside a tile header or footer.
@@ -192,8 +187,7 @@ struct WeekBars: View {
                                 VStack {
                                     Spacer(minLength: 0)
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(LinearGradient(colors: [tint.accent, tint.accent.opacity(0.75)],
-                                                             startPoint: .top, endPoint: .bottom))
+                                        .fill(tint.accent)
                                         .frame(height: max(proxy.size.height * fraction, 10))
                                 }
                             }
@@ -288,19 +282,19 @@ struct ComparisonBars: View {
                 GridRow {
                     Text(row.label)
                         .font(.footnote)
-                        .foregroundStyle(WColor.textSecondary)
+                        .foregroundStyle(tint.textSecondary)
                     GeometryReader { proxy in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(WColor.track)
+                            Capsule().fill(tint.track)
                             Capsule()
-                                .fill(row.isCurrent ? tint.accent : WColor.quiet)
+                                .fill(row.isCurrent ? tint.accent : tint.quiet)
                                 .frame(width: proxy.size.width * CGFloat(top > 0 ? min(row.value / (row.scale ?? top), 1) : 0))
                         }
                     }
                     .frame(height: 10)
                     Text(row.display)
                         .font(.system(.footnote, weight: .bold).monospacedDigit())
-                        .foregroundStyle(WColor.textPrimary)
+                        .foregroundStyle(tint.text)
                         .gridColumnAlignment(.trailing)
                 }
                 .accessibilityElement(children: .ignore)
@@ -321,7 +315,7 @@ struct PageDots: View {
         HStack(spacing: 6) {
             ForEach(0..<count, id: \.self) { index in
                 Capsule()
-                    .fill(index == current ? tint.accent : WColor.quiet)
+                    .fill(index == current ? tint.accent : tint.quiet)
                     .frame(width: index == current ? 18 : 6, height: 6)
             }
         }
@@ -392,10 +386,10 @@ struct FloatingTabBar: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(isSelected ? WColor.onStrong : WColor.textSecondary)
+            .foregroundStyle(isSelected ? WColor.onSelected : WColor.textSecondary)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background { if isSelected { Capsule().fill(WColor.strong) } }
+            .background { if isSelected { Capsule().fill(WColor.selected) } }
             .contentShape(Capsule())
         }
         .buttonStyle(.pressable)
@@ -494,7 +488,7 @@ struct WidgetScreenHeader<Accessory: View>: View {
 
 // MARK: - Buttons
 
-/// The one primary action in a tile: ink fill (white in dark), 16 pt corners.
+/// The one primary action in a tile: Vector blue fill, white label, 16 pt corners.
 struct WidgetPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 

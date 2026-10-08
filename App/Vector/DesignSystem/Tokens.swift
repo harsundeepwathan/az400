@@ -116,44 +116,47 @@ enum WColor {
     static let textPrimary = Color(light: 0x121722, dark: 0xF3F5F9)
     static let textSecondary = Color(light: 0x5E6878, dark: 0xA3ACBB)
 
-    /// Selected tab and the Start button: ink on light, white on dark.
-    static let strong = Color(light: 0x121722, dark: 0xF3F5F9)
-    static let onStrong = Color(light: 0xFFFFFF, dark: 0x0B0D12)
+    /// The Start button and the Today's insight tile: solid Vector blue with
+    /// white text (5:1 in light, deeper in dark so white text keeps its contrast).
+    static let strong = Color(light: 0x3460F0, dark: 0x2E4FD6)
+    static let onStrong = Color.white
+    /// The selected tab: a soft blue pill with blue icon and label.
+    static let selected = Color(light: 0xE8EEFF, dark: 0x1C2440)
+    static let onSelected = Color(light: 0x2F55E0, dark: 0x9DB1FF)
     /// The quick-add button in the tab bar.
     static let add = Color(light: 0x3D6BFF, dark: 0x3D6BFF)
     /// Rises: blue ink like every other accent (always with an arrow and a sign).
     static let rise = Color(light: 0x2F55E0, dark: 0x8AA2FF)
     static let riseSoft = innerStrong
 
-    // Macros in three blues (bright, sky, navy), always direct-labelled P, C and F.
-    static let protein = Color(light: 0x3D6BFF, dark: 0x6E8DFF)
-    static let carbs = Color(light: 0x6FA3FF, dark: 0x9CC2FF)
-    static let fat = Color(light: 0x1A2A6C, dark: 0xDDE4FF)
+    // Macros in three strengths of the same blue, always direct-labelled P, C and F.
+    static let protein = Color(light: 0x3D6BFF, dark: 0x7C97FF)
+    static let carbs = Color(light: 0x8DA6FF, dark: 0x5670C9)
+    static let fat = Color(light: 0xB3C3FF, dark: 0x36457F)
 }
 
 /// One colour across the dashboard: Vector blue on white (near-black in dark).
 /// Areas keep their names so screens can say what a tile is, but they share
-/// the blue. Only Today's insight carries a corner wash; every other tile is plain.
+/// the blue. Today's insight is the one solid blue tile; every other tile is plain.
 /// `ink` is for text and icons (4.5:1 on its tile), `accent` for marks and fills.
 enum WidgetTint {
     case insight, training, calories, body
 
-    var ink: Color { Color(light: 0x2F55E0, dark: 0x8AA2FF) }
+    var ink: Color { self == .insight ? .white : Color(light: 0x2F55E0, dark: 0x8AA2FF) }
 
-    var accent: Color { Color(light: 0x3D6BFF, dark: 0x6E8DFF) }
+    var accent: Color { self == .insight ? .white : Color(light: 0x3D6BFF, dark: 0x6E8DFF) }
 
-    /// Second stop of the calorie ring's gradient (a lighter blue); the accent elsewhere.
-    var accentEnd: Color {
-        self == .calories ? Color(light: 0x6FA3FF, dark: 0x9CC2FF) : accent
-    }
+    // Text and tracks on the tile's fill: white tones on the blue insight tile.
+    var text: Color { self == .insight ? .white : WColor.textPrimary }
+    var textSecondary: Color { self == .insight ? .white.opacity(0.8) : WColor.textSecondary }
+    var track: Color { self == .insight ? .white.opacity(0.22) : WColor.track }
+    var quiet: Color { self == .insight ? .white.opacity(0.55) : WColor.quiet }
 
-    /// The corner wash: only the insight tile has one.
-    var glow: Color {
-        self == .insight ? Color(light: 0xDCE6FF, dark: 0x3D6BFF, lightAlpha: 1, darkAlpha: 0.38) : WColor.tile
-    }
+    /// Second stop of ring gradients: the same blue, so rings read as one solid colour.
+    var accentEnd: Color { accent }
 
-    /// The insight glows from the top right; everything else from the top left.
-    var glowCorner: UnitPoint { self == .insight ? .topTrailing : .topLeading }
+    /// Tile fill: solid blue for the insight, the plain tile for everything else.
+    var fill: Color { self == .insight ? WColor.strong : WColor.tile }
 }
 
 extension Color {

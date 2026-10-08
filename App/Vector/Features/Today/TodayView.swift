@@ -132,15 +132,15 @@ private struct InsightPage: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(display.value)
                     .font(.system(size: 48, weight: .bold, design: .default).monospacedDigit())
-                    .foregroundStyle(WColor.textPrimary)
+                    .foregroundStyle(WidgetTint.insight.text)
                     .minimumScaleFactor(0.6)
                 Text(display.unit)
                     .font(.system(.headline))
-                    .foregroundStyle(WColor.textSecondary)
+                    .foregroundStyle(WidgetTint.insight.textSecondary)
             }
             display.sentence
                 .font(.subheadline)
-                .foregroundStyle(WColor.textSecondary)
+                .foregroundStyle(WidgetTint.insight.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 2)
             Spacer(minLength: 10)
@@ -171,15 +171,15 @@ private struct HighlightDisplay {
         case .liftReps(let id, let thisWeek, let lastWeek):
             value = "\(thisWeek)"
             unit = "reps"
-            sentence = Text("of ") + Text(name(id)).bold().foregroundColor(WColor.textPrimary)
-                + Text(" this week. That's ") + Text("\(percent(Double(thisWeek), Double(lastWeek))) more").bold().foregroundColor(WColor.textPrimary)
+            sentence = Text("of ") + Text(name(id)).bold().foregroundColor(WidgetTint.insight.text)
+                + Text(" this week. That's ") + Text("\(percent(Double(thisWeek), Double(lastWeek))) more").bold().foregroundColor(WidgetTint.insight.text)
                 + Text(" than this point last week.")
             bars = [.init(label: "Last week", value: Double(lastWeek), display: "\(lastWeek)", isCurrent: false),
                     .init(label: "This week", value: Double(thisWeek), display: "\(thisWeek)", isCurrent: true)]
         case .liftGain(let id, let from, let to, let weeks):
             value = "+" + Format.weight(to - from, unit: model.unit, includeUnit: false)
             unit = unitSymbol
-            sentence = Text("on your ") + Text(name(id)).bold().foregroundColor(WColor.textPrimary)
+            sentence = Text("on your ") + Text(name(id)).bold().foregroundColor(WidgetTint.insight.text)
                 + Text(" in \(weeks) weeks, from your own logged sets.")
             bars = [.init(label: "\(weeks) wk ago", value: from, display: Format.weight(from, unit: model.unit, includeUnit: false), isCurrent: false),
                     .init(label: "Now", value: to, display: Format.weight(to, unit: model.unit, includeUnit: false), isCurrent: true)]
@@ -192,7 +192,7 @@ private struct HighlightDisplay {
         case .proteinDays(let onTarget, let days):
             value = "\(onTarget) of \(days)"
             unit = "days"
-            sentence = Text("on your ") + Text("protein target").bold().foregroundColor(WColor.textPrimary) + Text(" this past week.")
+            sentence = Text("on your ") + Text("protein target").bold().foregroundColor(WidgetTint.insight.text) + Text(" this past week.")
             bars = [.init(label: "On target", value: Double(onTarget), display: "\(onTarget)/\(days)", isCurrent: true, scale: Double(days))]
         case .milestone(let workouts):
             value = "\(workouts)"
