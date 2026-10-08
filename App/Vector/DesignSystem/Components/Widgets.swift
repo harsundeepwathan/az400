@@ -1,4 +1,5 @@
 import SwiftUI
+import VectorCore
 
 // MARK: - Tile
 

@@ -162,7 +162,7 @@ private struct HighlightDisplay {
     var sentence: Text
     var bars: [ComparisonBars.Row]
 
-    init(_ highlight: DailyHighlight, model: AppModel) {
+    @MainActor init(_ highlight: DailyHighlight, model: AppModel) {
         let unitSymbol = model.unit.symbol
         func name(_ id: String) -> String { (model.catalog[id]?.name ?? id).lowercased() }
         func percent(_ now: Double, _ before: Double) -> String { "\(Int(((now / before - 1) * 100).rounded()))%" }
