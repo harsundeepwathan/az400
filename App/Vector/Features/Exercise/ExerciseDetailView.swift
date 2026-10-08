@@ -55,18 +55,19 @@ struct ExerciseDetailScreen: View {
     var body: some View {
         let history = self.history
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
                 ExerciseHero(exercise: exercise, history: history, showsWhy: $showsWhy, adjusting: $adjusting)
                 if !history.isEmpty {
-                    recentSessions(history)
-                    records(history)
+                    recentSessions(history).widgetSurface()
+                    records(history).widgetSurface()
                 }
-                howTo(showsTopRule: !history.isEmpty)
-                alternatives
+                howTo(showsTopRule: false).widgetSurface()
+                alternatives.widgetSurface()
             }
+            .padding(.top, Space.xs)
             .padding(.bottom, Space.xl)
         }
-        .screenBackground()
+        .background(WColor.canvas.ignoresSafeArea())
         .navigationTitle(exercise.name)
         .navigationBarTitleDisplayMode(.inline)
         .fieldTitleInBody()
@@ -141,7 +142,7 @@ struct ExerciseDetailScreen: View {
         ]
         let rows = candidates.compactMap { $0 }
         if !rows.isEmpty {
-            CanvasSection("Records") {
+            CanvasSection("Records", showsTopRule: false) {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                         CanvasRow(title: row.0, value: row.1)
@@ -183,7 +184,7 @@ struct ExerciseDetailScreen: View {
 
     private var alternatives: some View {
         let options = Array(model.alternatives(for: exercise).prefix(3))
-        return CanvasSection("Alternatives", actionTitle: options.isEmpty ? nil : "See all") {
+        return CanvasSection("Alternatives", actionTitle: options.isEmpty ? nil : "See all", showsTopRule: false) {
             showsReplace = true
         } content: {
             VStack(spacing: 0) {
@@ -296,10 +297,15 @@ private struct ExerciseHero: View {
             }
         }
         .padding(.horizontal, Space.fieldInset)
-        .padding(.top, Space.xs)
+        .padding(.top, Space.md)
         .padding(.bottom, Space.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .fieldHeroBackground(VColor.fieldTraining)
+        .background { WidgetBackground(tint: .training) }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.xl, style: .continuous).strokeBorder(WColor.edge, lineWidth: 1)
+        }
+        .padding(.horizontal, Space.gutter)
     }
 
     /// "Quads, glutes · barbell · rest 3:00"
