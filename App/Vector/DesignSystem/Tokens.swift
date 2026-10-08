@@ -121,51 +121,35 @@ enum WColor {
     static let onStrong = Color(light: 0xFFFFFF, dark: 0x0B0D12)
     /// The quick-add button in the tab bar.
     static let add = Color(light: 0x3D6BFF, dark: 0x3D6BFF)
-    /// Rises (never colour alone: always with an arrow and a sign).
-    static let rise = Color(light: 0x23864C, dark: 0x4CC27A)
-    static let riseSoft = Color(light: 0x23864C, dark: 0x4CC27A, lightAlpha: 0.12, darkAlpha: 0.16)
+    /// Rises: blue ink like every other accent (always with an arrow and a sign).
+    static let rise = Color(light: 0x2F55E0, dark: 0x8AA2FF)
+    static let riseSoft = innerStrong
 
-    // Macro rings in the Calories tile, direct-labelled with P, C and F.
+    // Macros in three blues (bright, sky, navy), always direct-labelled P, C and F.
     static let protein = Color(light: 0x3D6BFF, dark: 0x6E8DFF)
-    static let carbs = Color(light: 0xD98B1E, dark: 0xF2A541)
-    static let fat = Color(light: 0xD9497A, dark: 0xFF7AA8)
+    static let carbs = Color(light: 0x6FA3FF, dark: 0x9CC2FF)
+    static let fat = Color(light: 0x1A2A6C, dark: 0xDDE4FF)
 }
 
-/// An area's hue: `ink` for text and icons (4.5:1 on its tile), `accent`
-/// for marks and fills, `glow` for the corner wash.
+/// One colour across the dashboard: Vector blue on white (near-black in dark).
+/// Areas keep their names so screens can say what a tile is, but they share
+/// the blue. Only Today's insight carries a corner wash; every other tile is plain.
+/// `ink` is for text and icons (4.5:1 on its tile), `accent` for marks and fills.
 enum WidgetTint {
     case insight, training, calories, body
 
-    var ink: Color {
-        switch self {
-        case .insight: Color(light: 0xA65F0C, dark: 0xF2A541)
-        case .training: Color(light: 0x2F55E0, dark: 0x8AA2FF)
-        case .calories: Color(light: 0x2F55E0, dark: 0x6E9BFF)
-        case .body: Color(light: 0x147662, dark: 0x3CCFAE)
-        }
-    }
+    var ink: Color { Color(light: 0x2F55E0, dark: 0x8AA2FF) }
 
-    var accent: Color {
-        switch self {
-        case .insight: Color(light: 0xE08A1E, dark: 0xF2A541)
-        case .training: Color(light: 0x3D6BFF, dark: 0x6E8DFF)
-        case .calories: Color(light: 0x3D6BFF, dark: 0x4F7BFF)
-        case .body: Color(light: 0x1E9E86, dark: 0x3CCFAE)
-        }
-    }
+    var accent: Color { Color(light: 0x3D6BFF, dark: 0x6E8DFF) }
 
-    /// Second stop of the calorie ring's gradient; the accent elsewhere.
+    /// Second stop of the calorie ring's gradient (a lighter blue); the accent elsewhere.
     var accentEnd: Color {
-        self == .calories ? Color(light: 0x25B7FF, dark: 0x3CC8FF) : accent
+        self == .calories ? Color(light: 0x6FA3FF, dark: 0x9CC2FF) : accent
     }
 
+    /// The corner wash: only the insight tile has one.
     var glow: Color {
-        switch self {
-        case .insight: Color(light: 0xFFE7C7, dark: 0xF2A541, lightAlpha: 1, darkAlpha: 0.30)
-        case .training: Color(light: 0xE9EDF5, dark: 0xA0ACC4, lightAlpha: 1, darkAlpha: 0.16)
-        case .calories: Color(light: 0xDCE6FF, dark: 0x3D6BFF, lightAlpha: 1, darkAlpha: 0.38)
-        case .body: Color(light: 0xD3F2EA, dark: 0x1E9E86, lightAlpha: 1, darkAlpha: 0.40)
-        }
+        self == .insight ? Color(light: 0xDCE6FF, dark: 0x3D6BFF, lightAlpha: 1, darkAlpha: 0.38) : WColor.tile
     }
 
     /// The insight glows from the top right; everything else from the top left.
