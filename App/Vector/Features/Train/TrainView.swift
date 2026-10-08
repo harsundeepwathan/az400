@@ -1,16 +1,13 @@
 import SwiftUI
 import VectorCore
 
-/// Train tab ("Fields"). A training field runs under the status bar with the
-/// large title, the program menu and the next workout: its name at 34 pt,
-/// the program line, every exercise with its sets and load, and the one
-/// accent capsule ("Start Lower A"). Below it, on the open canvas: Routines
-/// (swipe for "Start now", context menu for Edit / Duplicate), the last
-/// three sessions, and a push row to the exercise library. No cards.
+/// Train tab (widgets). The large title and program menu on the canvas, then
+/// the next workout as a tile (every exercise with its sets and load, and
+/// the one primary action, "Start Lower A"), then Routines, History and the
+/// exercise library as tiles.
 ///
-/// The screen is a plain `List` so routine rows get native swipe actions and
-/// context menus; every row draws its own hairline so spacing and rules
-/// match the canvas screens built on `ScrollView`.
+/// The screen is a plain `List` so routine rows keep native swipe actions and
+/// context menus; consecutive rows join into one tile (`tileRow`).
 struct TrainView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -27,28 +24,25 @@ struct TrainView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
+                WidgetScreenHeader(title: "Train", subtitle: programSubtitle) { menu }
+                    .canvasListRow()
                 TrainHero(path: $path,
                           onBrowsePrograms: { showsProgramBrowser = true },
-                          onEditProgram: { showsProgramEditor = true },
                           onCreateWorkout: createWorkout)
-                    .fieldRow(VColor.fieldTraining)
+                    .canvasListRow()
 
+                TileGap()
                 routines
+                TileGap()
                 history
+                TileGap()
                 libraryRow
+                TileGap(height: Space.lg)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, 0)
-            // The training field's colour behind the status bar and in the
-            // top overscroll; rows below carry their own ground.
-            .background {
-                VStack(spacing: 0) {
-                    VColor.fieldTraining.frame(height: 600)
-                    VColor.ground
-                }
-                .ignoresSafeArea()
-            }
+            .background(WColor.canvas.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: model.program?.nextIndex)
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
@@ -82,13 +76,13 @@ struct TrainView: View {
             .padding(.horizontal, Space.fieldInset)
             .padding(.top, Space.md)
             .padding(.bottom, Space.xxs)
-            .canvasRow()
+            .tileRow(.first)
 
         ForEach(Array(items.enumerated()), id: \.element.id) { index, template in
             RoutineRow(template: template, showsRule: index > 0,
                        open: { path.append(template) },
                        onEdit: { editing = template })
-                .canvasRow()
+                .tileRow(.middle)
         }
 
         CanvasTextAction(title: "New routine", symbol: Icon.add, action: createWorkout)
@@ -96,8 +90,8 @@ struct TrainView: View {
             .overlay(alignment: .top) {
                 if !items.isEmpty { Hairline().padding(.horizontal, Space.fieldInset) }
             }
-            .padding(.bottom, Space.md)
-            .canvasRow()
+            .padding(.bottom, Space.xs)
+            .tileRow(.last)
             .accessibilityHint(model.canCreateRoutine ? "Creates a routine" : "You've reached the free routine limit. Opens Vector Pro.")
     }
 
@@ -111,8 +105,7 @@ struct TrainView: View {
         .padding(.horizontal, Space.fieldInset)
         .padding(.top, Space.md)
         .padding(.bottom, Space.xxs)
-        .overlay(alignment: .top) { Hairline() }
-        .canvasRow()
+        .tileRow(.first)
 
         if recent.isEmpty {
             Text("Finished workouts appear here with every set you logged.")
@@ -122,7 +115,7 @@ struct TrainView: View {
                 .padding(.horizontal, Space.fieldInset)
                 .padding(.bottom, Space.lg)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .canvasRow()
+                .tileRow(.last)
         }
 
         ForEach(Array(recent.enumerated()), id: \.element.id) { index, session in
@@ -133,8 +126,8 @@ struct TrainView: View {
                     .overlay(alignment: .top) { if index > 0 { Hairline() } }
                     .padding(.horizontal, Space.fieldInset)
             }
-            .padding(.bottom, index == recent.count - 1 ? Space.md : 0)
-            .canvasRow()
+            .padding(.bottom, index == recent.count - 1 ? Space.xs : 0)
+            .tileRow(index == recent.count - 1 ? .last : .middle)
         }
     }
 
@@ -155,9 +148,31 @@ struct TrainView: View {
             .padding(.horizontal, Space.fieldInset)
             .padding(.vertical, Space.xs)
         }
-        .overlay(alignment: .top) { Hairline() }
-        .padding(.bottom, Space.xl)
-        .canvasRow()
+        .padding(.vertical, Space.xs)
+        .tileRow(.only)
+    }
+
+    /// "Upper / Lower, 4 days a week"
+    private var programSubtitle: String? {
+        guard let program = model.program, let name = model.programShortName else { return nil }
+        return "\(name), \(program.daysPerWeek) days a week"
+    }
+
+    private var menu: some View {
+        Menu {
+            Button("Browse programs", systemImage: "square.grid.2x2") { showsProgramBrowser = true }
+            Button("Edit program", systemImage: "slider.horizontal.3") { showsProgramEditor = true }
+                .disabled(model.program == nil)
+            Divider()
+            Button("New routine", systemImage: "plus", action: createWorkout)
+            Button("Empty workout", systemImage: "bolt") { model.startEmptyWorkout() }
+            Button("Workout history", systemImage: "clock.arrow.circlepath") { path.append(Route.history) }
+        } label: {
+            CanvasMoreMenuLabel()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Program options")
     }
 
     private func createWorkout() {
@@ -169,20 +184,17 @@ struct TrainView: View {
     }
 }
 
-// MARK: - Hero field
+// MARK: - Hero tile
 
-/// The training field at the top of Train: large title and program menu,
-/// then the next workout (or the workout in progress, or a program prompt).
+/// The next workout as a tile (or the workout in progress, or a program prompt).
 private struct TrainHero: View {
     @Binding var path: NavigationPath
     var onBrowsePrograms: () -> Void
-    var onEditProgram: () -> Void
     var onCreateWorkout: () -> Void
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CanvasLargeTitle("Train") { menu }
+        WidgetTile(tint: .training, title: title, symbol: symbol) {
             Group {
                 if let workout = model.activeWorkout {
                     inProgress(workout)
@@ -192,48 +204,27 @@ private struct TrainHero: View {
                     noProgram
                 }
             }
-            .padding(.top, Space.md)
+            .padding(.top, Space.xs)
         }
-        .padding(.horizontal, Space.fieldInset)
-        .padding(.top, Space.xxs)
-        .padding(.bottom, Space.fieldVertical)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var menu: some View {
-        Menu {
-            Button("Browse programs", systemImage: "square.grid.2x2", action: onBrowsePrograms)
-            Button("Edit program", systemImage: "slider.horizontal.3", action: onEditProgram)
-                .disabled(model.program == nil)
-            Divider()
-            Button("New routine", systemImage: "plus", action: onCreateWorkout)
-            Button("Empty workout", systemImage: "bolt") { model.startEmptyWorkout() }
-            Button("Workout history", systemImage: "clock.arrow.circlepath") { path.append(TrainView.Route.history) }
-        } label: {
-            CanvasMoreMenuLabel()
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .accessibilityLabel("Program options")
+    private var title: String {
+        if model.activeWorkout != nil { return "In progress" }
+        return model.nextWorkout == nil ? "Program" : "Next workout"
     }
 
-    private func category(_ title: String) -> some View {
-        Label(title, systemImage: Icon.train)
-            .font(VFont.secondaryEmphasized)
-            .foregroundStyle(VColor.inkTraining)
-            .accessibilityAddTraits(.isHeader)
+    private var symbol: String {
+        model.activeWorkout != nil ? "timer" : (model.nextWorkout == nil ? "square.grid.2x2" : "dumbbell.fill")
     }
 
     // MARK: Next workout
 
     private func upNext(_ template: WorkoutTemplate) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            category("Next workout")
             Text(template.name)
-                .font(VFont.largeTitle)
-                .foregroundStyle(VColor.textPrimary)
+                .font(.system(.largeTitle, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
             Text(programLine(template))
                 .font(VFont.secondary.monospacedDigit())
                 .foregroundStyle(VColor.textSecondary)
@@ -258,19 +249,14 @@ private struct TrainHero: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .buttonStyle(.accentCapsule)
+            .buttonStyle(.widgetPrimary)
             .padding(.top, 18)
         }
     }
 
-    /// "Upper / Lower, 4 days a week · ~41 min"
+    /// "6 exercises · ~41 min"
     private func programLine(_ template: WorkoutTemplate) -> String {
-        var parts: [String] = []
-        if let program = model.program, let name = model.programShortName {
-            parts.append("\(name), \(program.daysPerWeek) days a week")
-        }
-        parts.append("~\(template.estimatedMinutes(catalog: model.catalog)) min")
-        return parts.joined(separator: " · ")
+        "\(template.exercises.count) exercises · ~\(template.estimatedMinutes(catalog: model.catalog)) min"
     }
 
     private func exerciseRow(_ item: ExercisePrescription, index: Int) -> some View {
@@ -319,24 +305,22 @@ private struct TrainHero: View {
 
     private func inProgress(_ workout: ActiveWorkout) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            category("Workout in progress")
             Text(workout.session.name)
-                .font(VFont.largeTitle)
-                .foregroundStyle(VColor.textPrimary)
+                .font(.system(.largeTitle, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
             Text("\(workout.completedSets) of \(workout.totalSets) sets done")
                 .font(VFont.secondary.monospacedDigit())
                 .foregroundStyle(VColor.textSecondary)
                 .padding(.top, 2)
-            LinearProgress(progress: workout.progress, tint: VColor.accent, height: 5)
+            LinearProgress(progress: workout.progress, tint: WidgetTint.training.accent, height: 6)
                 .padding(.top, Space.sm)
             Button {
                 model.resumeWorkout()
             } label: {
                 Label("Resume workout", systemImage: "play.fill")
             }
-            .buttonStyle(.accentCapsule)
+            .buttonStyle(.widgetPrimary)
             .padding(.top, 18)
         }
     }
@@ -345,11 +329,9 @@ private struct TrainHero: View {
 
     private var noProgram: some View {
         VStack(alignment: .leading, spacing: 0) {
-            category("Program")
             Text("Pick a program")
-                .font(VFont.largeTitle)
-                .foregroundStyle(VColor.textPrimary)
-                .padding(.top, 6)
+                .font(.system(.largeTitle, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
             Text("Programs are matched to your goal and equipment. Or build your own routine.")
                 .font(VFont.secondary)
                 .foregroundStyle(VColor.textSecondary)
@@ -358,13 +340,13 @@ private struct TrainHero: View {
             Button(action: onBrowsePrograms) {
                 Label("Browse programs", systemImage: "square.grid.2x2")
             }
-            .buttonStyle(.accentCapsule)
+            .buttonStyle(.widgetPrimary)
             .padding(.top, 18)
             AdaptiveStack(spacing: Space.xs) {
                 Button("Build your own", action: onCreateWorkout)
-                    .buttonStyle(.quietCapsule)
+                    .buttonStyle(.widgetSecondary)
                 Button("Empty workout") { model.startEmptyWorkout() }
-                    .buttonStyle(.quietCapsule)
+                    .buttonStyle(.widgetSecondary)
             }
             .padding(.top, Space.xs)
         }

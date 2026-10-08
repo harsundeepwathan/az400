@@ -2,12 +2,11 @@ import SwiftUI
 import UIKit
 import VectorCore
 
-/// Nutrition ("Fields"): the nutrition field is the hero (large title, add
-/// menu, day pager, kcal left, calorie and macro bars, protein to go). Then
-/// logging on the plain ground (one accent "Scan meal" with an honest
-/// caption, three quiet capsules), then the meals as open-canvas sections
-/// with hairline rows. The screen is a plain `List` so food rows get native
-/// swipe-to-delete; deleting offers Undo for a few seconds.
+/// Nutrition (widgets): the large title, add menu and day pager on the
+/// canvas; a Calories tile (ring, kcal left, macro bars, protein to go); a
+/// Log food tile (Scan meal with an honest caption, then search, barcode and
+/// quick add); then each meal as its own tile. The screen is a plain `List`
+/// so food rows keep native swipe-to-delete; deleting offers Undo.
 struct NutritionView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -23,15 +22,12 @@ struct NutritionView: View {
             List {
                 NutritionHero(day: $day, nutrition: nutrition,
                               onScan: { openScanner(suggested) }, suggested: suggested)
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(VColor.fieldNutrition)
+                    .canvasListRow()
 
+                TileGap()
                 LoggingActions(scansRemaining: model.scansRemaining, suggested: suggested,
                                onScan: { openScanner(suggested) })
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(VColor.ground)
+                    .canvasListRow()
 
                 ForEach(MealType.allCases) { meal in
                     MealSection(meal: meal, day: day,
@@ -43,32 +39,16 @@ struct NutritionView: View {
                 if let insight = model.visibleInsights.first(where: { $0.category == .nutrition && $0.id != model.dailyInsight?.id }) {
                     InsightCard(insight: insight, isLocked: insight.requiresPro && !model.isPro,
                                 onAction: { model.handle($0) }, onUnlock: { model.presentPaywall(.insight) })
-                        .padding(.horizontal, Space.fieldInset)
-                        .padding(.top, Space.xl)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(VColor.ground)
+                        .padding(.top, Space.sm)
+                        .canvasListRow()
                 }
 
-                Color.clear
-                    .frame(height: Space.xl)
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(VColor.ground)
-                    .accessibilityHidden(true)
+                TileGap(height: Space.lg)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, 0)
-            // Field colour above, ground below: pulling down past the top shows the
-            // field, pushing past the end shows the ground.
-            .background {
-                VStack(spacing: 0) {
-                    VColor.fieldNutrition
-                    VColor.ground
-                }
-                .ignoresSafeArea()
-            }
+            .background(WColor.canvas.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if let deleted {
@@ -140,75 +120,72 @@ private struct NutritionHero: View {
         let proteinToGo = max(nutrition.targets.protein - nutrition.consumed.protein, 0)
 
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: Space.sm) {
-                Text("Nutrition")
-                    .font(VFont.largeTitle)
-                    .foregroundStyle(VColor.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: Space.sm)
-                addMenu
-            }
-
+            WidgetScreenHeader(title: "Nutrition") { addMenu }
             DayPager(day: $day)
-                .padding(.top, Space.xs)
+                .padding(.horizontal, 4)
+                .padding(.bottom, Space.xs)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                    Text(Format.integer(abs(remaining)))
-                        .font(VFont.fieldHero(heroSize))
-                        .foregroundStyle(VColor.textPrimary)
-                        .contentTransition(.numericText())
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    if remaining < 0 {
-                        Label("kcal over", systemImage: "exclamationmark.triangle.fill")
-                            .font(VFont.headline)
-                            .foregroundStyle(VColor.warning)
-                    } else {
-                        Text("kcal left")
-                            .font(VFont.headline)
-                            .foregroundStyle(VColor.textPrimary)
+            WidgetTile(tint: .calories, title: "Calories", symbol: "flame.fill") {
+                HStack(alignment: .center, spacing: Space.md) {
+                    ZStack {
+                        GradientRing(progress: nutrition.calorieProgress, lineWidth: 12,
+                                     colors: [WidgetTint.calories.accent, WidgetTint.calories.accentEnd])
+                        VStack(spacing: 0) {
+                            Text(Format.integer(abs(remaining)))
+                                .font(.system(size: heroSize * 0.55, weight: .bold).monospacedDigit())
+                                .foregroundStyle(WColor.textPrimary)
+                                .contentTransition(.numericText())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            if remaining < 0 {
+                                Label("over", systemImage: "exclamationmark.triangle.fill")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(VColor.warning)
+                            } else {
+                                Text("kcal left").font(.footnote).foregroundStyle(WColor.textSecondary)
+                            }
+                        }
+                        .padding(.horizontal, 14)
                     }
+                    .frame(width: 132, height: 132)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Calories")
+                    .accessibilityValue("\(Format.integer(abs(remaining))) \(remaining >= 0 ? "left" : "over"), "
+                                        + "\(Format.integer(nutrition.consumed.calories)) eaten of \(Format.integer(nutrition.targets.calories))")
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(Format.integer(nutrition.consumed.calories))
+                            .font(.system(.title, weight: .bold).monospacedDigit())
+                            .foregroundStyle(WColor.textPrimary)
+                        Text("eaten of \(Format.integer(nutrition.targets.calories)) kcal")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(WColor.textSecondary)
+                        proteinLine(toGo: proteinToGo, isToday: isToday)
+                            .padding(.top, Space.xs)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
-                Text("\(Format.integer(nutrition.consumed.calories)) eaten of \(Format.integer(nutrition.targets.calories))")
-                    .font(VFont.secondary.monospacedDigit())
-                    .foregroundStyle(VColor.textSecondary)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Calories")
-            .accessibilityValue("\(Format.integer(abs(remaining))) \(remaining >= 0 ? "left" : "over"), "
-                                + "\(Format.integer(nutrition.consumed.calories)) eaten of \(Format.integer(nutrition.targets.calories))")
-            .padding(.top, Space.sm)
+                .padding(.top, Space.sm)
 
-            FieldBar(progress: nutrition.calorieProgress, tint: VColor.calories, height: 8)
+                VStack(spacing: 14) {
+                    WidgetBar(title: "Protein", value: nutrition.consumed.protein, target: nutrition.targets.protein, unit: "g", color: WColor.protein)
+                    WidgetBar(title: "Carbs", value: nutrition.consumed.carbs, target: nutrition.targets.carbs, unit: "g", color: WColor.carbs)
+                    WidgetBar(title: "Fat", value: nutrition.consumed.fat, target: nutrition.targets.fat, unit: "g", color: WColor.fat)
+                }
                 .padding(.top, Space.md)
-
-            VStack(spacing: Space.md) {
-                MacroRow(title: "Protein", consumed: nutrition.consumed.protein, target: nutrition.targets.protein, tint: VColor.protein)
-                MacroRow(title: "Carbs", consumed: nutrition.consumed.carbs, target: nutrition.targets.carbs, tint: VColor.carbs)
-                MacroRow(title: "Fat", consumed: nutrition.consumed.fat, target: nutrition.targets.fat, tint: VColor.fat)
             }
-            .padding(.top, Space.md)
-
-            proteinLine(toGo: proteinToGo, isToday: isToday)
-                .padding(.top, Space.md)
         }
-        .padding(.horizontal, Space.fieldInset)
-        .padding(.top, 6)
-        .padding(.bottom, Space.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VColor.fieldNutrition)
     }
 
     @ViewBuilder private func proteinLine(toGo: Double, isToday: Bool) -> some View {
         if toGo > 0 {
-            (Text("\(Format.integer(toGo)) g protein").font(VFont.bodyEmphasized.monospacedDigit()).foregroundStyle(VColor.textPrimary)
-                + Text(isToday ? " to go today" : " under target").font(VFont.body).foregroundStyle(VColor.textSecondary))
+            (Text("\(Format.integer(toGo)) g protein").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(WColor.protein)
+                + Text(isToday ? " to go today" : " under target").font(.subheadline).foregroundStyle(WColor.textSecondary))
                 .fixedSize(horizontal: false, vertical: true)
         } else {
             Label("Protein target met", systemImage: "checkmark.circle.fill")
-                .font(VFont.bodyEmphasized)
-                .foregroundStyle(VColor.textPrimary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(WColor.protein)
         }
     }
 
@@ -222,8 +199,10 @@ private struct NutritionHero: View {
             Button("Saved meals", systemImage: Icon.meal) { model.sheet = .savedMeals(suggested) }
         } label: {
             Image(systemName: Icon.add)
-                .font(.system(.title2, weight: .semibold))
-                .foregroundStyle(VColor.accentText)
+                .font(.system(.title3, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
+                .frame(width: 38, height: 38)
+                .background(WColor.innerStrong, in: Circle())
                 .frame(width: Size.minTouch, height: Size.minTouch)
                 .contentShape(Rectangle())
         }
@@ -301,17 +280,17 @@ private struct LoggingActions: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        VStack(spacing: 0) {
+        WidgetTile(tint: .calories, title: "Log food", symbol: "plus.circle.fill") {
             VStack(spacing: Space.sm) {
                 Button(action: onScan) {
                     Label("Scan meal", systemImage: Icon.scan)
                 }
-                .buttonStyle(.accentCapsule)
+                .buttonStyle(.widgetPrimary)
                 .accessibilityHint(caption)
 
                 Text(caption)
-                    .font(VFont.fieldCaption)
-                    .foregroundStyle(VColor.textSecondary)
+                    .font(.footnote)
+                    .foregroundStyle(WColor.textSecondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityHidden(true)
@@ -323,20 +302,19 @@ private struct LoggingActions: View {
                         HStack(spacing: Space.xs) { quietActions }
                     }
                 }
-                .padding(.top, Space.xs)
+                .padding(.top, Space.xxs)
             }
-            .padding(.horizontal, Space.fieldInset)
-            .padding(.top, Space.lg)
-            .padding(.bottom, Space.lg)
-            RowHairline()
+            .padding(.top, Space.sm)
         }
-        .background(VColor.ground)
     }
 
     @ViewBuilder private var quietActions: some View {
-        QuickActionButton(title: "Search", symbol: Icon.search, variant: .capsule) { model.sheet = .foodSearch(suggested) }
-        QuickActionButton(title: "Barcode", symbol: Icon.barcode, variant: .capsule) { model.sheet = .barcode(suggested) }
-        QuickActionButton(title: "Quick add", symbol: Icon.add, variant: .capsule) { model.sheet = .quickAdd(suggested) }
+        Button { model.sheet = .foodSearch(suggested) } label: { Label("Search", systemImage: Icon.search) }
+            .buttonStyle(.widgetSecondary)
+        Button { model.sheet = .barcode(suggested) } label: { Label("Barcode", systemImage: Icon.barcode) }
+            .buttonStyle(.widgetSecondary)
+        Button { model.sheet = .quickAdd(suggested) } label: { Label("Quick add", systemImage: Icon.add) }
+            .buttonStyle(.widgetSecondary)
     }
 
     private var caption: String {
@@ -368,10 +346,12 @@ private struct MealSection: View {
         let entries = model.entries(on: day, meal: meal)
         let total = entries.reduce(Macros.zero) { $0 + $1.macros }
         Section {
+            TileGap()
             header(entries: entries, total: total)
                 .padding(.horizontal, Space.fieldInset)
-                .padding(.top, Space.lg)
-                .modifier(MealRowStyle())
+                .padding(.top, Space.md)
+                .padding(.bottom, Space.xxs)
+                .tileRow(.first)
                 .alert("Save meal", isPresented: $showsSavePrompt) {
                     TextField("Name", text: $savingName)
                     Button("Save") { model.saveMeal(named: savingName, entries: entries) }
@@ -392,7 +372,8 @@ private struct MealSection: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, Space.fieldInset)
-                .modifier(MealRowStyle())
+                .padding(.bottom, Space.xs)
+                .tileRow(.last)
             } else {
                 ForEach(entries) { entry in
                     Button { onEdit(entry) } label: {
@@ -416,7 +397,8 @@ private struct MealSection: View {
                         Button("Edit", systemImage: "pencil") { onEdit(entry) }
                         Button("Delete", systemImage: "trash", role: .destructive) { onDelete(entry) }
                     }
-                    .modifier(MealRowStyle())
+                    .padding(.bottom, entry.id == entries.last?.id ? Space.xs : 0)
+                    .tileRow(entry.id == entries.last?.id ? .last : .middle)
                 }
             }
         }
@@ -425,8 +407,8 @@ private struct MealSection: View {
     private func header(entries: [FoodEntry], total: Macros) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
             Text(meal.displayName)
-                .font(VFont.canvasTitle)
-                .foregroundStyle(VColor.textPrimary)
+                .font(.system(.title3, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: Space.xs)
             Text("\(Format.integer(total.calories)) kcal")
@@ -467,16 +449,6 @@ private struct MealSection: View {
         }
         .padding(.trailing, -Space.sm)
         .accessibilityLabel("\(meal.displayName) options")
-    }
-}
-
-/// Open-canvas list row: no system insets, separators or fill.
-private struct MealRowStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .listRowBackground(VColor.ground)
     }
 }
 

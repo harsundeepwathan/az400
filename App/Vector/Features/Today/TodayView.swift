@@ -421,11 +421,11 @@ private struct CaloriesTile: View {
                 .accessibilityHidden(true)
 
             HStack {
-                MacroRing(letter: "P", name: "Protein", consumed: day.consumed.protein, target: day.targets.protein, color: WColor.protein)
+                WidgetMacroRing(letter: "P", name: "Protein", consumed: day.consumed.protein, target: day.targets.protein, color: WColor.protein)
                 Spacer(minLength: 4)
-                MacroRing(letter: "C", name: "Carbs", consumed: day.consumed.carbs, target: day.targets.carbs, color: WColor.carbs)
+                WidgetMacroRing(letter: "C", name: "Carbs", consumed: day.consumed.carbs, target: day.targets.carbs, color: WColor.carbs)
                 Spacer(minLength: 4)
-                MacroRing(letter: "F", name: "Fat", consumed: day.consumed.fat, target: day.targets.fat, color: WColor.fat)
+                WidgetMacroRing(letter: "F", name: "Fat", consumed: day.consumed.fat, target: day.targets.fat, color: WColor.fat)
             }
             .padding(.top, 12)
         }

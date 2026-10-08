@@ -133,7 +133,7 @@ struct GradientRing: View {
 }
 
 /// One macro: a small ring with its letter inside, grams below.
-struct MacroRing: View {
+struct WidgetMacroRing: View {
     var letter: String
     var name: String
     var consumed: Double
@@ -400,5 +400,175 @@ struct FloatingTabBar: View {
         .buttonStyle(.pressable)
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+}
+
+// MARK: - Tiles in lists and plain sections
+
+/// Where a row sits in a tile drawn across several list rows.
+enum TilePosition {
+    case only, first, middle, last
+
+    var top: CGFloat { self == .only || self == .first ? Radius.xl : 0 }
+    var bottom: CGFloat { self == .only || self == .last ? Radius.xl : 0 }
+}
+
+/// The white tile behind one list row; rows in sequence join into one tile.
+struct TileRowBackground: View {
+    var position: TilePosition
+
+    var body: some View {
+        UnevenRoundedRectangle(topLeadingRadius: position.top, bottomLeadingRadius: position.bottom,
+                               bottomTrailingRadius: position.bottom, topTrailingRadius: position.top,
+                               style: .continuous)
+            .fill(WColor.tile)
+            .padding(.horizontal, Space.gutter)
+    }
+}
+
+extension View {
+    /// A list row drawn as part of a tile. Content supplies its own inner
+    /// padding (usually `Space.fieldInset`); the tile sits on the gutter.
+    func tileRow(_ position: TilePosition) -> some View {
+        listRowInsets(EdgeInsets(top: 0, leading: Space.gutter, bottom: 0, trailing: Space.gutter))
+            .listRowSeparator(.hidden)
+            .listRowBackground(TileRowBackground(position: position))
+    }
+
+    /// A list row directly on the canvas (titles, gaps, whole tiles).
+    func canvasListRow(horizontal: CGFloat = Space.gutter) -> some View {
+        listRowInsets(EdgeInsets(top: 0, leading: horizontal, bottom: 0, trailing: horizontal))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+
+    /// A white tile behind a section that draws its own content and padding.
+    func widgetSurface() -> some View {
+        background(WColor.tile, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.xl, style: .continuous).strokeBorder(WColor.edge, lineWidth: 1)
+            }
+            .padding(.horizontal, Space.gutter)
+    }
+}
+
+/// Vertical space between tiles in a list.
+struct TileGap: View {
+    var height: CGFloat = 12
+
+    var body: some View {
+        Color.clear.frame(height: height).canvasListRow().accessibilityHidden(true)
+    }
+}
+
+/// A screen's large title on the canvas, with an optional line under it and an accessory.
+struct WidgetScreenHeader<Accessory: View>: View {
+    var title: String
+    var subtitle: String?
+    @ViewBuilder var accessory: Accessory
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Space.sm) {
+            VStack(alignment: .leading, spacing: 0) {
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(.subheadline, weight: .medium))
+                        .foregroundStyle(WColor.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Text(title)
+                    .font(.system(.largeTitle, weight: .bold))
+                    .foregroundStyle(WColor.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            Spacer(minLength: Space.sm)
+            accessory
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, Space.xs)
+        .padding(.bottom, Space.xs)
+    }
+}
+
+// MARK: - Buttons
+
+/// The one primary action in a tile: ink fill (white in dark), 16 pt corners.
+struct WidgetPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.body, weight: .bold))
+            .foregroundStyle(WColor.onStrong)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .padding(.horizontal, Space.md)
+            .background(WColor.strong, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(isEnabled ? 1 : 0.4)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Secondary actions in a tile: a soft fill and ink text.
+struct WidgetSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.subheadline, weight: .semibold))
+            .foregroundStyle(WColor.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, minHeight: Size.minTouch)
+            .padding(.horizontal, Space.xs)
+            .background(WColor.innerStrong, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == WidgetPrimaryButtonStyle {
+    static var widgetPrimary: WidgetPrimaryButtonStyle { WidgetPrimaryButtonStyle() }
+}
+
+extension ButtonStyle where Self == WidgetSecondaryButtonStyle {
+    static var widgetSecondary: WidgetSecondaryButtonStyle { WidgetSecondaryButtonStyle() }
+}
+
+/// A labelled progress bar for a tile: name and value above, an 8 pt rounded bar below.
+struct WidgetBar: View {
+    var title: String
+    var value: Double
+    var target: Double
+    var unit: String
+    var color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.subheadline).foregroundStyle(WColor.textPrimary)
+                Spacer(minLength: Space.xs)
+                (Text(Format.integer(value)).bold().foregroundColor(WColor.textPrimary)
+                 + Text(" / \(Format.integer(target)) \(unit)"))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(WColor.textSecondary)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(WColor.track)
+                    Capsule().fill(color)
+                        .frame(width: target > 0 ? max(proxy.size.width * min(value / target, 1), value > 0 ? 8 : 0) : 0)
+                }
+            }
+            .frame(height: 8)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue("\(Format.integer(value)) of \(Format.integer(target)) \(unit)")
+    }
+}
+
+extension WidgetScreenHeader where Accessory == EmptyView {
+    init(title: String, subtitle: String? = nil) {
+        self.init(title: title, subtitle: subtitle, accessory: { EmptyView() })
     }
 }

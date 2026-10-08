@@ -19,7 +19,6 @@ struct NutritionChartsSection: View {
             let adherence = engine.proteinAdherence(model.foodEntries, targets: targets, range: range, now: now)
 
             VStack(alignment: .leading, spacing: 0) {
-                RowHairline()
                 VStack(alignment: .leading, spacing: Space.sm) {
                     CanvasTitle("Nutrition")
                     FieldRangePicker(ranges: NutritionChartEngine.ranges, selection: $range)
@@ -51,9 +50,10 @@ struct NutritionChartsSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, Space.fieldInset)
-                .padding(.vertical, Space.xl)
+                .padding(.vertical, Space.lg)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .widgetSurface()
             .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: range)
             .sheet(item: $detail) { NutritionChartDetailView(detail: $0) }
         }

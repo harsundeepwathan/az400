@@ -1,12 +1,11 @@
 import SwiftUI
 import VectorCore
 
-/// "Am I actually progressing?" ("Fields"). The body field is the hero: the
-/// large title, Coach link, range picker, weight with its trend and the
-/// measurement and photo rows. The training field holds strength: volume per
-/// week with the current week in accent, personal records, and (Pro)
-/// estimated max and weekly sets per muscle. Consistency, nutrition and
-/// coaching history follow on the plain ground.
+/// "Am I actually progressing?" (widgets). The large title, Coach link and
+/// range picker on the canvas, then tiles: Body weight (trend chart,
+/// measurements, photos), Strength (volume per week, personal records and,
+/// for Pro, estimated max and weekly sets per muscle), Consistency,
+/// Nutrition and Coaching.
 struct ProgressDashboardView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -16,9 +15,10 @@ struct ProgressDashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 12) {
                     ProgressBodyField(range: $range, onDetail: { detail = $0 })
                     StrengthField(range: range, onDetail: { detail = $0 })
+                        .padding(.horizontal, Space.gutter)
                     ConsistencySection(range: range, onDetail: { detail = $0 })
                     // Shown with or without workouts; hides itself until a meal is logged.
                     NutritionChartsSection()
@@ -27,14 +27,7 @@ struct ProgressDashboardView: View {
                 .padding(.bottom, Space.xl)
                 .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: range)
             }
-            // Field colour above, ground below, so overscroll never shows a seam.
-            .background {
-                VStack(spacing: 0) {
-                    VColor.fieldBody
-                    VColor.ground
-                }
-                .ignoresSafeArea()
-            }
+            .background(WColor.canvas.ignoresSafeArea())
             .navigationTitle("Progress")
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $detail) { ChartDetailView(detail: $0) }
@@ -50,42 +43,41 @@ private struct ProgressBodyField: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            HStack(alignment: .center, spacing: Space.sm) {
-                Text("Progress")
-                    .font(VFont.largeTitle)
-                    .foregroundStyle(VColor.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: Space.sm)
+        VStack(alignment: .leading, spacing: 12) {
+            WidgetScreenHeader(title: "Progress") {
                 Button { model.sheet = .coach } label: {
                     Label("Coach", systemImage: Icon.recommendation)
-                        .font(VFont.bodyEmphasized)
-                        .foregroundStyle(VColor.accentText)
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(WColor.textPrimary)
+                        .padding(.horizontal, 14)
+                        .frame(height: 38)
+                        .background(WColor.innerStrong, in: Capsule())
                         .frame(minHeight: Size.minTouch)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.pressable)
             }
 
-            FieldRangePicker(selection: $range, tint: VColor.inkBody,
+            FieldRangePicker(selection: $range, tint: WidgetTint.body.ink,
                              isLocked: { $0.requiresPro && !model.isPro },
                              onLockedTap: { model.presentPaywall(.history) })
+                .padding(.horizontal, 4)
 
-            VStack(alignment: .leading, spacing: Space.xs) {
-                CategoryHeader(symbol: "scalemass", title: "Body weight", tint: VColor.inkBody,
-                               detail: "Weigh in", action: { model.sheet = .bodyWeight })
-                    .frame(minHeight: Size.minTouch)
+            WidgetTile(tint: .body, title: "Body weight", symbol: "figure.stand") {
+                Button { model.sheet = .bodyWeight } label: {
+                    WidgetChip(title: "Weigh in", symbol: "plus")
+                        .frame(minHeight: Size.minTouch)
+                }
+                .buttonStyle(.pressable)
+            } content: {
                 weight
+                    .padding(.top, Space.xs)
+                links
+                    .padding(.top, Space.sm)
             }
-            .padding(.top, Space.xs)
-
-            links
         }
-        .padding(.horizontal, Space.fieldInset)
-        .padding(.top, 6)
-        .padding(.bottom, Space.md)
+        .padding(.horizontal, Space.gutter)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background { VColor.fieldBody.padding(.top, -1000) }
     }
 
     @ViewBuilder private var weight: some View {
@@ -104,7 +96,7 @@ private struct ProgressBodyField: View {
                 if let trend {
                     Label(signed(trend.kgPerWeek) + " a week", systemImage: arrow(trend.kgPerWeek))
                         .font(VFont.bodyEmphasized.monospacedDigit())
-                        .foregroundStyle(VColor.inkBody)
+                        .foregroundStyle(WidgetTint.body.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .accessibilityLabel("Trend \(signed(trend.kgPerWeek)) a week")
@@ -126,7 +118,7 @@ private struct ProgressBodyField: View {
             if points.isEmpty {
                 note("No weigh-ins in this range.")
             } else {
-                WeightTrendChart(points: points, trend: model.analytics.smoothedTrend(points), tint: VColor.inkBody,
+                WeightTrendChart(points: points, trend: model.analytics.smoothedTrend(points), tint: WidgetTint.body.accent,
                                  valueFormatter: { Format.estimate($0, unit: model.unit) })
                     .padding(.top, Space.xs)
                 if points.count < 3 {
@@ -143,13 +135,13 @@ private struct ProgressBodyField: View {
             NavigationLink {
                 MeasurementsView()
             } label: {
-                FieldRowLabel(symbol: "ruler", tint: VColor.inkBody, title: "Measurements", detail: measurementsDetail)
+                FieldRowLabel(symbol: "ruler", tint: WidgetTint.body.ink, title: "Measurements", detail: measurementsDetail)
             }
             RowHairline(leading: FieldMetric.rowIcon + Space.sm)
             NavigationLink {
                 ProgressPhotosView()
             } label: {
-                FieldRowLabel(symbol: "camera", tint: VColor.inkBody, title: "Progress photos", detail: photosDetail)
+                FieldRowLabel(symbol: "camera", tint: WidgetTint.body.ink, title: "Progress photos", detail: photosDetail)
             }
         }
         .buttonStyle(.plain)
@@ -192,7 +184,7 @@ private struct StrengthField: View {
     @State private var strengthExerciseID: String?
 
     var body: some View {
-        FieldSection(.training, symbol: Icon.train, title: "Strength") {
+        WidgetTile(tint: .training, title: "Strength", symbol: "dumbbell.fill") {
             if model.sessions.isEmpty {
                 empty
             } else {
@@ -230,7 +222,7 @@ private struct StrengthField: View {
             } label: {
                 Label("Start workout", systemImage: "play.fill")
             }
-            .buttonStyle(.accentCapsule)
+            .buttonStyle(.widgetPrimary)
             .padding(.top, Space.xs)
         }
     }
@@ -356,7 +348,7 @@ private struct StrengthField: View {
                         .accessibilityLabel("Latest estimated max \(Format.estimate(last.value, unit: model.unit))")
                 }
                 if points.count >= 2 {
-                    EstimateLineChart(points: points, tint: VColor.inkTraining,
+                    EstimateLineChart(points: points, tint: WidgetTint.training.accent,
                                       valueFormatter: { Format.estimate($0, unit: model.unit) })
                         .padding(.top, Space.xs)
                     Button("Details") { onDetail(ChartDetail(kind: .strength(selected.id), range: range)) }
@@ -495,8 +487,9 @@ private struct ConsistencySection: View {
                 }
             }
             .padding(.horizontal, Space.fieldInset)
-            .padding(.vertical, Space.xl)
+            .padding(.vertical, Space.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .widgetSurface()
         }
     }
 

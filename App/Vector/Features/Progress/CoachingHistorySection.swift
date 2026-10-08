@@ -15,7 +15,6 @@ struct CoachingHistorySection: View {
         let recent = Array(model.coachDecisions.reversed().prefix(12))
         let canExpand = model.isPro && recent.count > Self.collapsedCount
         VStack(alignment: .leading, spacing: 0) {
-            RowHairline()
             VStack(alignment: .leading, spacing: Space.xs) {
                 CanvasTitle("Coaching", actionTitle: canExpand ? (showsAll ? "Show less" : "See all") : nil) {
                     withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) { showsAll.toggle() }
@@ -46,9 +45,10 @@ struct CoachingHistorySection: View {
                 }
             }
             .padding(.horizontal, Space.fieldInset)
-            .padding(.vertical, Space.xl)
+            .padding(.vertical, Space.lg)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .widgetSurface()
     }
 }
 
