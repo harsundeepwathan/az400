@@ -2,10 +2,10 @@ import StoreKit
 import SwiftUI
 import VectorCore
 
-/// Premium paywall ("Fields"). Honest by construction: prices come from the
-/// App Store, savings are computed from real prices, the trial only shows if
-/// StoreKit says the user is eligible, and there are no countdowns. The
-/// example check-in on the hero field is labelled as an example.
+/// Premium paywall in the tile design. Honest by construction: prices come
+/// from the App Store, savings are computed from real prices, the trial only
+/// shows if StoreKit says the user is eligible, and there are no countdowns.
+/// The example check-in in the blue hero tile is labelled as an example.
 struct PaywallView: View {
     var trigger: PaywallTrigger
     @Environment(AppModel.self) private var model
@@ -38,15 +38,16 @@ struct PaywallView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    hero
+                VStack(alignment: .leading, spacing: 12) {
+                    header
+                    exampleCheckIn
                     benefitList
-                    alwaysFree
                     plans
+                    alwaysFree
                 }
                 .padding(.bottom, Space.lg)
             }
-            .screenBackground()
+            .widgetCanvas()
             .safeAreaInset(edge: .bottom, spacing: 0) { purchaseBar }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -55,8 +56,8 @@ struct PaywallView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button("Restore") { Task { await purchases.restore() } }
-                        .font(VFont.body)
-                        .foregroundStyle(VColor.accentText)
+                        .font(.body)
+                        .foregroundStyle(WidgetTint.training.ink)
                         .disabled(purchases.state == .purchasing)
                 }
             }
@@ -65,43 +66,53 @@ struct PaywallView: View {
         }
     }
 
-    // MARK: Hero
+    // MARK: Header
 
-    private var hero: some View {
-        HeroField(spacing: Space.sm) {
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text("Vector Pro")
+                .font(.system(.subheadline, weight: .semibold))
+                .foregroundStyle(WidgetTint.training.ink)
             Text("Unlock your digital coach")
-                .font(VFont.largeTitle)
-                .foregroundStyle(VColor.heroText)
+                .font(.system(.largeTitle, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             Text(contextLine)
-                .font(VFont.body)
-                .foregroundStyle(VColor.heroText)
+                .font(.body)
+                .foregroundStyle(WColor.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            HeroHairline()
-                .padding(.vertical, Space.xs)
-            exampleCheckIn
         }
+        .padding(.horizontal, Space.gutter + 4)
+        .padding(.top, Space.xs)
+        .padding(.bottom, Space.xs)
     }
 
     /// A static, clearly labelled example of what a check-in looks like.
     /// It is not the user's data.
     private var exampleCheckIn: some View {
-        VStack(alignment: .leading, spacing: Space.xxs) {
-            Text("Example check-in")
-                .font(VFont.fieldCaption)
-                .foregroundStyle(VColor.heroTextSecondary)
-            Text("2,300 \u{2192} 2,550 kcal a day")
-                .font(VFont.metric)
-                .foregroundStyle(VColor.heroText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+        WidgetHero(label: "Example check-in", symbol: Icon.recommendation, spacing: Space.xxs) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                Text("2,300")
+                Image(systemName: "arrow.right")
+                    .font(.system(.title2, weight: .semibold))
+                    .foregroundStyle(WidgetTint.insight.textSecondary)
+                Text("2,550")
+            }
+            .font(.system(.largeTitle, weight: .bold).monospacedDigit())
+            .foregroundStyle(WidgetTint.insight.text)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            Text("kcal a day")
+                .font(.body)
+                .foregroundStyle(WidgetTint.insight.textSecondary)
             Text("Weight trend \u{2212}0.17 kg a week for 20 days, below the build-muscle range. High confidence.")
-                .font(VFont.secondary)
-                .foregroundStyle(VColor.heroTextSecondary)
+                .font(.subheadline)
+                .foregroundStyle(WidgetTint.insight.text)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, Space.xs)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Example check-in: change calories from 2,300 to 2,550 a day. Weight trend minus 0.17 kilograms a week for 20 days, below the build-muscle range. High confidence.")
     }
 
@@ -123,72 +134,60 @@ struct PaywallView: View {
     // MARK: Benefits
 
     private var benefitList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("What Pro adds")
-                .font(VFont.title)
-                .foregroundStyle(VColor.textPrimary)
-                .accessibilityAddTraits(.isHeader)
-                .padding(.bottom, Space.sm)
-            ForEach(Array(benefits.enumerated()), id: \.element.id) { index, benefit in
-                HStack(alignment: .center, spacing: Space.md) {
+        WidgetSection(title: "What Pro adds", symbol: "plus.circle", spacing: Space.md) {
+            ForEach(benefits) { benefit in
+                HStack(alignment: .top, spacing: Space.sm) {
                     Image(systemName: benefit.symbol)
-                        .font(.system(.title3, weight: .semibold))
-                        .foregroundStyle(VColor.accentText)
-                        .frame(width: 32)
+                        .font(.system(.body, weight: .semibold))
+                        .foregroundStyle(WColor.onSelected)
+                        .frame(width: 36, height: 36)
+                        .background(WColor.selected, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(benefit.title)
-                            .font(VFont.body)
-                            .foregroundStyle(VColor.textPrimary)
+                            .font(.system(.body, weight: .semibold))
+                            .foregroundStyle(WColor.textPrimary)
                         Text(benefit.detail)
-                            .font(VFont.secondary)
-                            .foregroundStyle(VColor.textSecondary)
+                            .font(.subheadline)
+                            .foregroundStyle(WColor.textSecondary)
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.vertical, Space.sm)
-                .overlay(alignment: .bottom) {
-                    if index < benefits.count - 1 { Hairline(leading: 32 + Space.md) }
-                }
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(.horizontal, Space.fieldInset)
-        .padding(.top, Space.lg)
     }
 
     private var alwaysFree: some View {
         Text("Always free: unlimited workout logging, templates, exercise history, calorie tracking and \(EntitlementPolicy.freeMealScansPerWeek) AI meal scans a week.")
-            .font(VFont.secondary)
-            .foregroundStyle(VColor.textSecondary)
+            .font(.footnote)
+            .foregroundStyle(WColor.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, Space.fieldInset)
-            .padding(.top, Space.md)
-            .padding(.bottom, Space.lg)
+            .padding(.horizontal, Space.gutter + 4)
+            .padding(.top, Space.xxs)
     }
 
     // MARK: Plans
 
-    /// A full-bleed band with two selectable rows (checkmark on the chosen one).
+    /// Two selectable rows in one tile; the chosen one turns soft blue.
     private var plans: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            planRow(.annual, title: "Annual", price: annualLine)
-            Hairline()
-            planRow(.monthly, title: "Monthly",
-                    price: purchases.displayPrice(.monthly).map { "\($0) a month" } ?? "Loading price\u{2026}")
+        VStack(alignment: .leading, spacing: 2) {
+            WidgetChoiceRow(title: "Annual", detail: annualLine, isSelected: plan == .annual) { plan = .annual }
+            WidgetChoiceRow(title: "Monthly",
+                            detail: purchases.displayPrice(.monthly).map { "\($0) a month" } ?? "Loading price\u{2026}",
+                            isSelected: plan == .monthly) { plan = .monthly }
             if case .failed(let message) = purchases.state {
                 Label(message, systemImage: "exclamationmark.triangle")
-                    .font(VFont.caption)
+                    .font(.footnote)
                     .foregroundStyle(VColor.danger)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, Space.sm)
+                    .padding(Space.sm)
             }
         }
-        .padding(.horizontal, Space.fieldInset)
-        .padding(.vertical, Space.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VColor.surface)
+        .padding(4)
+        .widgetSurface()
+        .sensoryFeedback(.selection, trigger: plan)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Plans")
     }
@@ -202,67 +201,35 @@ struct PaywallView: View {
         return parts.joined(separator: " \u{00B7} ")
     }
 
-    private func planRow(_ option: PurchaseService.Plan, title: String, price: String) -> some View {
-        let selected = plan == option
-        return Button {
-            plan = option
-        } label: {
-            HStack(spacing: Space.md) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(VFont.headline)
-                        .foregroundStyle(VColor.textPrimary)
-                    Text(price)
-                        .font(VFont.secondary.monospacedDigit())
-                        .foregroundStyle(VColor.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: Space.sm)
-                Image(systemName: "checkmark")
-                    .font(.system(.body, weight: .semibold))
-                    .foregroundStyle(VColor.accentText)
-                    .opacity(selected ? 1 : 0)
-                    .accessibilityHidden(true)
-            }
-            .padding(.vertical, Space.sm)
-            .frame(minHeight: Size.minTouch)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .sensoryFeedback(.selection, trigger: selected)
-    }
-
     // MARK: Purchase
 
     private var purchaseBar: some View {
         let trial = plan == .annual ? purchases.trialDescription() : nil
-        return PinnedActionBar(spacing: Space.xs) {
+        return WidgetActionBar {
             Button {
                 Task { if await purchases.purchase(plan) { model.setTier(.pro) } }
             } label: {
                 if purchases.state == .purchasing {
-                    ProgressView().tint(VColor.textOnAccent)
+                    ProgressView().tint(WColor.onStrong)
                         .accessibilityLabel("Purchasing")
                 } else {
                     Text(trial.map { "Start \($0)" } ?? "Subscribe")
                 }
             }
-            .buttonStyle(.accentCapsule)
+            .buttonStyle(.widgetPrimary)
             .disabled(purchases.displayPrice(plan) == nil || purchases.state == .purchasing)
             Text(renewalText(trial: trial))
-                .font(VFont.caption)
-                .foregroundStyle(VColor.textSecondary)
+                .font(.caption)
+                .foregroundStyle(WColor.textSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: Space.xs) {
                 Link("Terms", destination: AppConfig.termsURL)
-                Text("\u{00B7}").foregroundStyle(VColor.textTertiary).accessibilityHidden(true)
+                Text("\u{00B7}").foregroundStyle(WColor.textSecondary).accessibilityHidden(true)
                 Link("Privacy", destination: AppConfig.privacyURL)
             }
-            .font(VFont.caption)
-            .tint(VColor.accentText)
+            .font(.caption)
+            .tint(WidgetTint.training.ink)
             .frame(minHeight: Size.minTouch)
         }
     }

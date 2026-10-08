@@ -157,9 +157,9 @@ private struct WeeklyCheckInPresenter: ViewModifier {
     }
 }
 
-/// The Weekly Coach Check-In ("Fields"): the decision on the dark hero
-/// field with its reason and confidence, the evidence one tap away, then the
-/// week in three area fields. Actions are pinned to the bottom.
+/// The Weekly Coach Check-In: the decision as the blue hero tile with its
+/// reason and confidence, the evidence one tap away, then the week in three
+/// tiles. Actions are pinned to the bottom.
 ///
 /// Free users see their week in numbers and an honest description of what
 /// Pro adds. The decision itself is never shown blurred or locked.
@@ -185,7 +185,7 @@ struct WeeklyCheckInSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 12) {
                     if model.isPro {
                         hero
                         evidence
@@ -195,9 +195,10 @@ struct WeeklyCheckInSheet: View {
                         proOffer
                     }
                 }
+                .padding(.top, Space.xs)
                 .padding(.bottom, Space.lg)
             }
-            .screenBackground()
+            .widgetCanvas()
             .safeAreaInset(edge: .bottom, spacing: 0) { actions }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -233,38 +234,39 @@ struct WeeklyCheckInSheet: View {
 
     // MARK: Hero (Pro)
 
-    @ViewBuilder private var hero: some View {
-        HeroField(spacing: Space.sm) {
+    private var hero: some View {
+        WidgetHero(label: heroLabel.title, symbol: heroLabel.symbol, spacing: Space.xs) {
             switch review.recommendation {
             case .adjustCalories(let from, let to, let reason):
-                HeroLabel("Calories", symbol: Icon.recommendation)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                         Text(Format.integer(from))
                         Image(systemName: "arrow.right")
                             .font(.system(.title2, weight: .semibold))
-                            .foregroundStyle(VColor.heroTextSecondary)
+                            .foregroundStyle(WidgetTint.insight.textSecondary)
                         Text(Format.integer(to))
                     }
-                    .font(VFont.metricHero)
-                    .foregroundStyle(VColor.heroText)
+                    .font(.system(.largeTitle, weight: .bold).monospacedDigit())
+                    .foregroundStyle(WidgetTint.insight.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     Text("kcal a day")
-                        .font(VFont.body)
-                        .foregroundStyle(VColor.heroTextSecondary)
+                        .font(.body)
+                        .foregroundStyle(WidgetTint.insight.textSecondary)
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Change calories from \(Format.integer(from)) to \(Format.integer(to)) kilocalories a day")
                 reasonText(reason)
             case .onTrack(let reason):
-                statement("On track", symbol: "checkmark.circle", title: "No changes this week.", reason: reason)
+                heroTitle("No changes this week.")
+                reasonText(reason)
             case .watch(let reason):
-                statement("Watching", symbol: "eye", title: "Hold steady for one more week.", reason: reason)
+                heroTitle("Hold steady for one more week.")
+                reasonText(reason)
             case .improveAdherence(let reason):
-                statement("Consistency", symbol: "calendar", title: "Focus on consistency first.", reason: reason)
+                heroTitle("Focus on consistency first.")
+                reasonText(reason)
             case .learningBaseline(let items):
-                HeroLabel("Learning your baseline", symbol: "hourglass")
                 heroTitle("No changes yet.")
                 reasonText("Vector needs a little more of your data before it changes anything.")
                 HeroBaselineChecklist(items: items)
@@ -272,43 +274,47 @@ struct WeeklyCheckInSheet: View {
             }
             if let outcome = review.previousOutcome {
                 Text(outcome.summary)
-                    .font(VFont.secondary)
-                    .foregroundStyle(VColor.heroTextSecondary)
+                    .font(.subheadline)
+                    .foregroundStyle(WidgetTint.insight.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HeroHairline()
-                .padding(.top, Space.xs)
             Label {
                 Text(confidenceLine)
             } icon: {
-                Image(systemName: "checkmark.seal")
+                Image(systemName: "checkmark.seal.fill")
             }
-            .font(VFont.secondary.monospacedDigit())
-            .foregroundStyle(VColor.heroTextSecondary)
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(WidgetTint.insight.text)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, Space.xxs)
+            .padding(.horizontal, Space.sm)
+            .padding(.vertical, Space.xs)
+            .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.top, Space.xs)
         }
     }
 
-    @ViewBuilder
-    private func statement(_ label: String, symbol: String, title: String, reason: String) -> some View {
-        HeroLabel(label, symbol: symbol)
-        heroTitle(title)
-        reasonText(reason)
+    private var heroLabel: (title: String, symbol: String) {
+        switch review.recommendation {
+        case .adjustCalories: ("Calories", Icon.recommendation)
+        case .onTrack: ("On track", "checkmark.circle")
+        case .watch: ("Watching", "eye")
+        case .improveAdherence: ("Consistency", "calendar")
+        case .learningBaseline: ("Learning your baseline", "hourglass")
+        }
     }
 
     private func heroTitle(_ text: String) -> some View {
         Text(text)
-            .font(VFont.largeTitle)
-            .foregroundStyle(VColor.heroText)
+            .font(.system(.largeTitle, weight: .bold))
+            .foregroundStyle(WidgetTint.insight.text)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityAddTraits(.isHeader)
     }
 
     private func reasonText(_ text: String) -> some View {
         Text(text)
-            .font(VFont.body)
-            .foregroundStyle(VColor.heroText)
+            .font(.body)
+            .foregroundStyle(WidgetTint.insight.text)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -329,15 +335,15 @@ struct WeeklyCheckInSheet: View {
         if case .learningBaseline = review.recommendation {
             EmptyView()
         } else {
-            VStack(alignment: .leading, spacing: 0) {
+            WidgetSection {
                 DisclosureGroup(isExpanded: $showsEvidence) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(review.evidence.enumerated()), id: \.offset) { _, item in
                             EvidenceRow(label: item.label, value: item.value)
                         }
                         Text("Expenditure is estimated from your logged food and weight trend. Calorie changes are limited to 100–250 kcal and never go below 1,200 kcal.")
-                            .font(VFont.caption)
-                            .foregroundStyle(VColor.textSecondary)
+                            .font(.footnote)
+                            .foregroundStyle(WColor.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, Space.sm)
                     }
@@ -346,9 +352,6 @@ struct WeeklyCheckInSheet: View {
                 }
                 .disclosureGroupStyle(FieldDisclosureStyle())
             }
-            .padding(.horizontal, Space.fieldInset)
-            .padding(.vertical, Space.md)
-            Hairline()
         }
     }
 
@@ -359,28 +362,27 @@ struct WeeklyCheckInSheet: View {
         let training = review.training
         let nutrition = review.nutrition
 
-        return VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 12) {
             Text("Your week")
-                .font(VFont.title)
-                .foregroundStyle(VColor.textPrimary)
+                .font(.system(.title2, weight: .bold))
+                .foregroundStyle(WColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
-                .padding(.horizontal, Space.fieldInset)
-                .padding(.top, Space.lg)
-                .padding(.bottom, Space.md)
+                .padding(.horizontal, Space.gutter + 4)
+                .padding(.top, model.isPro ? Space.sm : 0)
 
-            FieldSection(.training, symbol: Icon.train, title: "Training", spacing: Space.xxs) {
+            WidgetSection(title: "Training", symbol: Icon.train, spacing: Space.xxs) {
                 weekValue("\(training.completed) of \(training.planned) workouts")
                 let detail = [training.volumeChange.map { "Volume \(Format.signedPercent($0))" },
                               strengthLine(training, unit: unit)].compactMap { $0 }.joined(separator: " · ")
                 if !detail.isEmpty { weekDetail(detail) }
             }
 
-            FieldSection(.nutrition, symbol: Icon.nutrition, title: "Nutrition", spacing: Space.xxs) {
+            WidgetSection(title: "Nutrition", symbol: Icon.nutrition, spacing: Space.xxs) {
                 weekValue("\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories")
                 weekDetail("Protein target hit on \(nutrition.proteinDaysOnTarget) of \(nutrition.windowDays) days")
             }
 
-            FieldSection(.body, symbol: "scalemass", title: "Body", spacing: Space.xxs) {
+            WidgetSection(title: "Body", symbol: "scalemass", spacing: Space.xxs) {
                 bodyContent(unit: unit)
             }
         }
@@ -388,15 +390,15 @@ struct WeeklyCheckInSheet: View {
 
     private func weekValue(_ text: String) -> some View {
         Text(text)
-            .font(VFont.title.monospacedDigit())
-            .foregroundStyle(VColor.textPrimary)
+            .font(.system(.title2, weight: .bold).monospacedDigit())
+            .foregroundStyle(WColor.textPrimary)
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private func weekDetail(_ text: String) -> some View {
         Text(text)
-            .font(VFont.secondary.monospacedDigit())
-            .foregroundStyle(VColor.textSecondary)
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(WColor.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -410,15 +412,15 @@ struct WeeklyCheckInSheet: View {
                 Group {
                     if let trend = review.body.trend {
                         Text(signed(trend.kgPerWeek, unit: unit))
-                            .font(VFont.secondaryEmphasized.monospacedDigit())
-                            .foregroundStyle(VColor.inkBody)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(WidgetTint.body.ink)
                         + Text(" a week over \(Int(trend.spanDays.rounded())) days")
-                            .font(VFont.secondary)
-                            .foregroundStyle(VColor.textSecondary)
+                            .font(.subheadline)
+                            .foregroundStyle(WColor.textSecondary)
                     } else {
                         Text("Log 3+ weigh-ins a week for a trend")
-                            .font(VFont.secondary)
-                            .foregroundStyle(VColor.textSecondary)
+                            .font(.subheadline)
+                            .foregroundStyle(WColor.textSecondary)
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)
@@ -426,7 +428,7 @@ struct WeeklyCheckInSheet: View {
             .accessibilityElement(children: .combine)
             Spacer(minLength: Space.md)
             if review.body.trend != nil, points.count >= 2 {
-                TrendSparkline(points: points, trend: model.analytics.smoothedTrend(points), tint: VColor.inkBody)
+                TrendSparkline(points: points, trend: model.analytics.smoothedTrend(points), tint: WidgetTint.body.accent)
                     .frame(maxWidth: 150)
                     .frame(height: 44)
             }
@@ -470,56 +472,49 @@ struct WeeklyCheckInSheet: View {
 
     /// What Pro would add, stated plainly. No blurred or fake decision.
     private var proOffer: some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            Text("Unlock your digital coach")
-                .font(VFont.title3)
-                .foregroundStyle(VColor.textPrimary)
-                .accessibilityAddTraits(.isHeader)
+        WidgetSection(title: "Your digital coach", symbol: Icon.recommendation) {
             Text("Pro reads these numbers each week and makes one decision: change your calories, progress a lift, or change nothing. It shows the evidence and how confident it is.")
-                .font(VFont.secondary)
-                .foregroundStyle(VColor.textSecondary)
+                .font(.subheadline)
+                .foregroundStyle(WColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             Button("See Vector Pro") {
                 model.track(.paywallViewed, ["trigger": .string(PaywallTrigger.coach.rawValue)])
                 showsPaywall = true
             }
-            .buttonStyle(.outlinedCapsule)
+            .buttonStyle(.widgetSecondary)
             .padding(.top, Space.xxs)
         }
-        .padding(.horizontal, Space.fieldInset)
-        .padding(.top, Space.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Actions
 
     private var actions: some View {
-        PinnedActionBar {
+        WidgetActionBar(spacing: Space.xxs) {
             if model.isPro, case .adjustCalories = review.recommendation {
                 Button("Apply adjustment") {
                     model.applyReview(review)
                     applied = true
                     dismiss()
                 }
-                .buttonStyle(.accentCapsule)
+                .buttonStyle(.widgetPrimary)
                 Button("Keep current") {
                     model.keepCurrentTargets(review)
                     dismiss()
                 }
-                .buttonStyle(.textAction)
+                .buttonStyle(.widgetText)
             } else if model.isPro, !isBaseline {
                 // On track, watch or consistency: acknowledging records the decision.
                 Button("Done") {
                     model.applyReview(review)
                     dismiss()
                 }
-                .buttonStyle(.accentCapsule)
+                .buttonStyle(.widgetPrimary)
             } else {
                 Button("Done") {
                     model.keepCurrentTargets(review)
                     dismiss()
                 }
-                .buttonStyle(.accentCapsule)
+                .buttonStyle(.widgetPrimary)
             }
         }
     }
@@ -530,7 +525,7 @@ struct WeeklyCheckInSheet: View {
     }
 }
 
-/// The baseline checklist in white ink, for the hero field.
+/// The baseline checklist in white, for the blue hero tile.
 private struct HeroBaselineChecklist: View {
     var items: [BaselineItem]
 
@@ -539,11 +534,11 @@ private struct HeroBaselineChecklist: View {
             ForEach(items) { item in
                 HStack(spacing: Space.xs) {
                     Image(systemName: item.isComplete ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(item.isComplete ? VColor.ringWorkouts : VColor.heroTextSecondary)
+                        .foregroundStyle(item.isComplete ? WidgetTint.insight.text : WidgetTint.insight.textSecondary)
                         .accessibilityHidden(true)
                     Text("\(item.done) of \(item.needed) \(item.label)")
-                        .font(VFont.secondary.monospacedDigit())
-                        .foregroundStyle(VColor.heroText)
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(WidgetTint.insight.text)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(item.isComplete ? "Complete" : "Not yet")

@@ -567,3 +567,154 @@ extension WidgetScreenHeader where Accessory == EmptyView {
         self.init(title: title, subtitle: subtitle, accessory: { EmptyView() })
     }
 }
+
+// MARK: - Flows and sheets
+
+extension View {
+    /// The grey dashboard canvas behind a whole screen or sheet.
+    func widgetCanvas() -> some View {
+        background(WColor.canvas.ignoresSafeArea())
+    }
+}
+
+/// The one solid blue tile on a screen (as Today's insight): the decision,
+/// the plan or the offer, in white type.
+struct WidgetHero<Content: View>: View {
+    var label: String?
+    var symbol: String?
+    var spacing: CGFloat = Space.xs
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            if let label {
+                HStack(spacing: 8) {
+                    if let symbol {
+                        Image(systemName: symbol).font(.system(.body, weight: .semibold))
+                    }
+                    Text(label).font(.system(.headline))
+                }
+                .foregroundStyle(WidgetTint.insight.ink)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, 2)
+            }
+            content
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WColor.strong, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .padding(.horizontal, Space.gutter)
+    }
+}
+
+/// A plain tile with an optional grey title, for content below the hero.
+struct WidgetSection<Content: View>: View {
+    var title: String?
+    var symbol: String?
+    var spacing: CGFloat = Space.xs
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            if let title {
+                HStack(spacing: 8) {
+                    if let symbol {
+                        Image(systemName: symbol).font(.system(.body, weight: .semibold))
+                    }
+                    Text(title).font(.system(.headline))
+                }
+                .foregroundStyle(WColor.textSecondary)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, 2)
+            }
+            content
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .widgetSurface()
+    }
+}
+
+/// A selectable row inside a tile: the chosen one takes the soft blue fill,
+/// a blue symbol and a check.
+struct WidgetChoiceRow: View {
+    var title: String
+    var detail: String?
+    var symbol: String?
+    var isSelected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.system(.title3, weight: .semibold))
+                        .foregroundStyle(isSelected ? WColor.onSelected : WColor.textSecondary)
+                        .frame(width: 32)
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(.body, weight: .semibold))
+                        .foregroundStyle(WColor.textPrimary)
+                    if let detail {
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(WColor.textSecondary)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Space.sm)
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(.title3))
+                    .foregroundStyle(isSelected ? WColor.onSelected : WColor.quiet)
+                    .contentTransition(.symbolEffect(.replace))
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: Size.minTouch, alignment: .leading)
+            .background(isSelected ? WColor.selected : .clear,
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.pressable)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+}
+
+/// Actions pinned to the bottom of a flow or sheet, on the canvas.
+struct WidgetActionBar<Content: View>: View {
+    var spacing: CGFloat = Space.xs
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: spacing) {
+            content
+        }
+        .padding(.horizontal, Space.gutter + 4)
+        .padding(.top, Space.sm)
+        .padding(.bottom, Space.xs)
+        .frame(maxWidth: .infinity)
+        .background(WColor.canvas.opacity(0.94).ignoresSafeArea(edges: .bottom))
+        .background(.ultraThinMaterial)
+    }
+}
+
+/// Plain blue text action with a 44 pt target ("Not now", "Keep current").
+struct WidgetTextButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.body, weight: .semibold))
+            .foregroundStyle(WidgetTint.training.ink)
+            .frame(maxWidth: .infinity, minHeight: Size.minTouch)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+extension ButtonStyle where Self == WidgetTextButtonStyle {
+    static var widgetText: WidgetTextButtonStyle { WidgetTextButtonStyle() }
+}

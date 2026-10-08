@@ -33,7 +33,7 @@ final class VectorUITests: XCTestCase {
 
     func testOnboardingBuildsAPlan() {
         launch(sampleData: false)
-        tap(button("Get Started"))
+        tap(button("Continue"))
         let name = app.textFields["First name"]
         tap(name)
         name.typeText("Sam")
@@ -44,9 +44,9 @@ final class VectorUITests: XCTestCase {
         tap(button("Continue"))
         tap(button("Full gym"))
         tap(button("No preferences"))
-        tap(button("Build My Plan"))
-        XCTAssertTrue(waitForText("YOUR PLAN IS READY"))
-        tap(button("Start My Plan"))
+        tap(button("Build my plan"))
+        XCTAssertTrue(waitForText("Why this plan", timeout: 8))
+        tap(button("Start my plan"))
         XCTAssertTrue(waitForText("Lower A"))
     }
 
