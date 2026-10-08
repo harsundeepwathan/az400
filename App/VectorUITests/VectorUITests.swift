@@ -52,7 +52,7 @@ final class VectorUITests: XCTestCase {
 
     func testLoggingASetStartsTheRestTimer() {
         launch(sampleData: true)
-        tap(button("Start Workout"))
+        tap(app.buttons["Start"])
         tap(app.buttons["Complete set"].firstMatch)
         XCTAssertTrue(waitForText("Skip rest", timeout: 3))
         tap(button("Skip"))
@@ -63,7 +63,7 @@ final class VectorUITests: XCTestCase {
 
     func testMealScanReviewAddsMeal() {
         launch(sampleData: true)
-        tap(app.tabBars.buttons["Nutrition"])
+        tap(app.buttons["Nutrition"])
         tap(button("Scan Meal"))
         tap(button("Try a sample meal"))
         XCTAssertTrue(waitForText("AI estimate", timeout: 8))
@@ -74,7 +74,7 @@ final class VectorUITests: XCTestCase {
 
     func testProgramBrowserSwitchesProgram() {
         launch(sampleData: true)
-        tap(app.tabBars.buttons["Train"])
+        tap(app.buttons["Train"])
         tap(button("Browse Programs"))
         tap(button("6 days"))
         tap(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Push / Pull / Legs'")).firstMatch)

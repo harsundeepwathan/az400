@@ -32,27 +32,38 @@ struct MainTabView: View {
 
     var body: some View {
         @Bindable var model = model
+        // The system tab bar is hidden; a floating bar with the quick-log +
+        // sits over every tab instead.
         TabView(selection: $model.selectedTab) {
             tab(.today) { TodayView() }
             tab(.train) { TrainView() }
             tab(.nutrition) { NutritionView() }
             tab(.progress) { ProgressDashboardView() }
         }
+        .overlay(alignment: .bottom) {
+            FloatingTabBar(selection: $model.selectedTab, quickLog: model.quickLogItems)
+                .padding(.bottom, Space.xxs)
+        }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .sensoryFeedback(.selection, trigger: model.selectedTab)
     }
 
     private func tab<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            // The mini player sits above the tab bar while a workout is minimized.
+            .toolbar(.hidden, for: .tabBar)
+            // Content scrolls clear of the floating bar; the mini player sits
+            // just above it while a workout is minimized.
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if model.activeWorkout != nil, model.cover == nil {
-                    WorkoutMiniPlayer()
-                        .padding(.horizontal, Space.gutter)
-                        .padding(.bottom, Space.xs)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                VStack(spacing: 0) {
+                    if model.activeWorkout != nil, model.cover == nil {
+                        WorkoutMiniPlayer()
+                            .padding(.horizontal, Space.gutter)
+                            .padding(.bottom, Space.xs)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    Color.clear.frame(height: FloatingTabBar.reservedHeight - 20)
                 }
             }
-            .tabItem { Label(tab.title, systemImage: tab.symbol) }
             .tag(tab)
     }
 }

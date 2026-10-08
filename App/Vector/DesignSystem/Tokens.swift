@@ -94,6 +94,84 @@ enum VColor {
     static let pro = accent
 }
 
+// MARK: - Widgets
+
+/// The widget dashboard (Today): white tiles on a cool grey canvas in light
+/// mode, near-black tiles in dark. Each area keeps one hue everywhere it
+/// appears, glowing softly from one corner of its tile.
+enum WColor {
+    static let canvas = Color(light: 0xF2F4F8, dark: 0x07090D)
+    static let tile = Color(light: 0xFFFFFF, dark: 0x12151C)
+    /// Hairline around every tile.
+    static let edge = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.06, darkAlpha: 0.07)
+    /// Panels and chips inside a tile.
+    static let inner = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.045, darkAlpha: 0.06)
+    static let innerStrong = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.07, darkAlpha: 0.09)
+    /// Unfilled ring and bar tracks.
+    static let track = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.10)
+    /// The earlier side of a comparison, rest-day dots.
+    static let quiet = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.20, darkAlpha: 0.24)
+    static let divider = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.08)
+
+    static let textPrimary = Color(light: 0x121722, dark: 0xF3F5F9)
+    static let textSecondary = Color(light: 0x5E6878, dark: 0xA3ACBB)
+
+    /// Selected tab and the Start button: ink on light, white on dark.
+    static let strong = Color(light: 0x121722, dark: 0xF3F5F9)
+    static let onStrong = Color(light: 0xFFFFFF, dark: 0x0B0D12)
+    /// The quick-add button in the tab bar.
+    static let add = Color(light: 0x3D6BFF, dark: 0x3D6BFF)
+    /// Rises (never colour alone: always with an arrow and a sign).
+    static let rise = Color(light: 0x23864C, dark: 0x4CC27A)
+    static let riseSoft = Color(light: 0x23864C, dark: 0x4CC27A, lightAlpha: 0.12, darkAlpha: 0.16)
+
+    // Macro rings in the Calories tile, direct-labelled with P, C and F.
+    static let protein = Color(light: 0x3D6BFF, dark: 0x6E8DFF)
+    static let carbs = Color(light: 0xD98B1E, dark: 0xF2A541)
+    static let fat = Color(light: 0xD9497A, dark: 0xFF7AA8)
+}
+
+/// An area's hue: `ink` for text and icons (4.5:1 on its tile), `accent`
+/// for marks and fills, `glow` for the corner wash.
+enum WidgetTint {
+    case insight, training, calories, body
+
+    var ink: Color {
+        switch self {
+        case .insight: Color(light: 0xA65F0C, dark: 0xF2A541)
+        case .training: Color(light: 0x2F55E0, dark: 0x8AA2FF)
+        case .calories: Color(light: 0x2F55E0, dark: 0x6E9BFF)
+        case .body: Color(light: 0x147662, dark: 0x3CCFAE)
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .insight: Color(light: 0xE08A1E, dark: 0xF2A541)
+        case .training: Color(light: 0x3D6BFF, dark: 0x6E8DFF)
+        case .calories: Color(light: 0x3D6BFF, dark: 0x4F7BFF)
+        case .body: Color(light: 0x1E9E86, dark: 0x3CCFAE)
+        }
+    }
+
+    /// Second stop of the calorie ring's gradient; the accent elsewhere.
+    var accentEnd: Color {
+        self == .calories ? Color(light: 0x25B7FF, dark: 0x3CC8FF) : accent
+    }
+
+    var glow: Color {
+        switch self {
+        case .insight: Color(light: 0xFFE7C7, dark: 0xF2A541, lightAlpha: 1, darkAlpha: 0.30)
+        case .training: Color(light: 0xE9EDF5, dark: 0xA0ACC4, lightAlpha: 1, darkAlpha: 0.16)
+        case .calories: Color(light: 0xDCE6FF, dark: 0x3D6BFF, lightAlpha: 1, darkAlpha: 0.38)
+        case .body: Color(light: 0xD3F2EA, dark: 0x1E9E86, lightAlpha: 1, darkAlpha: 0.40)
+        }
+    }
+
+    /// The insight glows from the top right; everything else from the top left.
+    var glowCorner: UnitPoint { self == .insight ? .topTrailing : .topLeading }
+}
+
 extension Color {
     init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
         self = Color(UIColor { traits in
