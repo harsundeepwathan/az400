@@ -120,6 +120,11 @@ enum WColor {
     /// white text (5:1 in light, deeper in dark so white text keeps its contrast).
     static let strong = Color(light: 0x3460F0, dark: 0x2E4FD6)
     static let onStrong = Color.white
+    /// Text on the solid blue hero tiles (plan, paywall example, check-in decision).
+    static let onHero = Color.white
+    static let onHeroSecondary = Color.white.opacity(0.8)
+    /// The soft glow under the primary button, as in the reference.
+    static let glow = Color(light: 0x3460F0, dark: 0x3D6BFF, lightAlpha: 0.30, darkAlpha: 0.45)
     /// The selected tab: a soft blue pill with blue icon and label.
     static let selected = Color(light: 0xE8EEFF, dark: 0x1C2440)
     static let onSelected = Color(light: 0x2F55E0, dark: 0x9DB1FF)
@@ -137,26 +142,26 @@ enum WColor {
 
 /// One colour across the dashboard: Vector blue on white (near-black in dark).
 /// Areas keep their names so screens can say what a tile is, but they share
-/// the blue. Today's insight is the one solid blue tile; every other tile is plain.
+/// the blue. Tiles are plain; colour goes on the primary action, bars and rings.
 /// `ink` is for text and icons (4.5:1 on its tile), `accent` for marks and fills.
 enum WidgetTint {
     case insight, training, calories, body
 
-    var ink: Color { self == .insight ? .white : Color(light: 0x2F55E0, dark: 0x8AA2FF) }
+    var ink: Color { Color(light: 0x2F55E0, dark: 0x8AA2FF) }
 
-    var accent: Color { self == .insight ? .white : Color(light: 0x3D6BFF, dark: 0x6E8DFF) }
+    var accent: Color { Color(light: 0x3D6BFF, dark: 0x6E8DFF) }
 
-    // Text and tracks on the tile's fill: white tones on the blue insight tile.
-    var text: Color { self == .insight ? .white : WColor.textPrimary }
-    var textSecondary: Color { self == .insight ? .white.opacity(0.8) : WColor.textSecondary }
-    var track: Color { self == .insight ? .white.opacity(0.22) : WColor.track }
-    var quiet: Color { self == .insight ? .white.opacity(0.55) : WColor.quiet }
+    // Text and tracks on the tile.
+    var text: Color { WColor.textPrimary }
+    var textSecondary: Color { WColor.textSecondary }
+    var track: Color { WColor.track }
+    var quiet: Color { WColor.quiet }
 
     /// Second stop of ring gradients: the same blue, so rings read as one solid colour.
     var accentEnd: Color { accent }
 
-    /// Tile fill: solid blue for the insight, the plain tile for everything else.
-    var fill: Color { self == .insight ? WColor.strong : WColor.tile }
+    /// Tile fill: every tile is plain; the blue lives in the one primary button.
+    var fill: Color { WColor.tile }
 }
 
 extension Color {

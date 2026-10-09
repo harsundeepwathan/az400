@@ -3,8 +3,7 @@ import VectorCore
 
 // MARK: - Tile
 
-/// The unit of the widget dashboard: a rounded tile (solid blue for Today's
-/// insight, plain otherwise), a header (symbol, title, optional accessory and
+/// The unit of the widget dashboard: a plain rounded tile, a header (symbol, title, optional accessory and
 /// an ↗ that opens the full screen) and free content below.
 struct WidgetTile<Accessory: View, Content: View>: View {
     var tint: WidgetTint
@@ -68,7 +67,7 @@ extension WidgetTile where Accessory == EmptyView {
     }
 }
 
-/// White (or near-black) tile; Today's insight is solid blue.
+/// White (or near-black) tile.
 struct WidgetBackground: View {
     var tint: WidgetTint
 
@@ -326,8 +325,9 @@ struct PageDots: View {
 
 // MARK: - Tab bar
 
-/// A floating tab bar: four destinations and, in the middle, a + that opens
-/// the quick-log menu. Sits over content; tabs reserve `reservedHeight` at the bottom.
+/// A floating tab bar: four icon-only destinations in a pill, and beside it a
+/// round blue + that opens the quick-log menu. Sits over content; tabs
+/// reserve `reservedHeight` at the bottom.
 struct FloatingTabBar: View {
     @Binding var selection: AppTab
     var quickLog: [QuickLogItem]
@@ -342,9 +342,19 @@ struct FloatingTabBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            tab(.today)
-            tab(.train)
+        HStack(spacing: 10) {
+            HStack(spacing: 0) {
+                tab(.today)
+                tab(.train)
+                tab(.nutrition)
+                tab(.progress)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 64)
+            .background(.regularMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(WColor.edge, lineWidth: 1))
+            .shadow(color: .black.opacity(0.14), radius: 16, y: 8)
+
             Menu {
                 ForEach(quickLog) { item in
                     Button(action: item.action) { Label(item.title, systemImage: item.symbol) }
@@ -352,23 +362,15 @@ struct FloatingTabBar: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .background(WColor.add, in: Circle())
-                    .shadow(color: WColor.add.opacity(0.4), radius: 10, y: 5)
+                    .foregroundStyle(WColor.onStrong)
+                    .frame(width: 64, height: 64)
+                    .background(WColor.strong, in: Circle())
+                    .shadow(color: WColor.glow, radius: 14, y: 6)
             }
             .menuOrder(.fixed)
-            .frame(width: 76)
             .accessibilityLabel("Log")
             .accessibilityHint("Start a workout, log food or weigh in")
-            tab(.nutrition)
-            tab(.progress)
         }
-        .padding(.horizontal, 6)
-        .frame(height: 68)
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(WColor.edge, lineWidth: 1))
-        .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
         .padding(.horizontal, 16)
     }
 
@@ -377,20 +379,14 @@ struct FloatingTabBar: View {
         return Button {
             selection = tab
         } label: {
-            VStack(spacing: 2) {
-                Image(systemName: tab.symbol)
-                    .font(.system(size: 20, weight: .semibold))
-                    .symbolVariant(isSelected ? .fill : .none)
-                Text(tab.title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .foregroundStyle(isSelected ? WColor.onSelected : WColor.textSecondary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background { if isSelected { Capsule().fill(WColor.selected) } }
-            .contentShape(Capsule())
+            Image(systemName: tab.symbol)
+                .font(.system(size: 21, weight: .semibold))
+                .symbolVariant(isSelected ? .fill : .none)
+                .foregroundStyle(isSelected ? WColor.onSelected : WColor.textSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background { if isSelected { Capsule().fill(WColor.selected) } }
+                .contentShape(Capsule())
         }
         .buttonStyle(.pressable)
         .accessibilityLabel(tab.title)
@@ -488,7 +484,7 @@ struct WidgetScreenHeader<Accessory: View>: View {
 
 // MARK: - Buttons
 
-/// The one primary action in a tile: Vector blue fill, white label, 16 pt corners.
+/// The one primary action in a tile: Vector blue fill with a soft glow, white label, 16 pt corners.
 struct WidgetPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -499,6 +495,7 @@ struct WidgetPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: 52)
             .padding(.horizontal, Space.md)
             .background(WColor.strong, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: isEnabled ? WColor.glow : .clear, radius: 14, y: 8)
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
@@ -594,7 +591,7 @@ struct WidgetHero<Content: View>: View {
                     }
                     Text(label).font(.system(.headline))
                 }
-                .foregroundStyle(WidgetTint.insight.ink)
+                .foregroundStyle(WColor.onHero)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.bottom, 2)
             }

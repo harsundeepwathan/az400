@@ -243,16 +243,16 @@ struct WeeklyCheckInSheet: View {
                         Text(Format.integer(from))
                         Image(systemName: "arrow.right")
                             .font(.system(.title2, weight: .semibold))
-                            .foregroundStyle(WidgetTint.insight.textSecondary)
+                            .foregroundStyle(WColor.onHeroSecondary)
                         Text(Format.integer(to))
                     }
                     .font(.system(.largeTitle, weight: .bold).monospacedDigit())
-                    .foregroundStyle(WidgetTint.insight.text)
+                    .foregroundStyle(WColor.onHero)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     Text("kcal a day")
                         .font(.body)
-                        .foregroundStyle(WidgetTint.insight.textSecondary)
+                        .foregroundStyle(WColor.onHeroSecondary)
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Change calories from \(Format.integer(from)) to \(Format.integer(to)) kilocalories a day")
@@ -275,7 +275,7 @@ struct WeeklyCheckInSheet: View {
             if let outcome = review.previousOutcome {
                 Text(outcome.summary)
                     .font(.subheadline)
-                    .foregroundStyle(WidgetTint.insight.textSecondary)
+                    .foregroundStyle(WColor.onHeroSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Label {
@@ -284,7 +284,7 @@ struct WeeklyCheckInSheet: View {
                 Image(systemName: "checkmark.seal.fill")
             }
             .font(.subheadline.monospacedDigit())
-            .foregroundStyle(WidgetTint.insight.text)
+            .foregroundStyle(WColor.onHero)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, Space.sm)
             .padding(.vertical, Space.xs)
@@ -306,7 +306,7 @@ struct WeeklyCheckInSheet: View {
     private func heroTitle(_ text: String) -> some View {
         Text(text)
             .font(.system(.largeTitle, weight: .bold))
-            .foregroundStyle(WidgetTint.insight.text)
+            .foregroundStyle(WColor.onHero)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityAddTraits(.isHeader)
     }
@@ -314,7 +314,7 @@ struct WeeklyCheckInSheet: View {
     private func reasonText(_ text: String) -> some View {
         Text(text)
             .font(.body)
-            .foregroundStyle(WidgetTint.insight.text)
+            .foregroundStyle(WColor.onHero)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -534,11 +534,11 @@ private struct HeroBaselineChecklist: View {
             ForEach(items) { item in
                 HStack(spacing: Space.xs) {
                     Image(systemName: item.isComplete ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(item.isComplete ? WidgetTint.insight.text : WidgetTint.insight.textSecondary)
+                        .foregroundStyle(item.isComplete ? WColor.onHero : WColor.onHeroSecondary)
                         .accessibilityHidden(true)
                     Text("\(item.done) of \(item.needed) \(item.label)")
                         .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(WidgetTint.insight.text)
+                        .foregroundStyle(WColor.onHero)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(item.isComplete ? "Complete" : "Not yet")

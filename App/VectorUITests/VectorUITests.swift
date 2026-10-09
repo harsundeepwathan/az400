@@ -52,7 +52,7 @@ final class VectorUITests: XCTestCase {
 
     func testLoggingASetStartsTheRestTimer() {
         launch(sampleData: true)
-        tap(app.buttons["Start"])
+        tap(button("Start workout"))
         tap(app.buttons["Complete set"].firstMatch)
         XCTAssertTrue(waitForText("Skip rest", timeout: 3))
         tap(button("Skip"))

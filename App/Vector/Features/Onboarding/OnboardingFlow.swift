@@ -569,7 +569,7 @@ private struct PlanReadyStep: View {
                 WidgetHero(label: "\(plan.program.daysPerWeek) days a week", symbol: Icon.train, spacing: Space.sm) {
                     Text(programName)
                         .font(.system(.largeTitle, weight: .bold))
-                        .foregroundStyle(WidgetTint.insight.text)
+                        .foregroundStyle(WColor.onHero)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                     HStack(alignment: .top, spacing: Space.md) {
@@ -581,7 +581,7 @@ private struct PlanReadyStep: View {
                     .padding(.top, Space.xxs)
                     Text(plan.profile.nutritionGoal.title)
                         .font(.subheadline)
-                        .foregroundStyle(WidgetTint.insight.textSecondary)
+                        .foregroundStyle(WColor.onHeroSecondary)
                 }
                 .accessibilityElement(children: .combine)
 
@@ -645,12 +645,12 @@ private struct PlanReadyStep: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.system(.title3, weight: .bold).monospacedDigit())
-                .foregroundStyle(WidgetTint.insight.text)
+                .foregroundStyle(WColor.onHero)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
                 .font(.footnote)
-                .foregroundStyle(WidgetTint.insight.textSecondary)
+                .foregroundStyle(WColor.onHeroSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
