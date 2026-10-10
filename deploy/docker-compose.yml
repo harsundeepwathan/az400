@@ -1,0 +1,93 @@
+# Local development / evaluation stack. Not a production topology: TLS terminates
+# nowhere here, so the agent must be enrolled with --allow-insecure-http.
+name: skywatch
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in deploy/.env}
+      POSTGRES_DB: skywatch
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d skywatch"]
+      interval: 5s
+      retries: 20
+    ports: ["127.0.0.1:5432:5432"]
+
+  migrate:
+    build: { context: .., dockerfile: deploy/docker/backend.Dockerfile }
+    image: skywatch/backend:local
+    command: ["migrate"]
+    environment:
+      SKYWATCH_MIGRATE_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/skywatch?sslmode=disable
+    depends_on: { db: { condition: service_healthy } }
+
+  set-role-passwords:
+    image: postgres:16-alpine
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        psql -h db -U postgres -d skywatch -v ON_ERROR_STOP=1
+        -c "ALTER ROLE skywatch_api PASSWORD '${SKYWATCH_API_DB_PASSWORD:?}'"
+        -c "ALTER ROLE skywatch_worker PASSWORD '${SKYWATCH_WORKER_DB_PASSWORD:?}'"
+
+  seed:
+    image: skywatch/backend:local
+    command: ["seed-demo"]
+    environment:
+      SKYWATCH_DATABASE_URL: postgres://skywatch_worker:${SKYWATCH_WORKER_DB_PASSWORD}@db:5432/skywatch?sslmode=disable
+      SKYWATCH_DEMO_PASSWORD: ${SKYWATCH_DEMO_PASSWORD:?}
+    depends_on: { set-role-passwords: { condition: service_completed_successfully } }
+
+  backend:
+    image: skywatch/backend:local
+    command: ["serve", "--roles=collector,evaluator,ingest,notifier,probe,maintenance,demo"]
+    restart: unless-stopped
+    environment:
+      SKYWATCH_DATABASE_URL: postgres://skywatch_worker:${SKYWATCH_WORKER_DB_PASSWORD}@db:5432/skywatch?sslmode=disable
+      SKYWATCH_KEKS: ${SKYWATCH_KEKS:?}
+      SKYWATCH_CONTROL_TOKEN: ${SKYWATCH_CONTROL_TOKEN:?}
+      SKYWATCH_CONTROL_ADDR: 0.0.0.0:8081
+      SKYWATCH_INGEST_ADDR: 0.0.0.0:8443
+      SKYWATCH_METRICS_ADDR: 0.0.0.0:9090
+      SKYWATCH_PUBLIC_URL: ${SKYWATCH_PUBLIC_URL}
+      SKYWATCH_SMTP_ADDR: ${SKYWATCH_SMTP_ADDR:-}
+      SKYWATCH_SMTP_FROM: ${SKYWATCH_SMTP_FROM:-}
+      SKYWATCH_SMTP_USER: ${SKYWATCH_SMTP_USER:-}
+      SKYWATCH_SMTP_PASSWORD: ${SKYWATCH_SMTP_PASSWORD:-}
+    depends_on: { seed: { condition: service_completed_successfully } }
+    ports: ["127.0.0.1:8443:8443", "127.0.0.1:9090:9090"]
+
+  api:
+    build: { context: .., dockerfile: deploy/docker/api.Dockerfile }
+    image: skywatch/api:local
+    restart: unless-stopped
+    environment:
+      SKYWATCH_API_DATABASE_URL: postgres://skywatch_api:${SKYWATCH_API_DB_PASSWORD}@db:5432/skywatch?sslmode=disable
+      SKYWATCH_KEKS: ${SKYWATCH_KEKS}
+      SKYWATCH_CONTROL_URL: http://backend:8081
+      SKYWATCH_CONTROL_TOKEN: ${SKYWATCH_CONTROL_TOKEN}
+      SKYWATCH_COOKIE_SECRET: ${SKYWATCH_COOKIE_SECRET:?}
+      SKYWATCH_PUBLIC_URL: ${SKYWATCH_PUBLIC_URL}
+      SKYWATCH_INGEST_PUBLIC_URL: ${SKYWATCH_INGEST_PUBLIC_URL}
+      # Local evaluation: allow the seeded password users. Disable in production.
+      SKYWATCH_LOCAL_LOGIN: "true"
+      SKYWATCH_OIDC_ISSUER: ${SKYWATCH_OIDC_ISSUER:-}
+      SKYWATCH_OIDC_CLIENT_ID: ${SKYWATCH_OIDC_CLIENT_ID:-}
+      SKYWATCH_OIDC_CLIENT_SECRET: ${SKYWATCH_OIDC_CLIENT_SECRET:-}
+    depends_on: { seed: { condition: service_completed_successfully } }
+
+  web:
+    build: { context: .., dockerfile: deploy/docker/web.Dockerfile, args: { SKYWATCH_API_ORIGIN: "http://api:4000" } }
+    image: skywatch/web:local
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["127.0.0.1:3000:3000"]
+
+volumes:
+  pgdata:

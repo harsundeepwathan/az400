@@ -30,7 +30,14 @@ func systemctl(ctx context.Context, args ...string) ([]byte, error) {
 	}
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Env = []string{"LC_ALL=C", "SYSTEMD_PAGER="}
-	return cmd.Output()
+	out, err := cmd.Output()
+	var ee *exec.ExitError
+	if errors.As(err, &ee) && len(ee.Stderr) > 0 {
+		// e.g. "System has not been booted with systemd as init system (PID 1)."
+		msg := strings.TrimSpace(strings.SplitN(string(ee.Stderr), "\n", 2)[0])
+		return out, errors.New("systemctl: " + msg)
+	}
+	return out, err
 }
 
 // MapSystemdState maps ActiveState to the contract's service states.

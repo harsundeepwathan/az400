@@ -416,9 +416,9 @@ func (w *Worker) record(ctx context.Context, c Check, res Result) error {
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, c.OrgID, c.ID, w.Location, now, res.OK, res.LatencyMs, status, errText, details); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE synthetic_checks SET last_run_at=$2, last_ok=$3, last_latency_ms=$4, last_error=$5, lease_until=NULL,
-			consecutive_failures = CASE WHEN $3 THEN 0 ELSE consecutive_failures + 1 END,
-			next_run_at = $2 + make_interval(secs => interval_seconds)
+	if _, err := tx.Exec(ctx, `UPDATE synthetic_checks SET last_run_at=$2::timestamptz, last_ok=$3::boolean, last_latency_ms=$4, last_error=$5, lease_until=NULL,
+			consecutive_failures = CASE WHEN $3::boolean THEN 0 ELSE consecutive_failures + 1 END,
+			next_run_at = $2::timestamptz + make_interval(secs => interval_seconds)
 		WHERE id=$1`, c.ID, now, res.OK, res.LatencyMs, errText); err != nil {
 		return err
 	}

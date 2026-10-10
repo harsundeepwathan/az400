@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { NextConfig } from 'next';
 
 const api = process.env.SKYWATCH_API_ORIGIN ?? 'http://127.0.0.1:4000';
@@ -6,6 +7,8 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',
+  // Monorepo: trace dependencies from the repository root so the standalone server is complete.
+  outputFileTracingRoot: join(__dirname, '../..'),
   // The browser talks to one origin; /api is proxied to the management API so the
   // session cookie stays first-party and SameSite protections apply.
   async rewrites() {

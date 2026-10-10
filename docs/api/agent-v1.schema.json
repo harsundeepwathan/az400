@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skywatch.example/schemas/agent-v1.batch.json",
+  "title": "Skywatch agent telemetry batch v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "batch_id", "seq", "sent_at", "agent"],
+  "properties": {
+    "version": { "const": "1" },
+    "batch_id": { "type": "string", "format": "uuid" },
+    "seq": { "type": "integer", "minimum": 0 },
+    "sent_at": { "type": "string", "format": "date-time" },
+    "host": {
+      "type": "object",
+      "properties": {
+        "hostname": { "type": "string" }, "machine_id": { "type": "string" }, "os_type": { "enum": ["linux", "windows"] },
+        "os_name": { "type": "string" }, "os_version": { "type": "string" }, "kernel_version": { "type": "string" },
+        "arch": { "type": "string" }, "boot_time": { "type": "string", "format": "date-time" },
+        "cpu_count": { "type": "integer" }, "memory_bytes": { "type": "integer" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" }, "queue_depth": { "type": "integer" }, "dropped_batches": { "type": "integer" },
+        "cpu_percent": { "type": "number" }, "rss_bytes": { "type": "integer" }, "uptime_seconds": { "type": "integer" }
+      }
+    },
+    "metrics": {
+      "type": "array", "maxItems": 5000,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["m", "t", "v"],
+        "properties": {
+          "m": { "type": "string", "pattern": "^[a-z][a-z0-9_.]{0,127}$" },
+          "s": { "type": "string", "maxLength": 256 },
+          "t": { "type": "string", "format": "date-time" },
+          "v": { "type": "number" }
+        }
+      }
+    },
+    "services": {
+      "type": "array", "maxItems": 500,
+      "items": {
+        "type": "object", "required": ["platform", "name", "state"],
+        "properties": {
+          "platform": { "enum": ["windows", "systemd"] },
+          "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "display_name": { "type": "string" },
+          "state": { "enum": ["running", "stopped", "failed", "starting", "stopping", "unknown"] },
+          "sub_state": { "type": "string" }, "startup_type": { "type": "string" },
+          "pid": { "type": "integer" }, "restarts": { "type": "integer" }
+        }
+      }
+    },
+    "events": {
+      "type": "array", "maxItems": 200,
+      "items": {
+        "type": "object", "required": ["source", "kind", "severity", "message", "at"],
+        "properties": {
+          "source": { "type": "string" }, "kind": { "type": "string" },
+          "severity": { "enum": ["info", "warning", "error", "critical"] },
+          "message": { "type": "string", "maxLength": 2048 }, "at": { "type": "string", "format": "date-time" }, "id": { "type": "string" }
+        }
+      }
+    },
+    "partial": {
+      "type": "array",
+      "items": { "type": "object", "properties": { "collector": { "type": "string" }, "error": { "type": "string" } } }
+    }
+  }
+}
