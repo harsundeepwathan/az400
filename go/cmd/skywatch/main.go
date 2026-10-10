@@ -28,6 +28,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/harsundeepwathan/az400/go/internal/collector"
+	"github.com/harsundeepwathan/az400/go/internal/control"
 	"github.com/harsundeepwathan/az400/go/internal/db"
 	"github.com/harsundeepwathan/az400/go/internal/evaluator"
 	"github.com/harsundeepwathan/az400/go/internal/ingest"
@@ -148,11 +149,12 @@ func serve(ctx context.Context, log *slog.Logger, args []string) error {
 	metricsSrv.Handler = mmux
 	g.Go(func() error { return listen(gctx, metricsSrv, "", "") })
 
+	var sched *collector.Scheduler
 	if roles["collector"] {
 		adapters := []providers.Adapter{azure.New(azure.Options{})}
 		adapters = append(adapters, extraAdapters()...)
-		s := collector.New(pool, keys, adapters, collector.Config{InstanceID: instanceID}, log.With("role", "collector"))
-		g.Go(func() error { return s.Run(gctx) })
+		sched = collector.New(pool, keys, adapters, collector.Config{InstanceID: instanceID}, log.With("role", "collector"))
+		g.Go(func() error { return sched.Run(gctx) })
 	}
 	if roles["evaluator"] {
 		e := evaluator.New(pool, evaluator.Config{}, log.With("role", "evaluator"))
@@ -169,13 +171,20 @@ func serve(ctx context.Context, log *slog.Logger, args []string) error {
 		}
 		g.Go(func() error { return listen(gctx, hs, cert, key) })
 	}
+	var notifier *notify.Notifier
 	if roles["notifier"] {
 		n := notify.New(pool, keys, notify.Config{
 			PublicURL: os.Getenv("SKYWATCH_PUBLIC_URL"), SMTPAddr: os.Getenv("SKYWATCH_SMTP_ADDR"), SMTPFrom: env("SKYWATCH_SMTP_FROM", "skywatch@localhost"),
 			SMTPUser: os.Getenv("SKYWATCH_SMTP_USER"), SMTPPass: os.Getenv("SKYWATCH_SMTP_PASSWORD"),
 			AllowPrivateTargets: os.Getenv("SKYWATCH_NOTIFY_ALLOW_PRIVATE") == "true",
 		}, log.With("role", "notifier"))
+		notifier = n
 		g.Go(func() error { return n.Run(gctx) })
+	}
+	if tok := os.Getenv("SKYWATCH_CONTROL_TOKEN"); tok != "" && sched != nil {
+		cs := &control.Server{Pool: pool, Scheduler: sched, Notifier: notifier, Token: tok, Log: log.With("role", "control")}
+		hs := &http.Server{Addr: env("SKYWATCH_CONTROL_ADDR", "127.0.0.1:8081"), Handler: cs.Handler(), ReadHeaderTimeout: 10 * time.Second}
+		g.Go(func() error { return listen(gctx, hs, "", "") })
 	}
 	if roles["probe"] {
 		scope := env("SKYWATCH_PROBE_SCOPE", "public")

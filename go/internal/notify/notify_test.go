@@ -80,7 +80,10 @@ func TestEmailHeaderInjectionPrevented(t *testing.T) {
 	var sent []byte
 	var rcpt []string
 	n := &Notifier{cfg: Config{SMTPAddr: "smtp.example:587", SMTPFrom: "noc@example.com"},
-		SendMail: func(addr string, a smtp.Auth, from string, to []string, msg []byte) error { sent, rcpt = msg, to; return nil }}
+		SendMail: func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			sent, rcpt = msg, to
+			return nil
+		}}
 	p := samplePayload("opened")
 	p["incident"].(map[string]any)["title"] = "evil\r\nBcc: attacker@example.com"
 	if err := n.Send(context.Background(), "email", map[string]any{"to": []any{"oncall@example.com", "x@y.z\r\nBcc: z@z"}}, nil, p); err != nil {

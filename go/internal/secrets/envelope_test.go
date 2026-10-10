@@ -55,11 +55,11 @@ func TestCrossLanguageVector(t *testing.T) {
 	kr, _ := NewLocalKeyring("v1:" + testKey)
 	pt, err := Open(context.Background(), kr, []byte(crossLanguageVector), "cloud_account:org:acct")
 	if err != nil {
-		t.Skipf("vector not generated yet: %v", err)
+		t.Fatalf("TypeScript-produced envelope must open in Go: %v", err)
 	}
 	if string(pt) != `{"token":"dop_v1_example"}` {
 		t.Fatalf("got %s", pt)
 	}
 }
 
-const crossLanguageVector = `{}`
+const crossLanguageVector = `{"v":1,"kid":"local:v1","wk":"ZBPPlqVOdNYF3mc3o2+xgjjnXv+hhIwX/Q/yLUDb3IVQgnK5nw9Vtgy24DGQRx4bXJG8S2c8nQcDCahG","n":"ioBmisasapVK0Yvo","ct":"3kmVX7iTbSIP+0/5cAR7UNS35Q6xH+5uOpUdsqgMMLtt1wXGOwHxHJFu"}`

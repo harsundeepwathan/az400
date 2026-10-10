@@ -39,6 +39,15 @@ func (s *Scheduler) runDiscovery(ctx context.Context, ad providers.Adapter, acct
 	defer tx.Rollback(ctx) //nolint:errcheck
 	now := s.now().UTC()
 	ids := map[string]string{} // provider id -> resource id
+	// Resources the operator deselected during onboarding are inventoried but not monitored.
+	excluded := map[string]bool{}
+	if list, ok := acct.Config["excluded_resource_ids"].([]any); ok {
+		for _, x := range list {
+			if id, ok := x.(string); ok {
+				excluded[id] = true
+			}
+		}
+	}
 	for _, d := range found {
 		cfg, _ := json.Marshal(d.Config)
 		var id string
@@ -49,8 +58,8 @@ func (s *Scheduler) runDiscovery(ctx context.Context, ad providers.Adapter, acct
 		err := tx.QueryRow(ctx, `
 			INSERT INTO resources(org_id, cloud_account_id, provider, provider_resource_id, external_account_id, name,
 				resource_type, native_type, region, resource_group, environment, os_type, os_name, config,
-				provider_state_raw, power_state, discovered_at, last_seen_in_discovery)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)
+				provider_state_raw, power_state, discovered_at, last_seen_in_discovery, monitoring_enabled)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17,$18)
 			ON CONFLICT (org_id, provider, provider_resource_id) DO UPDATE SET
 				cloud_account_id = EXCLUDED.cloud_account_id, external_account_id = EXCLUDED.external_account_id,
 				name = EXCLUDED.name, resource_type = EXCLUDED.resource_type, native_type = EXCLUDED.native_type,
@@ -61,7 +70,7 @@ func (s *Scheduler) runDiscovery(ctx context.Context, ad providers.Adapter, acct
 			RETURNING id`,
 			acct.OrgID, acct.ID, string(ad.Provider()), d.ProviderResourceID, d.ExternalAccountID, d.Name,
 			string(d.Type), d.NativeType, d.Region, d.ResourceGroup, nullIfEmpty(d.Environment()), osType, d.OSName, cfg,
-			d.ProviderStateRaw, string(d.PowerState), now).Scan(&id)
+			d.ProviderStateRaw, string(d.PowerState), now, !excluded[d.ProviderResourceID]).Scan(&id)
 		if err != nil {
 			return RunResult{}, err
 		}

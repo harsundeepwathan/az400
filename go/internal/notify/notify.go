@@ -259,3 +259,29 @@ func truncate(s string, n int) string {
 	}
 	return s[:n]
 }
+
+// SendTest sends a test message through one channel immediately.
+func (n *Notifier) SendTest(ctx context.Context, orgID, channelID string) error {
+	var kind string
+	var cfgJSON, secret []byte
+	err := n.pool.QueryRow(ctx, `SELECT kind, config, secret_ciphertext FROM notification_channels WHERE id=$1 AND org_id=$2`, channelID, orgID).
+		Scan(&kind, &cfgJSON, &secret)
+	if err != nil {
+		return fmt.Errorf("channel not found")
+	}
+	cfg := map[string]any{}
+	_ = json.Unmarshal(cfgJSON, &cfg)
+	sec := map[string]string{}
+	if len(secret) > 0 {
+		pt, err := secrets.Open(ctx, n.keys, secret, secrets.ChannelAAD(orgID, channelID))
+		if err != nil {
+			return fmt.Errorf("channel secret could not be decrypted")
+		}
+		_ = json.Unmarshal(pt, &sec)
+	}
+	p := map[string]any{"event": "test", "org_id": orgID, "generated_at": time.Now().UTC(), "incident": map[string]any{
+		"id": "test", "number": 0, "title": "Skywatch test notification", "severity": "warning", "status": "open",
+		"trigger_summary": "This is a test message sent from Settings → Notification channels.", "first_detected_at": time.Now().UTC().Format(time.RFC3339),
+	}}
+	return n.Send(ctx, kind, cfg, sec, p)
+}

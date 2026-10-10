@@ -589,4 +589,3 @@ func (a *Adapter) CollectEvents(ctx context.Context, acct providers.Account, sin
 	}
 	return out, nil
 }
-
