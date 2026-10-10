@@ -166,9 +166,9 @@ func (e *Evaluator) ingestDegraded(ctx context.Context, now time.Time) (bool, er
 	var ingestAlive bool
 	var recent, before int
 	err := e.pool.QueryRow(ctx, `SELECT
-		EXISTS(SELECT 1 FROM platform_instances WHERE 'ingest' = ANY(roles) AND last_heartbeat > $1 - interval '90 seconds'),
-		(SELECT count(DISTINCT agent_id) FROM heartbeats WHERE received_at > $1 - interval '3 minutes'),
-		(SELECT count(DISTINCT agent_id) FROM heartbeats WHERE received_at BETWEEN $1 - interval '15 minutes' AND $1 - interval '5 minutes')`,
+		EXISTS(SELECT 1 FROM platform_instances WHERE 'ingest' = ANY(roles) AND last_heartbeat > $1::timestamptz - interval '90 seconds'),
+		(SELECT count(DISTINCT agent_id) FROM heartbeats WHERE received_at > $1::timestamptz - interval '3 minutes'),
+		(SELECT count(DISTINCT agent_id) FROM heartbeats WHERE received_at BETWEEN $1::timestamptz - interval '15 minutes' AND $1::timestamptz - interval '5 minutes')`,
 		now).Scan(&ingestAlive, &recent, &before)
 	if err != nil {
 		return false, err
@@ -326,8 +326,13 @@ func (e *Evaluator) observe(st *orgState, rule ruleRow, points map[string]map[st
 				}
 				o := alerting.EvaluateSeries(rule.Rule, ap, now, e.cfg.StaleAfter)
 				label := r.Name
-				if series != "" {
-					label += " " + strings.TrimPrefix(strings.TrimPrefix(series, "mount="), "core=")
+				switch {
+				case strings.HasPrefix(series, "mount="):
+					label += " volume " + strings.TrimPrefix(series, "mount=")
+				case strings.HasPrefix(series, "core="):
+					label += " core " + strings.TrimPrefix(series, "core=")
+				case series != "":
+					label += " " + series
 				}
 				out = append(out, observation{subject: rid, series: series, resourceID: rid, o: o, maintenance: mw,
 					summary: fmt.Sprintf("%s on %s: %s (threshold %s %s)", rule.Name, label,
@@ -339,27 +344,42 @@ func (e *Evaluator) observe(st *orgState, rule ruleRow, points map[string]map[st
 		if threshold <= 0 {
 			threshold = st.Policy.Critical
 		}
-		for rid, a := range st.Agents {
-			r := st.Resources[rid]
-			if r == nil || !rule.Matches(r.subject()) {
+		for rid, r := range st.Resources {
+			a, hasAgent := st.Agents[rid]
+			degraded, _ := st.accountDegraded(r)
+			hasGuest := r.GuestHeartbeatAt != nil && !degraded
+			if (!hasAgent && !hasGuest) || !rule.Matches(r.subject()) {
 				continue
+			}
+			// The freshest heartbeat from any source (Skywatch agent or provider-side
+			// guest agent such as Azure Monitor Agent) proves the guest is alive.
+			var last *time.Time
+			source := "agent"
+			if hasAgent && a.LastHeartbeat != nil {
+				last = a.LastHeartbeat
+			}
+			if hasGuest && (last == nil || r.GuestHeartbeatAt.After(*last)) {
+				last, source = r.GuestHeartbeatAt, r.GuestHeartbeatSource
 			}
 			mw, _ := st.inMaintenance(r)
 			obs := observation{subject: rid, resourceID: rid, maintenance: mw}
 			switch {
-			case st.IngestDown:
+			case st.IngestDown && source == "agent":
 				// Our own pipeline is unhealthy: hold state, never fire on missing heartbeats.
 			case r.PowerState.IsOff():
 				obs.o = alerting.Observation{HasData: true, Recovered: true}
 				obs.summary = "Heartbeat not expected: resource " + string(r.PowerState)
-			case a.LastHeartbeat == nil:
+			case last == nil:
 				// Agent enrolled but never reported: surfaced as No Data, not as an alert.
 			default:
-				age := now.Sub(*a.LastHeartbeat)
+				age := now.Sub(*last)
+				if age < 0 {
+					age = 0 // heartbeat newer than the evaluation clock (skew)
+				}
 				breach := age >= threshold
 				obs.o = alerting.Observation{HasData: true, Breaching: breach, Sustained: breach, Recovered: !breach,
-					Value: math.Round(age.Seconds()), LatestTS: now, BreachSince: a.LastHeartbeat.Add(threshold)}
-				obs.summary = fmt.Sprintf("No agent heartbeat from %s for %s", r.Name, age.Round(time.Second))
+					Value: math.Round(age.Seconds()), LatestTS: now, BreachSince: last.Add(threshold)}
+				obs.summary = fmt.Sprintf("No heartbeat from %s for %s (source: %s)", r.Name, age.Round(time.Second), source)
 			}
 			out = append(out, obs)
 		}
@@ -527,7 +547,7 @@ func (e *Evaluator) openOrAttach(ctx context.Context, tx pgx.Tx, st *orgState, o
 		err = tx.QueryRow(ctx, `UPDATE incidents SET status='open', resolved_at=NULL, resolution=NULL, last_observed_at=$3,
 				severity=$4, acknowledged_at=NULL, acknowledged_by=NULL
 			WHERE id = (SELECT id FROM incidents WHERE org_id=$1 AND dedup_key=$2 AND status='resolved' AND resolution='auto'
-				AND resolved_at > $3 - $5::interval ORDER BY resolved_at DESC LIMIT 1)
+				AND resolved_at > $3::timestamptz - $5::interval ORDER BY resolved_at DESC LIMIT 1)
 			RETURNING id`, st.OrgID, key, st.Now, string(op.rule.Severity), fmt.Sprintf("%d seconds", int(e.cfg.ReopenWindow.Seconds()))).Scan(&incID)
 		if err == nil {
 			if err := e.timeline(ctx, tx, st, incID, "reopened", "Reopened: condition returned within "+e.cfg.ReopenWindow.String()+" of auto-resolution: "+op.sum, nil); err != nil {
@@ -619,6 +639,20 @@ func (e *Evaluator) correlate(ctx context.Context, tx pgx.Tx, st *orgState, incI
 	if op.res.AccountID == "" {
 		return false, nil
 	}
+	burstKey := "burst:" + op.res.AccountID + ":" + op.res.Region
+	var existing string
+	err = tx.QueryRow(ctx, `SELECT id FROM incidents WHERE org_id=$1 AND dedup_key=$2 AND status <> 'resolved'`, st.OrgID, burstKey).Scan(&existing)
+	if err == nil {
+		// A multi-resource incident is already open for this account and region: join it.
+		if _, err := tx.Exec(ctx, `UPDATE incidents SET parent_incident_id=$2,
+				correlation_note='Grouped into a multi-resource incident (same account and region, within the burst window).'
+			WHERE id=$1`, incID, existing); err != nil {
+			return false, err
+		}
+		return true, e.timeline(ctx, tx, st, existing, "related_incident", "Related incident attached: "+op.sum, map[string]any{"incident_id": incID})
+	} else if err != pgx.ErrNoRows {
+		return false, err
+	}
 	var siblings []string
 	rows, err := tx.Query(ctx, `SELECT i.id FROM incidents i JOIN resources r ON r.id = i.resource_id
 		WHERE i.org_id=$1 AND i.status <> 'resolved' AND i.parent_incident_id IS NULL AND i.id <> $2
@@ -640,7 +674,6 @@ func (e *Evaluator) correlate(ctx context.Context, tx pgx.Tx, st *orgState, incI
 		return false, nil
 	}
 	acct := st.Accounts[op.res.AccountID]
-	burstKey := "burst:" + op.res.AccountID + ":" + op.res.Region
 	region := op.res.Region
 	if region == "" {
 		region = "(no region)"
@@ -717,23 +750,30 @@ func (e *Evaluator) refreshIncidents(ctx context.Context, tx pgx.Tx, st *orgStat
 		toResolve = append(toResolve, id)
 	}
 	rows.Close()
+	sort.Strings(toResolve)
+	for _, id := range toResolve {
+		if err := e.resolveIncident(ctx, tx, st, id, "All alerts cleared; incident resolved automatically according to policy"); err != nil {
+			return err
+		}
+	}
+	// Multi-resource parents resolve once every grouped incident has resolved.
 	rows, err = tx.Query(ctx, `SELECT p.id FROM incidents p WHERE p.org_id=$1 AND p.status <> 'resolved' AND p.dedup_key LIKE 'burst:%'
 		AND NOT EXISTS (SELECT 1 FROM incidents c WHERE c.parent_incident_id=p.id AND c.status <> 'resolved')`, st.OrgID)
 	if err != nil {
 		return err
 	}
+	var parents []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
 			return err
 		}
-		toResolve = append(toResolve, id)
+		parents = append(parents, id)
 	}
 	rows.Close()
-	sort.Strings(toResolve)
-	for _, id := range toResolve {
-		if err := e.resolveIncident(ctx, tx, st, id, "All alerts cleared; incident resolved automatically according to policy"); err != nil {
+	for _, id := range parents {
+		if err := e.resolveIncident(ctx, tx, st, id, "All grouped incidents resolved"); err != nil {
 			return err
 		}
 	}

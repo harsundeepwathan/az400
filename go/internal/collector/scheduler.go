@@ -27,6 +27,7 @@ import (
 
 	"github.com/harsundeepwathan/az400/go/internal/model"
 	"github.com/harsundeepwathan/az400/go/internal/providers"
+	"github.com/harsundeepwathan/az400/go/internal/providers/demo"
 	"github.com/harsundeepwathan/az400/go/internal/secrets"
 	"github.com/harsundeepwathan/az400/go/internal/selfmon"
 )
@@ -318,6 +319,10 @@ func (s *Scheduler) execute(ctx context.Context, j job) (RunResult, error) {
 		return RunResult{}, err
 	}
 	ad, ok := s.adapters[provider]
+	if acct.AuthMethod == "demo" {
+		// Demo accounts only ever use the synthetic adapter, never a real cloud API.
+		ad, ok = demo.New(provider), true
+	}
 	if !ok {
 		return RunResult{}, fmt.Errorf("%w: no adapter for provider %s", providers.ErrNotSupported, provider)
 	}

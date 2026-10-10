@@ -146,3 +146,15 @@ func TestScopeAndExclusions(t *testing.T) {
 		t.Error("series exclusion glob")
 	}
 }
+
+func TestGlob(t *testing.T) {
+	for _, c := range []struct {
+		p, s string
+		want bool
+	}{{"mount=*", "mount=/var/log", true}, {"mount=/mnt/*", "mount=/mnt/a/b", true}, {"mount=C?", "mount=C:", true},
+		{"mount=/", "mount=/data", false}, {"*", "", true}, {"core=*", "mount=/", false}} {
+		if Glob(c.p, c.s) != c.want {
+			t.Errorf("Glob(%q,%q) != %v", c.p, c.s, c.want)
+		}
+	}
+}

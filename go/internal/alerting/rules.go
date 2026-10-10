@@ -6,7 +6,6 @@ package alerting
 import (
 	"fmt"
 	"math"
-	"path"
 	"sort"
 	"time"
 
@@ -123,17 +122,36 @@ func (r Rule) Matches(s Subject) bool {
 
 // SeriesIncluded reports whether a series key passes SeriesMatch and exclusions.
 func (r Rule) SeriesIncluded(series string) bool {
-	if r.SeriesMatch != "" {
-		if ok, _ := path.Match(r.SeriesMatch, series); !ok {
-			return false
-		}
+	if r.SeriesMatch != "" && !Glob(r.SeriesMatch, series) {
+		return false
 	}
 	for _, g := range r.Exclusions.Series {
-		if ok, _ := path.Match(g, series); ok {
+		if Glob(g, series) {
 			return false
 		}
 	}
 	return true
+}
+
+// Glob matches s against a pattern where '*' matches any run of characters (including
+// '/', so "mount=*" matches "mount=/var/log") and '?' matches one character.
+func Glob(pattern, s string) bool {
+	if pattern == "" {
+		return s == ""
+	}
+	switch pattern[0] {
+	case '*':
+		for i := 0; i <= len(s); i++ {
+			if Glob(pattern[1:], s[i:]) {
+				return true
+			}
+		}
+		return false
+	case '?':
+		return s != "" && Glob(pattern[1:], s[1:])
+	default:
+		return s != "" && s[0] == pattern[0] && Glob(pattern[1:], s[1:])
+	}
 }
 
 // Breaches applies the rule operator to v against threshold t.
