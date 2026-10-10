@@ -1,0 +1,30 @@
+[Unit]
+Description=Skywatch monitoring agent
+Documentation=https://github.com/harsundeepwathan/az400/blob/main/docs/AGENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=skywatch-agent
+Group=skywatch-agent
+ExecStart=/usr/local/bin/skywatch-agent run
+Restart=always
+RestartSec=10
+# Hardening: the agent only needs to read /proc, /sys, mounted filesystems' statfs and
+# query systemd over D-Bus; it never needs to write outside its state directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/etc/skywatch-agent
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryMax=128M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target
