@@ -81,11 +81,15 @@ func (c Config) timeout() time.Duration {
 	return 10 * time.Second
 }
 
-// Run executes a check.
-func (r *Runner) Run(ctx context.Context, c Check) Result {
-	if r.Resolver == nil {
-		r.Resolver = net.DefaultResolver
+func (r *Runner) resolver() *net.Resolver {
+	if r.Resolver != nil {
+		return r.Resolver
 	}
+	return net.DefaultResolver
+}
+
+// Run executes a check. Safe for concurrent use.
+func (r *Runner) Run(ctx context.Context, c Check) Result {
 	start := time.Now()
 	var res Result
 	switch c.Kind {
@@ -207,22 +211,22 @@ func (r *Runner) dns(ctx context.Context, c Check) Result {
 	switch strings.ToUpper(c.Config.RecordType) {
 	case "", "A", "AAAA":
 		var ips []net.IP
-		ips, err = r.Resolver.LookupIP(ctx, map[string]string{"": "ip", "A": "ip4", "AAAA": "ip6"}[strings.ToUpper(c.Config.RecordType)], name)
+		ips, err = r.resolver().LookupIP(ctx, map[string]string{"": "ip", "A": "ip4", "AAAA": "ip6"}[strings.ToUpper(c.Config.RecordType)], name)
 		for _, ip := range ips {
 			answers = append(answers, ip.String())
 		}
 	case "CNAME":
 		var cn string
-		cn, err = r.Resolver.LookupCNAME(ctx, name)
+		cn, err = r.resolver().LookupCNAME(ctx, name)
 		answers = []string{strings.TrimSuffix(cn, ".")}
 	case "MX":
 		var mx []*net.MX
-		mx, err = r.Resolver.LookupMX(ctx, name)
+		mx, err = r.resolver().LookupMX(ctx, name)
 		for _, m := range mx {
 			answers = append(answers, strings.TrimSuffix(m.Host, "."))
 		}
 	case "TXT":
-		answers, err = r.Resolver.LookupTXT(ctx, name)
+		answers, err = r.resolver().LookupTXT(ctx, name)
 	default:
 		return Result{Error: "unsupported record type"}
 	}
@@ -299,7 +303,7 @@ func (r *Runner) icmp(ctx context.Context, c Check) Result {
 	if r.Pinger == nil {
 		return Result{Error: "ICMP is not available at this probe location (requires raw socket privileges)"}
 	}
-	addr, err := r.Policy.Resolve(ctx, r.Resolver, c.Target, 0)
+	addr, err := r.Policy.Resolve(ctx, r.resolver(), c.Target, 0)
 	if err != nil {
 		return Result{Error: classifyNetErr(err)}
 	}

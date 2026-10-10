@@ -11,3 +11,9 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 next-env.d.ts
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars

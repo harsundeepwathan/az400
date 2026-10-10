@@ -1,0 +1,100 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
+    env:
+      SKYWATCH_TEST_ADMIN_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go/go.mod, cache-dependency-path: go/go.sum }
+      - name: Runtime roles
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -f db/init/00-roles.sql
+      - name: gofmt
+        working-directory: go
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: vet
+        working-directory: go
+        run: go vet ./...
+      - name: test (unit, contract, integration)
+        working-directory: go
+        run: go test -race -count=1 ./...
+      - name: cross-compile agent
+        working-directory: go
+        run: GOOS=windows GOARCH=amd64 go build -o /dev/null ./cmd/skywatch-agent && GOOS=linux GOARCH=arm64 go build -o /dev/null ./cmd/skywatch-agent
+      - name: govulncheck
+        working-directory: go
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  node:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
+    env:
+      SKYWATCH_TEST_ADMIN_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - name: API typecheck and tests
+        run: npm run typecheck --workspace apps/api && npm test --workspace apps/api
+      - name: Web typecheck and build
+        run: npm run typecheck --workspace apps/web && npm run build --workspace apps/web
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [go, node]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack
+        run: |
+          cat > deploy/.env <<ENV
+          POSTGRES_PASSWORD=$(openssl rand -hex 16)
+          SKYWATCH_API_DB_PASSWORD=$(openssl rand -hex 16)
+          SKYWATCH_WORKER_DB_PASSWORD=$(openssl rand -hex 16)
+          SKYWATCH_KEKS=v1:$(openssl rand -base64 32)
+          SKYWATCH_CONTROL_TOKEN=$(openssl rand -hex 24)
+          SKYWATCH_COOKIE_SECRET=$(openssl rand -hex 24)
+          SKYWATCH_DEMO_PASSWORD=e2e-demo-password
+          SKYWATCH_PUBLIC_URL=http://localhost:3000
+          SKYWATCH_INGEST_PUBLIC_URL=http://localhost:8443
+          ENV
+          docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+          for i in $(seq 1 120); do curl -fs localhost:3000/api/v1/auth/config && break; sleep 5; done
+          sleep 60   # let the collector and evaluator complete a few cycles
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci && npx playwright install --with-deps chromium
+      - run: npm run test:e2e --workspace apps/web
+        env: { SKYWATCH_DEMO_PASSWORD: e2e-demo-password }
+      - if: failure()
+        run: docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs --tail 200
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
