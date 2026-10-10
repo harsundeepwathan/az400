@@ -246,8 +246,10 @@ func (e *Evaluator) evaluateOrg(ctx context.Context, orgID string, now time.Time
 			}
 		}
 	}
-	// Instances whose subject disappeared (resource deleted, rule rescoped, service no
-	// longer required) are resolved rather than left firing forever.
+	// Instances whose subject disappeared (resource deleted or powered off, rule disabled
+	// or rescoped, service no longer required, check deleted) are resolved rather than
+	// left firing forever. A subject that still exists but produced no observation this
+	// cycle (stale or missing data) keeps its state: missing data is never recovery.
 	for key, inst := range st.Instances {
 		if seen[key] || inst.ID == "" || (inst.State != alerting.StateFiring && inst.State != alerting.StatePending) {
 			continue
@@ -258,6 +260,9 @@ func (e *Evaluator) evaluateOrg(ctx context.Context, orgID string, now time.Time
 			if r.ID == key.Rule {
 				ruleKnown, rule = true, r
 			}
+		}
+		if ruleKnown && st.subjectStillValid(rule, key) {
+			continue
 		}
 		from := inst.State
 		inst.State = alerting.StateResolved
@@ -335,7 +340,7 @@ func (e *Evaluator) observe(st *orgState, rule ruleRow, points map[string]map[st
 					label += " " + series
 				}
 				out = append(out, observation{subject: rid, series: series, resourceID: rid, o: o, maintenance: mw,
-					summary: fmt.Sprintf("%s on %s: %s (threshold %s %s)", rule.Name, label,
+					summary: fmt.Sprintf("%s on %s at %s (threshold %s %s)", rule.Name, label,
 						alerting.FormatValue(rule.Metric, o.Value), rule.Operator, alerting.FormatValue(rule.Metric, rule.Threshold))})
 			}
 		}
@@ -948,4 +953,32 @@ func (e *Evaluator) updateStates(ctx context.Context, tx pgx.Tx, st *orgState, p
 		}
 	}
 	return nil
+}
+
+// subjectStillValid reports whether an unobserved alert instance still refers to a live,
+// in-scope subject (in which case its state is held).
+func (st *orgState) subjectStillValid(rule ruleRow, key instanceKey) bool {
+	switch rule.Kind {
+	case alerting.KindServiceState:
+		for _, s := range st.Services {
+			if s.ID == key.Subject {
+				r := st.Resources[s.ResourceID]
+				return r != nil && rule.Matches(r.subject()) && !r.PowerState.IsOff()
+			}
+		}
+		return false
+	case alerting.KindSynthetic:
+		for _, c := range st.Synthetics {
+			if c.ID == key.Subject {
+				return true
+			}
+		}
+		return false
+	default:
+		r := st.Resources[key.Subject]
+		if r == nil || !rule.Matches(r.subject()) || r.PowerState.IsOff() {
+			return false
+		}
+		return rule.Kind != alerting.KindMetric || rule.SeriesIncluded(key.Series)
+	}
 }

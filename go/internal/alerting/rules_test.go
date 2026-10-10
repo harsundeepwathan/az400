@@ -158,3 +158,11 @@ func TestGlob(t *testing.T) {
 		}
 	}
 }
+
+func TestEventObservationGetsDetectionTime(t *testing.T) {
+	r := Rule{Name: "svc", Severity: model.SeverityCritical}
+	inst, _ := Step(r, Instance{}, Observation{HasData: true, Breaching: true, Sustained: true, Value: 1}, t0)
+	if inst.PendingSince == nil || !inst.PendingSince.Equal(t0) {
+		t.Fatalf("pending since must default to evaluation time, got %v", inst.PendingSince)
+	}
+}

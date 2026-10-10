@@ -145,6 +145,9 @@ func (s *Scheduler) runMetrics(ctx context.Context, ad providers.Adapter, acct p
 	res, cerr := ad.CollectMetrics(ctx, acct, refs, now.Add(-15*time.Minute), now)
 	items := 0
 	src := metricSource(ad.Provider())
+	if acct.AuthMethod == "demo" {
+		src = "demo" // synthetic data is always labelled as such, whatever provider it imitates
+	}
 	if res != nil {
 		for id, samples := range res.Samples {
 			n, err := tsdb.WriteSamples(ctx, s.pool, acct.OrgID, id, src, samples, now)

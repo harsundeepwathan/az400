@@ -281,6 +281,11 @@ func Step(r Rule, prev Instance, o Observation, now time.Time) (Instance, *Trans
 		return next, nil
 	}
 	next.Value = o.Value
+	if o.BreachSince.IsZero() {
+		// Event-style observations (service state, synthetic, provider health) do not
+		// carry a run start; the breach is first known now.
+		o.BreachSince = now
+	}
 	from := next.State
 	switch next.State {
 	case StateNormal, StateResolved:

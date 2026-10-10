@@ -111,3 +111,40 @@ func TestIntegrationFailureDoesNotMarkResourcesDown(t *testing.T) {
 		t.Fatalf("integration incident should resolve on recovery: %s", status)
 	}
 }
+
+// TestStaleDataHoldsAlertState: a firing metric alert whose data goes stale must keep
+// firing (no data is not recovery); it resolves only on a recovered sample.
+func TestStaleDataHoldsAlertState(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	var acct, res string
+	must(t, h.pool.QueryRow(ctx, `INSERT INTO cloud_accounts(org_id, provider, name, auth_method, status, last_success_at)
+		VALUES ($1,'azure','Prod','client_secret','active',now()) RETURNING id`, h.orgID).Scan(&acct))
+	must(t, h.pool.QueryRow(ctx, `INSERT INTO resources(org_id, cloud_account_id, provider, provider_resource_id, name, resource_type, power_state)
+		VALUES ($1,$2,'azure','/vm/s','vm-s','vm','running') RETURNING id`, h.orgID, acct).Scan(&res))
+	now := time.Now().UTC().Truncate(time.Minute)
+	h.now = now.Add(10 * time.Second)
+	if _, err := tsdb.WriteSamples(ctx, h.pool, h.orgID, res, "azure_monitor",
+		[]model.Sample{{Metric: "disk.utilization", Series: "mount=/", TS: now, Value: 95}}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	h.cycle()
+	firing := func() int {
+		var n int
+		must(t, h.pool.QueryRow(ctx, `SELECT count(*) FROM alert_instances WHERE resource_id=$1 AND state='firing'`, res).Scan(&n))
+		return n
+	}
+	if firing() != 2 {
+		t.Fatalf("expected warning+critical disk alerts firing, got %d", firing())
+	}
+	h.now = now.Add(40 * time.Minute) // data is now stale
+	h.cycle()
+	if firing() != 2 {
+		t.Fatalf("stale data must hold firing alerts, got %d", firing())
+	}
+	var status string
+	must(t, h.pool.QueryRow(ctx, `SELECT status FROM incidents WHERE resource_id=$1`, res).Scan(&status))
+	if status == "resolved" {
+		t.Fatal("incident must not auto-resolve on missing data")
+	}
+}
