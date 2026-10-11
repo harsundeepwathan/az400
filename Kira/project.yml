@@ -1,0 +1,76 @@
+# XcodeGen spec — run `xcodegen generate` in this directory to create Kira.xcodeproj.
+# (A generated .xcodeproj is not committed; this file is the source of truth.)
+name: Kira
+options:
+  bundleIdPrefix: my.kira
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0" # Swift 6 compiler, Swift 5 language mode; strict concurrency reported as warnings
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: "" # set your team ID
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+packages:
+  KiraCore:
+    path: Packages/KiraCore
+targets:
+  Kira:
+    type: application
+    platform: iOS
+    sources:
+      - path: Kira
+    dependencies:
+      - package: KiraCore
+      - sdk: StoreKit.framework
+      - sdk: Vision.framework
+      - sdk: PDFKit.framework
+      - sdk: LocalAuthentication.framework
+      - sdk: AVFoundation.framework
+    info:
+      path: Kira/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Kira
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "Kira uses the camera to read DuitNow QR codes and receipts. Images are processed on your iPhone and are not uploaded."
+        NSPhotoLibraryUsageDescription: "Choose payment receipt screenshots to record transactions. Images are read on your iPhone and are not uploaded."
+        NSFaceIDUsageDescription: "Use Face ID to keep your financial data private."
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Statement
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.comma-separated-values-text, com.adobe.pdf, public.plain-text, public.image]
+        LSSupportsOpeningDocumentsInPlace: false
+    entitlements:
+      path: Kira/Resources/Kira.entitlements
+      properties:
+        com.apple.developer.default-data-protection: NSFileProtectionComplete
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: my.kira.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+    scheme:
+      testTargets: [KiraTests, KiraUITests]
+      storeKitConfiguration: Kira/Resources/Kira.storekit
+  KiraTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [KiraTests]
+    dependencies:
+      - target: Kira
+  KiraUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [KiraUITests]
+    dependencies:
+      - target: Kira

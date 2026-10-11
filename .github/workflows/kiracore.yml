@@ -1,0 +1,17 @@
+name: KiraCore tests
+
+on:
+  push:
+    paths: ["Kira/Packages/KiraCore/**", ".github/workflows/kiracore.yml"]
+  pull_request:
+    paths: ["Kira/Packages/KiraCore/**", ".github/workflows/kiracore.yml"]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    container: swift:6.0-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        working-directory: Kira/Packages/KiraCore
+        run: swift test --parallel

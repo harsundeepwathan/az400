@@ -1,0 +1,39 @@
+{
+  "identifier" : "6A1F7B1E-6C9B-4C55-9C2B-0A1B2C3D4E5F",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_MY",
+    "_storefront" : "MYS",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21000001",
+      "localizations" : [],
+      "name" : "Kira",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [], "codeOffers" : [], "winbackOffers" : [],
+          "displayPrice" : "6.90", "familyShareable" : false, "groupNumber" : 2,
+          "internalID" : "21000002", "introductoryOffer" : null,
+          "localizations" : [ { "description" : "Unlimited imports, Shortcuts capture, reconciliation and rules.", "displayName" : "Kira Plus", "locale" : "en_MY" } ],
+          "productID" : "my.kira.plus.monthly", "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Kira Plus Monthly", "subscriptionGroupID" : "21000001", "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [], "codeOffers" : [], "winbackOffers" : [],
+          "displayPrice" : "12.90", "familyShareable" : false, "groupNumber" : 1,
+          "internalID" : "21000003", "introductoryOffer" : null,
+          "localizations" : [ { "description" : "Everything in Plus, with forecasting, debt analytics and reports.", "displayName" : "Kira Premium", "locale" : "en_MY" } ],
+          "productID" : "my.kira.premium.monthly", "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Kira Premium Monthly", "subscriptionGroupID" : "21000001", "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : { "major" : 4, "minor" : 0 }
+}
