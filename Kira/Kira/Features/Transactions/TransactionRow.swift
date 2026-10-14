@@ -45,7 +45,7 @@ struct TransactionRow: View {
         Text((isInflow ? "+" : "") + style.string(from: record.amount))
             .font(.body.weight(.semibold))
             .monospacedDigit()
-            .foregroundStyle(isInflow ? KiraColor.accent : (record.kind.isInternalMovement || record.kind == .debtRepayment ? KiraColor.textSecondary : KiraColor.textPrimary))
+            .foregroundStyle(isInflow ? KiraColor.positive : (record.kind.isInternalMovement || record.kind == .debtRepayment ? KiraColor.textSecondary : KiraColor.textPrimary))
             .strikethrough(record.status == .draft, color: KiraColor.textSecondary)
             .accessibilityLabel((isInflow ? "received " : "spent ") + MoneyFormatter.standard.accessibilityString(from: record.amount))
     }

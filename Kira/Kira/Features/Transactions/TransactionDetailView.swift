@@ -37,7 +37,7 @@ struct TransactionDetailView: View {
                     CategoryIcon(category: store.category(LedgerCalculator.effectiveCategory(of: record)), size: 56)
                     Text(record.displayName).font(.title3.weight(.semibold)).multilineTextAlignment(.center)
                     MoneyText(money: record.signedAmount, style: MoneyFormatter(signStyle: .always), font: .kiraHero)
-                        .foregroundStyle(record.direction == .inflow ? KiraColor.accent : KiraColor.textPrimary)
+                        .foregroundStyle(record.direction == .inflow ? KiraColor.positive : KiraColor.textPrimary)
                     StatusBadge(status: record.status)
                     Text(record.transactionDate.formatted(date: .complete, time: .shortened)).font(.footnote).foregroundStyle(KiraColor.textSecondary)
                 }

@@ -7,8 +7,8 @@ import KiraCore
 /// Per the Human Interface Guidelines (Color): use system colours so the app adapts to light,
 /// dark and Increase Contrast automatically, use the *grouped* background set for grouped
 /// content, and keep semantic meanings intact (separator is never text, secondaryLabel is
-/// never a background). The brand green lives only in the asset-catalog AccentColor, which
-/// ships light, dark and high-contrast variants.
+/// never a background). Kira uses Apple's colours only: there is no custom brand colour,
+/// so the app tint is the system default (systemBlue).
 enum KiraColor {
     /// Primary background of every screen (grouped layout).
     static let background = Color(uiColor: .systemGroupedBackground)
@@ -23,8 +23,8 @@ enum KiraColor {
     /// Unfilled portion of progress bars.
     static let track = Color(uiColor: .tertiarySystemFill)
 
-    /// App accent (brand green from the asset catalog). Used for interactivity and the single
-    /// chart series — never for non-interactive body text.
+    /// App tint: the system accent (systemBlue unless the user's device says otherwise). Used for
+    /// interactivity and the single chart series — never for non-interactive body text.
     static let accent = Color.accentColor
     static var accentSoft: Color { Color.accentColor.opacity(0.14) }
 
@@ -33,6 +33,7 @@ enum KiraColor {
     static var warningSoft: Color { Color(uiColor: .systemOrange).opacity(0.14) }
     static let error = Color(uiColor: .systemRed)
     static var errorSoft: Color { Color(uiColor: .systemRed).opacity(0.12) }
+    /// Money in (income, refunds) — paired with a "+" sign, never colour alone.
     static let positive = Color(uiColor: .systemGreen)
 
     /// Category tint tokens → system colours (adapt to dark mode and Increase Contrast).
