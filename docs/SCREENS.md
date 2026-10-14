@@ -1,14 +1,16 @@
 # Screen & navigation specification
 
-Five tabs (`RootView`). **Capture** is a tab-bar button that opens a sheet (medium/large detents) and returns the user to where they were.
+Four navigation tabs plus a trailing **Search** tab (`RootView`). Adding is an *action*, so it is a standard **Add (+)** pull-down menu in the toolbar of Summary and Activity, not a tab (HIG › Tab bars). See [DESIGN.md](DESIGN.md).
 
 ```mermaid
 flowchart LR
-    Tabs((TabView)) --> Home
+    Tabs((TabView)) --> Home[Summary]
     Tabs --> Activity
-    Tabs --> Capture{{Capture sheet}}
     Tabs --> Insights
     Tabs --> Accounts
+    Tabs --> Search
+    Home -.->|"toolbar +"| Capture{{Add menu}}
+    Activity -.->|"toolbar +"| Capture
     Home --> TxDetail[Transaction detail] --> TxEdit[Editor]
     Home --> BudgetEditor
     Activity --> Filters[Filter sheet]
@@ -30,11 +32,12 @@ flowchart LR
 
 | Screen | Purpose | Empty state | Key states |
 |---|---|---|---|
-| Home | Month spending (hero), budget bar with pace marker, vs last month (same point), review banner, This month rows labelled Recorded / Scheduled / Estimate, insights carousel, latest 6 | "Start with one transaction" + Add | Pending count, over budget, forecast confidence notice |
-| Activity | Day-grouped history, search, filters (date, account, category, source, status), "To review" segment, swipe Confirm/Delete, totals for the filtered view | Per segment | Draft strike-through, Pending pill, Matched seal |
+| Summary | Large title "Summary" with greeting/date subtitle; month spending (hero), budget bar with pace marker, vs last month (same point), review banner, This month rows labelled Recorded / Scheduled / Estimate, insights carousel, latest 6 | "Start with one transaction" + Add | Pending count, over budget, forecast confidence notice |
+| Activity | Day-grouped history, filters (date, account, category, source, status), "To review" segment, swipe Confirm/Delete, totals for the filtered view | Per segment | Draft strike-through, Pending pill, Matched seal |
 | Transaction detail | Amount, status explanation, details, source & confidence, possible duplicates with "Same payment — merge", delete | Not found | Confirm disabled until the amount is known |
 | Editor | Hero amount field, direction, merchant (auto-suggests category), type, category, date, account, channel, notes | — | Inline validation (> 2 decimals, zero) |
-| Capture sheet | Manual · Scan QR · Receipt · Statement · Apple Pay automation | — | — |
+| Add menu (toolbar +) | Add Manually · Scan DuitNow QR (full-screen) · Import Receipt · Import Statement · Set Up Apple Pay Logging; each opens a sheet with a standard Close button | — | — |
+| Search (tab) | Landing page with frequent merchants; search-as-you-type over merchant, description, notes, reference; scope bar All / Spending / Money In | Suggestions | Spent total for results |
 | DuitNow flow | Camera / photo QR → merchant review, warnings, optional amount → draft | Camera denied explanation | CRC failure warning ("don't pay with it") |
 | Receipt import | PhotosPicker → OCR → extracted fields with confidence → review | — | Failed receipts are blocked |
 | Statement import | Profile + account → CSV/PDF → (password) → review | — | Free-tier remaining count; layout warnings |

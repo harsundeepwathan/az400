@@ -133,8 +133,8 @@ struct AccountEditorView: View {
         .navigationTitle(account.name.isEmpty ? "New account" : account.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
+            CloseToolbarItem { dismiss() }
+            ConfirmToolbarItem(title: "Save", action: save)
         }
         .confirmationDialog("Archive this account? Its transactions are kept.", isPresented: $confirmArchive, titleVisibility: .visible) {
             Button("Archive", role: .destructive) { store.archive(account: account); dismiss() }

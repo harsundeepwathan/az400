@@ -140,8 +140,8 @@ struct CommitmentEditorView: View {
         .navigationTitle(commitment.name.isEmpty ? "New commitment" : commitment.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
+            CloseToolbarItem { dismiss() }
+            ConfirmToolbarItem(title: "Save", action: save)
         }
         .onAppear(perform: load)
     }
@@ -207,7 +207,7 @@ struct IncomeEditorView: View {
         .navigationTitle("Income")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            CloseToolbarItem { dismiss() }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     guard !income.name.isEmpty, let amount = try? AmountParser().parse(amountText).money, !amount.isZero else { error = "Enter a name and amount."; return }
@@ -259,6 +259,6 @@ struct PayrollEstimatorView: View {
         .kiraScreen()
         .navigationTitle("Payslip estimate")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        .toolbar { ConfirmToolbarItem { dismiss() } }
     }
 }

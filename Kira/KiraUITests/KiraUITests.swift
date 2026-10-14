@@ -11,9 +11,7 @@ final class KiraUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Start with one transaction"].waitForExistence(timeout: 5))
-        app.buttons["Add transaction"].tap()
-        XCTAssertTrue(app.buttons["Add manually"].waitForExistence(timeout: 3))
-        app.buttons["Add manually"].tap()
+        app.buttons["Add Transaction"].tap()
         XCTAssertTrue(app.navigationBars["New transaction"].waitForExistence(timeout: 3))
         let amount = app.textFields["Amount in ringgit"]
         amount.tap()
@@ -26,15 +24,28 @@ final class KiraUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["ZUS Coffee"].waitForExistence(timeout: 3))
     }
 
+    /// Adding is a toolbar action, not a tab (HIG › Tab bars).
+    @MainActor
+    func testAddMenuOffersAllCaptureMethods() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+        app.navigationBars.buttons["Add"].tap()
+        for item in ["Add Manually", "Scan DuitNow QR", "Import Receipt", "Import Statement"] {
+            XCTAssertTrue(app.buttons[item].waitForExistence(timeout: 3), item)
+        }
+        XCTAssertFalse(app.tabBars.buttons["Capture"].exists)
+    }
+
     @MainActor
     func testTabsReachableWithLargestDynamicType() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
-        for tab in ["Activity", "Insights", "Accounts", "Home"] {
+        for tab in ["Activity", "Insights", "Accounts", "Summary"] {
             app.tabBars.buttons[tab].tap()
         }
-        XCTAssertTrue(app.tabBars.buttons["Home"].isSelected)
+        XCTAssertTrue(app.tabBars.buttons["Summary"].isSelected)
     }
 
     @MainActor

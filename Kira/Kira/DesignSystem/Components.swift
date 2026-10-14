@@ -139,26 +139,12 @@ struct EmptyStateView: View {
             Text(title).font(.headline).foregroundStyle(KiraColor.textPrimary)
             Text(message).font(.subheadline).foregroundStyle(KiraColor.textSecondary).multilineTextAlignment(.center)
             if let actionTitle, let action {
-                Button(actionTitle, action: action).buttonStyle(KiraPrimaryButtonStyle()).padding(.top, KiraSpacing.s)
+                Button(actionTitle, action: action).kiraProminentButton().padding(.top, KiraSpacing.s)
             }
         }
         .padding(KiraSpacing.xl)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
-    }
-}
-
-struct KiraPrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, KiraSpacing.xl)
-            .padding(.vertical, 14)
-            .frame(minHeight: 50)
-            .background(KiraColor.accent.opacity(configuration.isPressed ? 0.85 : 1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 

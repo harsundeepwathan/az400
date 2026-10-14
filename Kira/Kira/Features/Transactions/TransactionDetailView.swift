@@ -20,7 +20,7 @@ struct TransactionDetailView: View {
         .kiraScreen()
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            CloseToolbarItem { dismiss() }
             ToolbarItem(placement: .primaryAction) { Button("Edit") { editing = true }.disabled(store.transaction(transactionID) == nil) }
         }
         .sheet(isPresented: $editing) {

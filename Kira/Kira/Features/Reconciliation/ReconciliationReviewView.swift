@@ -55,15 +55,12 @@ struct ReconciliationReviewView: View {
         .kiraScreen()
         .navigationTitle(review.fileName)
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom) {
-            Button("Save \(review.newCount + review.mergeCount) transaction\(review.newCount + review.mergeCount == 1 ? "" : "s")") {
+        // HIG › Sheets: the confirming action sits on the trailing edge of the top toolbar.
+        .toolbar {
+            ConfirmToolbarItem(title: "Save \(review.newCount + review.mergeCount)", isDisabled: review.newCount + review.mergeCount == 0) {
                 store.commit(review)
                 onCommitted()
             }
-            .buttonStyle(KiraPrimaryButtonStyle())
-            .disabled(review.newCount + review.mergeCount == 0)
-            .padding()
-            .background(.bar)
         }
     }
 

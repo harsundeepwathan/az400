@@ -4,8 +4,8 @@ import KiraCore
 /// Home: immediate clarity on this month — spending, budget, cash position, recent activity.
 struct HomeView: View {
     @Environment(FinanceStore.self) private var store
-    var openCapture: () -> Void
     var openTab: (AppTab) -> Void
+    @State private var addingManually = false
     @State private var selected: TransactionRecord?
     @State private var showingBudgetEditor = false
 
@@ -13,12 +13,11 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: KiraSpacing.xl) {
-                    header
                     if store.visibleTransactions.isEmpty && store.accounts.isEmpty {
                         Surface {
                             EmptyStateView(symbol: "leaf", title: "Start with one transaction",
-                                           message: "Add a payment, scan a DuitNow QR, or import a bank statement. Kira keeps everything on your iPhone.",
-                                           actionTitle: "Add transaction", action: openCapture)
+                                           message: "Use + to add a payment, scan a DuitNow QR, or import a bank statement. Kira keeps everything on your iPhone.",
+                                           actionTitle: "Add Transaction", action: { addingManually = true })
                         }
                     } else {
                         spendingHero
@@ -32,7 +31,12 @@ struct HomeView: View {
                 .padding(.bottom, KiraSpacing.xxl)
             }
             .kiraScreen()
-            .toolbar(.hidden, for: .navigationBar)
+            // HIG › Toolbars: a large title keeps people oriented and collapses on scroll.
+            .navigationTitle("Summary")
+            .navigationBarTitleDisplayMode(.large)
+            .kiraNavigationSubtitle("\(Self.greeting(for: store.now())) · \(store.now().formatted(.dateTime.weekday(.wide).day().month(.wide)))")
+            .kiraAddMenu()
+            .sheet(isPresented: $addingManually) { CaptureFlowView(flow: .manual) }
             .sheet(item: $selected) { record in
                 NavigationStack { TransactionDetailView(transactionID: record.id) }
             }
@@ -43,16 +47,6 @@ struct HomeView: View {
     }
 
     // MARK: Sections
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(Self.greeting(for: store.now())).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
-            Text(store.now().formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                .font(.title2.weight(.semibold)).foregroundStyle(KiraColor.textPrimary)
-        }
-        .padding(.top, KiraSpacing.l)
-        .accessibilityElement(children: .combine)
-    }
 
     private var spendingHero: some View {
         let summary = store.summary(for: store.currentMonth)

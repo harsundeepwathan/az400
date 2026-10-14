@@ -87,8 +87,8 @@ struct TransactionEditorView: View {
         .navigationTitle(isEditing ? "Edit transaction" : "New transaction")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).fontWeight(.semibold) }
+            CloseToolbarItem { dismiss() }
+            ConfirmToolbarItem(title: "Save", action: save)
         }
         .onAppear(perform: loadIfNeeded)
         .onChange(of: direction) { _, new in

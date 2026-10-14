@@ -56,8 +56,8 @@ struct BudgetEditorView: View {
         .navigationTitle("Budget")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).fontWeight(.semibold) }
+            CloseToolbarItem { dismiss() }
+            ConfirmToolbarItem(title: "Save", action: save)
         }
         .confirmationDialog("Add category budget", isPresented: $addingCategory) {
             ForEach(store.categories.filter { allocations[$0.id] == nil && $0.id != BuiltInCategory.transfers.id }) { category in

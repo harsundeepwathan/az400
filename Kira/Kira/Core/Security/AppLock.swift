@@ -117,7 +117,7 @@ private struct LockScreen: View {
             Text("Kira is locked").font(.title3.weight(.semibold)).foregroundStyle(KiraColor.textPrimary)
             if showsUnlock {
                 Button("Unlock with \(lock.biometryName)") { Task { await lock.unlock() } }
-                    .buttonStyle(KiraPrimaryButtonStyle())
+                    .kiraProminentButton()
                 if let error = lock.lastError {
                     Text(error).font(.footnote).foregroundStyle(KiraColor.error)
                 }

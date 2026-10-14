@@ -19,10 +19,12 @@ struct OnboardingView: View {
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
 
-            Button(page < 2 ? "Continue" : "Get started") {
+            Button {
                 if page < 2 { withAnimation { page += 1 } } else { onFinish() }
+            } label: {
+                Text(page < 2 ? "Continue" : "Get Started").frame(maxWidth: .infinity)
             }
-            .buttonStyle(KiraPrimaryButtonStyle())
+            .kiraProminentButton()
             .padding(.horizontal, KiraSpacing.l)
             .padding(.bottom, KiraSpacing.xl)
         }

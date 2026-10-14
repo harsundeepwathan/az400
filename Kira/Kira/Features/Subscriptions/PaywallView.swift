@@ -31,7 +31,7 @@ struct PaywallView: View {
                 .padding(KiraSpacing.l)
             }
             .kiraScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+            .toolbar { CloseToolbarItem { dismiss() } }
             .task { if subscriptions.products.isEmpty { await subscriptions.loadProducts() } }
         }
     }
@@ -54,7 +54,7 @@ struct PaywallView: View {
                 } label: {
                     Text(isCurrent ? "Current plan" : (purchasing == product?.id ? "Purchasing…" : "Choose \(tier.displayName)")).frame(maxWidth: .infinity)
                 }
-                .buttonStyle(KiraPrimaryButtonStyle())
+                .kiraProminentButton()
                 .disabled(product == nil || isCurrent || purchasing != nil)
             }
         }

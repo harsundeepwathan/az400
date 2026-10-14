@@ -3,7 +3,7 @@
 Native SwiftUI app (iOS 18+) plus `KiraCore`, a platform-independent Swift package that holds all financial logic.
 
 ## Requirements
-- Xcode 16 or later (Swift 6 toolchain, iOS 18 SDK)
+- Xcode 26 or later (iOS 26 SDK — required for Liquid Glass; the app still runs on iOS 18+)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
 ## Build & run

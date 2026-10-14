@@ -2,49 +2,38 @@ import SwiftUI
 import KiraCore
 
 enum AppTab: Hashable {
-    case home, activity, capture, insights, accounts
+    case summary, activity, insights, accounts, search
 }
 
-/// Five destinations. "Capture" is a tab-bar button that opens a sheet rather than a screen,
-/// so it is always one tap away but never replaces the user's context.
+/// Four navigation tabs plus a dedicated Search tab at the trailing end (HIG › Tab bars,
+/// Search fields). Adding transactions is an action, so it lives in each screen's toolbar
+/// (see `AddMenuModifier`), not in the tab bar. On iOS 26 the tab bar floats on Liquid Glass
+/// and minimises while scrolling; earlier versions get the standard tab bar.
 struct RootView: View {
     @Environment(FinanceStore.self) private var store
-    @State private var selection: AppTab = .home
-    @State private var previousSelection: AppTab = .home
-    @State private var showingCapture = false
+    @State private var selection: AppTab = .summary
     @AppStorage("kira.onboarded") private var onboarded = false
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab("Home", systemImage: "house", value: AppTab.home) {
-                HomeView(openCapture: { showingCapture = true }, openTab: { selection = $0 })
+            Tab("Summary", systemImage: "house", value: AppTab.summary) {
+                HomeView(openTab: { selection = $0 })
             }
-            Tab("Activity", systemImage: "list.bullet.rectangle", value: AppTab.activity) {
+            Tab("Activity", systemImage: "list.bullet.rectangle.portrait", value: AppTab.activity) {
                 ActivityView()
-            }
-            Tab("Capture", systemImage: "plus.circle.fill", value: AppTab.capture) {
-                Color.clear.accessibilityLabel("Add a transaction, scan a QR code or import a statement")
             }
             Tab("Insights", systemImage: "chart.bar.xaxis", value: AppTab.insights) {
                 InsightsView()
             }
-            Tab("Accounts", systemImage: "wallet.pass", value: AppTab.accounts) {
+            Tab("Accounts", systemImage: "wallet.bifold", value: AppTab.accounts) {
                 AccountsView()
             }
-        }
-        .onChange(of: selection) { old, new in
-            if new == .capture {
-                selection = old
-                showingCapture = true
-                Haptics.selection()
+            // Standard-style search tab: opens a landing page with recent merchants as suggestions.
+            Tab(value: AppTab.search, role: .search) {
+                SearchView()
             }
         }
-        .sheet(isPresented: $showingCapture) {
-            CaptureSheet()
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(KiraRadius.hero)
-        }
+        .kiraTabBarMinimizesOnScroll()
         .fullScreenCover(isPresented: Binding(get: { !onboarded && !AppEnvironment.isUITesting }, set: { if !$0 { onboarded = true } })) {
             OnboardingView { onboarded = true }
         }

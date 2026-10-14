@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import Accessibility
 import KiraCore
 
 /// Analytics that answer questions, not decoration. Every figure comes from KiraCore's
@@ -102,24 +103,41 @@ struct InsightsView: View {
         return VStack(alignment: .leading, spacing: KiraSpacing.m) {
             SectionHeader(title: "Monthly spending")
             Surface {
-                Chart(points) { point in
-                    BarMark(x: .value("Month", point.monthStart, unit: .month),
-                            y: .value("Spending", Double(point.spending.minorUnits) / 100), width: .ratio(0.55))
-                        .foregroundStyle(KiraColor.accent)
-                        .cornerRadius(4)
-                        .accessibilityLabel(point.monthStart.formatted(.dateTime.month(.wide)))
-                        .accessibilityValue(point.spending.formatted)
-                }
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
-                        AxisGridLine().foregroundStyle(KiraColor.separator)
-                        AxisValueLabel { if let amount = value.as(Double.self) { Text("RM\(Int(amount))").font(.caption2) } }
+                VStack(alignment: .leading, spacing: KiraSpacing.s) {
+                    // HIG › Charts: summarise the main message before the chart.
+                    Text(Self.trendSummary(points)).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+                    Chart(points) { point in
+                        BarMark(x: .value("Month", point.monthStart, unit: .month),
+                                y: .value("Spending", Double(point.spending.minorUnits) / 100), width: .ratio(0.55))
+                            .foregroundStyle(KiraColor.accent.opacity(point.id == points.last?.id ? 1 : 0.55))
+                            .cornerRadius(4)
+                            .accessibilityLabel(point.monthStart.formatted(.dateTime.month(.wide)))
+                            .accessibilityValue(point.spending.formatted)
                     }
+                    // Bar charts start at zero; familiar tick sequence via automatic values.
+                    .chartYScale(domain: .automatic(includesZero: true))
+                    .chartYAxis {
+                        AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+                            AxisGridLine().foregroundStyle(KiraColor.separator)
+                            AxisValueLabel { if let amount = value.as(Double.self) { Text("RM\(Int(amount))").font(.caption2) } }
+                        }
+                    }
+                    .chartXAxis { AxisMarks(values: .stride(by: .month)) { _ in AxisValueLabel(format: .dateTime.month(.abbreviated)) } }
+                    .frame(height: 180)
+                    // Audio Graphs for VoiceOver users.
+                    .accessibilityChartDescriptor(SpendingTrendDescriptor(points: points))
                 }
-                .chartXAxis { AxisMarks(values: .stride(by: .month)) { _ in AxisValueLabel(format: .dateTime.month(.abbreviated)) } }
-                .frame(height: 180)
             }
         }
+    }
+
+    static func trendSummary(_ points: [MonthlyPoint]) -> String {
+        guard let last = points.last, points.count >= 2 else { return "Your spending by month." }
+        let previous = points[points.count - 2]
+        guard let ratio = last.spending.ratio(to: previous.spending) else { return "\(last.spending.formatted) so far this month." }
+        let change = ratio - 1
+        let direction = change >= 0 ? "up" : "down"
+        return "\(last.spending.formatted) so far this month, \(direction) \(PercentFormatter.string(abs(change))) on last month’s total."
     }
 
     // MARK: Categories — ranked bars beat a pie for comparing magnitudes.
@@ -243,5 +261,23 @@ struct InsightsView: View {
         } else {
             Button { showingPaywall = true } label: { row }.buttonStyle(.plain)
         }
+    }
+}
+
+
+/// Audio Graph description of the monthly spending chart (HIG › Charts › Accessibility).
+struct SpendingTrendDescriptor: AXChartDescriptorRepresentable {
+    let points: [MonthlyPoint]
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let values = points.map { Double($0.spending.minorUnits) / 100 }
+        let xAxis = AXCategoricalDataAxisDescriptor(title: "Month", categoryOrder: points.map { $0.monthStart.formatted(.dateTime.month(.wide)) })
+        let yAxis = AXNumericDataAxisDescriptor(title: "Spending in ringgit", range: 0...(values.max() ?? 1), gridlinePositions: []) { value in
+            MoneyFormatter.standard.accessibilityString(from: Money(minorUnits: Int64(value * 100)))
+        }
+        let series = AXDataSeriesDescriptor(name: "Spending", isContinuous: false, dataPoints: zip(points, values).map { point, value in
+            AXDataPoint(x: point.monthStart.formatted(.dateTime.month(.wide)), y: value)
+        })
+        return AXChartDescriptor(title: "Monthly spending", summary: InsightsView.trendSummary(points), xAxis: xAxis, yAxis: yAxis, additionalAxes: [], series: [series])
     }
 }

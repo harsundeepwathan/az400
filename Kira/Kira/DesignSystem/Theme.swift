@@ -2,66 +2,61 @@ import SwiftUI
 import UIKit
 import KiraCore
 
-/// Semantic colour tokens. Every view uses these — never raw hex — so dark mode is a
-/// deliberate second palette rather than an automatic inversion.
+/// Semantic colour tokens, mapped onto Apple's dynamic system colours.
+///
+/// Per the Human Interface Guidelines (Color): use system colours so the app adapts to light,
+/// dark and Increase Contrast automatically, use the *grouped* background set for grouped
+/// content, and keep semantic meanings intact (separator is never text, secondaryLabel is
+/// never a background). The brand green lives only in the asset-catalog AccentColor, which
+/// ships light, dark and high-contrast variants.
 enum KiraColor {
-    static let background = dynamic(light: 0xF7F8F5, dark: 0x0F1411)
-    static let surface = dynamic(light: 0xFFFFFF, dark: 0x1A201C)
-    static let surfaceRaised = dynamic(light: 0xFFFFFF, dark: 0x222A25)
-    static let textPrimary = dynamic(light: 0x16271F, dark: 0xEEF2EE)
-    static let textSecondary = dynamic(light: 0x68766D, dark: 0xA3B0A7)
-    static let accent = dynamic(light: 0x326B50, dark: 0x7CC49C)
-    static let accentSoft = dynamic(light: 0xE4EFE7, dark: 0x1F3529)
-    static let blueSoft = dynamic(light: 0xDCE8F2, dark: 0x1C2C3A)
-    static let warning = dynamic(light: 0xD69A43, dark: 0xE3AE5E)
-    static let warningSoft = dynamic(light: 0xF8ECD9, dark: 0x3A2E1A)
-    static let error = dynamic(light: 0xC45B56, dark: 0xE07C76)
-    static let errorSoft = dynamic(light: 0xF6E1E0, dark: 0x3A2120)
-    static let separator = dynamic(light: 0xE6E9E3, dark: 0x2C342F)
-    static let track = dynamic(light: 0xECEFEA, dark: 0x2A322D)
+    /// Primary background of every screen (grouped layout).
+    static let background = Color(uiColor: .systemGroupedBackground)
+    /// Content-layer grouping: cards and inset list rows.
+    static let surface = Color(uiColor: .secondarySystemGroupedBackground)
+    /// Grouping inside a card.
+    static let surfaceRaised = Color(uiColor: .tertiarySystemGroupedBackground)
+    static let textPrimary = Color(uiColor: .label)
+    static let textSecondary = Color(uiColor: .secondaryLabel)
+    static let textTertiary = Color(uiColor: .tertiaryLabel)
+    static let separator = Color(uiColor: .separator)
+    /// Unfilled portion of progress bars.
+    static let track = Color(uiColor: .tertiarySystemFill)
 
-    /// Category tint tokens (icons only — charts use the single accent series).
+    /// App accent (brand green from the asset catalog). Used for interactivity and the single
+    /// chart series — never for non-interactive body text.
+    static let accent = Color.accentColor
+    static var accentSoft: Color { Color.accentColor.opacity(0.14) }
+
+    // Status colours: system colours, always paired with text or a symbol.
+    static let warning = Color(uiColor: .systemOrange)
+    static var warningSoft: Color { Color(uiColor: .systemOrange).opacity(0.14) }
+    static let error = Color(uiColor: .systemRed)
+    static var errorSoft: Color { Color(uiColor: .systemRed).opacity(0.12) }
+    static let positive = Color(uiColor: .systemGreen)
+
+    /// Category tint tokens → system colours (adapt to dark mode and Increase Contrast).
     static func tint(_ token: String) -> Color {
         switch token {
-        case "green": return dynamic(light: 0x326B50, dark: 0x7CC49C)
-        case "amber": return dynamic(light: 0xB27A2A, dark: 0xE3AE5E)
-        case "blue": return dynamic(light: 0x3B6E99, dark: 0x8DB7DD)
-        case "rose": return dynamic(light: 0xA9566C, dark: 0xE09AAC)
-        case "violet": return dynamic(light: 0x6B5BA8, dark: 0xB0A4E6)
-        case "red": return dynamic(light: 0xC45B56, dark: 0xE07C76)
-        default: return dynamic(light: 0x5D6B63, dark: 0xA3B0A7)
+        case "green": return Color(uiColor: .systemGreen)
+        case "amber": return Color(uiColor: .systemOrange)
+        case "blue": return Color(uiColor: .systemBlue)
+        case "rose": return Color(uiColor: .systemPink)
+        case "violet": return Color(uiColor: .systemPurple)
+        case "red": return Color(uiColor: .systemRed)
+        default: return Color(uiColor: .systemGray)
         }
     }
 
-    static func softTint(_ token: String) -> Color {
-        switch token {
-        case "green": return accentSoft
-        case "amber": return warningSoft
-        case "blue": return blueSoft
-        case "rose": return dynamic(light: 0xF5E4E8, dark: 0x3A2229)
-        case "violet": return dynamic(light: 0xEAE6F6, dark: 0x2A2540)
-        case "red": return errorSoft
-        default: return dynamic(light: 0xEDF0EC, dark: 0x262E29)
-        }
-    }
-
-    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
-        Color(uiColor: UIColor { traits in
-            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
-        })
-    }
+    static func softTint(_ token: String) -> Color { tint(token).opacity(0.15) }
 }
 
-extension UIColor {
-    convenience init(hex: UInt32) {
-        self.init(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-    }
-}
-
+/// Corner radii. Content-layer cards use continuous corners; controls in toolbars and tab bars
+/// get their (concentric) shapes from the system, so no radius is defined for them here.
 enum KiraRadius {
     static let small: CGFloat = 12
-    static let card: CGFloat = 20
-    static let hero: CGFloat = 24
+    static let card: CGFloat = 22
+    static let hero: CGFloat = 26
 }
 
 enum KiraSpacing {
@@ -73,17 +68,18 @@ enum KiraSpacing {
     static let xxl: CGFloat = 32
 }
 
-/// Typography scale built on SF Pro (system font) so Dynamic Type works everywhere.
+/// Typography uses the built-in text styles only (HIG Typography), so Dynamic Type, Bold Text
+/// and the larger accessibility sizes work everywhere. Hierarchy comes from style, weight and
+/// colour; money uses the rounded design with tabular digits applied at the call site.
 extension Font {
-    /// Hero figures ("RM 2,845.60"). Rounded design, tabular digits applied at the call site.
-    static let kiraHero = Font.system(.largeTitle, design: .rounded).weight(.semibold)
+    static let kiraHero = Font.system(.largeTitle, design: .rounded).weight(.bold)
     static let kiraFigure = Font.system(.title2, design: .rounded).weight(.semibold)
-    static let kiraSection = Font.system(.title3).weight(.semibold)
-    static let kiraRowTitle = Font.body.weight(.medium)
+    static let kiraSection = Font.title3.weight(.semibold)
+    static let kiraRowTitle = Font.body
     static let kiraCaption = Font.footnote
 }
 
-/// Haptics used sparingly: success on save, warning on errors, selection on toggles.
+/// Haptics used sparingly: success on save, warning on errors, selection on choices.
 @MainActor
 enum Haptics {
     static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }

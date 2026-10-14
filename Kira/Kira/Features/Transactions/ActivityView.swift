@@ -67,9 +67,9 @@ struct ActivityView: View {
             .listStyle(.insetGrouped)
             .kiraScreen()
             .navigationTitle("Activity")
-            .searchable(text: $query, prompt: "Merchant or description")
+            .kiraAddMenu()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button { showingFilters = true } label: {
                         Image(systemName: hasActiveFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                     }
@@ -143,7 +143,7 @@ struct FilterSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Reset") { filter = TransactionFilter(); range = .any } }
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { applyRange(); dismiss() } }
+                ConfirmToolbarItem { applyRange(); dismiss() }
             }
         }
         .presentationDetents([.large])

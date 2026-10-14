@@ -6,6 +6,7 @@ options:
   deploymentTarget:
     iOS: "18.0"
   developmentLanguage: en
+  xcodeVersion: "26.0" # iOS 26 SDK for Liquid Glass; deployment target stays iOS 18
   createIntermediateGroups: true
 settings:
   base:
