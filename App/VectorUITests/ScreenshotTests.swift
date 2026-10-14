@@ -18,30 +18,37 @@ final class ScreenshotTests: XCTestCase {
 
     func testMainScreens() {
         launch(sampleData: true)
-        let today = app.buttons["Today"]
-        _ = today.waitForExistence(timeout: 10)
+        _ = tabButton("Today").waitForExistence(timeout: 10)
         sleep(1)
         shoot("02-today")
-        app.swipeUp()
-        sleep(1)
-        shoot("03-today-scrolled")
+        // Tabs first: on iOS 26 the tab bar shrinks once the list scrolls.
         for (index, tab) in ["Train", "Nutrition", "Progress"].enumerated() {
-            let button = app.tabBars.buttons[tab].exists ? app.tabBars.buttons[tab] : app.buttons[tab]
+            let button = tabButton(tab)
             if button.waitForExistence(timeout: 5) { button.tap() }
             sleep(1)
             shoot(String(format: "%02d-%@", index + 4, tab.lowercased()))
         }
+        tabButton("Today").tap()
+        sleep(1)
+        app.swipeUp()
+        sleep(1)
+        shoot("03-today-scrolled")
+        app.swipeDown()
+        app.swipeDown()
+        sleep(1)
         // The workout screen with one set done (green row) and the live stats strip.
-        let todayTab = app.tabBars.buttons["Today"].exists ? app.tabBars.buttons["Today"] : app.buttons["Today"]
-        todayTab.tap()
         let start = app.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Start workout")).firstMatch
         if start.waitForExistence(timeout: 5) {
             start.tap()
             let complete = app.buttons["Complete set"].firstMatch
             if complete.waitForExistence(timeout: 5) { complete.tap() }
-            sleep(1)
+            sleep(4) // let the record toast clear
             shoot("07-workout")
         }
+    }
+
+    private func tabButton(_ title: String) -> XCUIElement {
+        app.tabBars.buttons[title].exists ? app.tabBars.buttons[title] : app.buttons[title]
     }
 
     private func launch(sampleData: Bool) {
