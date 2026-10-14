@@ -147,8 +147,8 @@ private struct NutritionHero: View {
                                      colors: [WidgetTint.calories.accent, WidgetTint.calories.accentEnd])
                         VStack(spacing: 0) {
                             Text(Format.integer(abs(remaining)))
-                                .font(.system(size: heroSize * 0.6, weight: .heavy).monospacedDigit())
-                                .fontWidth(.condensed)
+                                .font(.system(size: heroSize * 0.6, weight: .bold, design: .rounded).monospacedDigit())
+                                .fontDesign(.rounded)
                                 .foregroundStyle(WColor.textPrimary)
                                 .contentTransition(.numericText())
                                 .lineLimit(1)

@@ -246,8 +246,8 @@ struct WeeklyCheckInSheet: View {
                             .foregroundStyle(WColor.onHeroSecondary)
                         Text(Format.integer(to))
                     }
-                    .font(.system(.largeTitle, weight: .heavy).monospacedDigit())
-                    .fontWidth(.condensed)
+                    .font(.system(.largeTitle, weight: .bold).monospacedDigit())
+                    .fontDesign(.rounded)
                     .foregroundStyle(WColor.onHero)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
@@ -371,19 +371,19 @@ struct WeeklyCheckInSheet: View {
                 .padding(.horizontal, Space.gutter + 4)
                 .padding(.top, model.isPro ? Space.sm : 0)
 
-            WidgetSection(title: "Training", symbol: Icon.train, spacing: Space.xxs) {
+            WidgetSection(title: "Training", symbol: Icon.train, tint: .training, spacing: Space.xxs) {
                 weekValue("\(training.completed) of \(training.planned) workouts")
                 let detail = [training.volumeChange.map { "Volume \(Format.signedPercent($0))" },
                               strengthLine(training, unit: unit)].compactMap { $0 }.joined(separator: " · ")
                 if !detail.isEmpty { weekDetail(detail) }
             }
 
-            WidgetSection(title: "Nutrition", symbol: Icon.nutrition, spacing: Space.xxs) {
+            WidgetSection(title: "Nutrition", symbol: Icon.nutrition, tint: .calories, spacing: Space.xxs) {
                 weekValue("\(nutrition.calorieDaysOnTarget) of \(nutrition.windowDays) days on calories")
                 weekDetail("Protein target hit on \(nutrition.proteinDaysOnTarget) of \(nutrition.windowDays) days")
             }
 
-            WidgetSection(title: "Body", symbol: "scalemass", spacing: Space.xxs) {
+            WidgetSection(title: "Body", symbol: "scalemass", tint: .body, spacing: Space.xxs) {
                 bodyContent(unit: unit)
             }
         }

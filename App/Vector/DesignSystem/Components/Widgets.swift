@@ -30,13 +30,11 @@ struct WidgetTile<Accessory: View, Content: View>: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.system(.body, weight: .semibold))
-                .foregroundStyle(titleIsTinted ? tint.ink : WColor.textSecondary)
+        HStack(spacing: 10) {
+            IconBox(symbol: symbol, color: tint.color)
             Text(title)
-                .font(.system(.headline))
-                .foregroundStyle(titleIsTinted ? tint.ink : WColor.textSecondary)
+                .font(.headline)
+                .foregroundStyle(WColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 4)
             accessory
@@ -539,6 +537,26 @@ extension WidgetScreenHeader where Accessory == EmptyView {
     }
 }
 
+// MARK: - Icon box
+
+/// A white SF Symbol in a small rounded square of the area's colour, the way
+/// Settings and Health mark their rows. Scales with Dynamic Type.
+struct IconBox: View {
+    var symbol: String
+    var color: Color
+    @ScaledMetric(relativeTo: .headline) private var side: CGFloat = 28
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: side * 0.5, weight: .semibold))
+            .symbolVariant(.fill)
+            .foregroundStyle(.white)
+            .frame(width: side, height: side)
+            .background(color, in: RoundedRectangle(cornerRadius: side * 0.27, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Flows and sheets
 
 extension View {
@@ -582,19 +600,20 @@ struct WidgetHero<Content: View>: View {
 struct WidgetSection<Content: View>: View {
     var title: String?
     var symbol: String?
+    var tint: WidgetTint = .insight
     var spacing: CGFloat = Space.xs
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing) {
             if let title {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     if let symbol {
-                        Image(systemName: symbol).font(.system(.body, weight: .semibold))
+                        IconBox(symbol: symbol, color: tint.color)
                     }
-                    Text(title).font(.system(.headline))
+                    Text(title).font(.headline)
                 }
-                .foregroundStyle(WColor.textSecondary)
+                .foregroundStyle(WColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.bottom, 2)
             }

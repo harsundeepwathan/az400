@@ -132,8 +132,8 @@ private struct InsightPage: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(display.value)
-                    .font(.system(size: valueSize, weight: .heavy).monospacedDigit())
-                    .fontWidth(.condensed)
+                    .font(.system(size: valueSize, weight: .bold, design: .rounded).monospacedDigit())
+                    .fontDesign(.rounded)
                     .foregroundStyle(WidgetTint.insight.text)
                     .minimumScaleFactor(0.6)
                 Text(display.unit)
@@ -215,13 +215,11 @@ private struct UpNextTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 7) {
-                Circle().fill(WidgetTint.training.accent).frame(width: 6, height: 6)
+            HStack(spacing: 10) {
+                IconBox(symbol: "figure.strengthtraining.traditional", color: WidgetTint.training.color)
                 Text(state.label)
-                    .font(.system(.caption, weight: .bold))
-                    .tracking(0.9)
-                    .textCase(.uppercase)
-                    .foregroundStyle(WidgetTint.training.ink)
+                    .font(.headline)
+                    .foregroundStyle(WColor.textPrimary)
             }
             .accessibilityElement(children: .combine)
             if let program = programLine {
@@ -231,8 +229,7 @@ private struct UpNextTile: View {
                     .padding(.top, 12)
             }
             Text(state.title)
-                .font(.system(.largeTitle, weight: .heavy))
-                .fontWidth(.condensed)
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .foregroundStyle(WColor.textPrimary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
@@ -540,7 +537,7 @@ private struct BodyTile: View {
 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(Format.weight(latest.kilograms, unit: model.unit, includeUnit: false))
-                        .font(.system(size: 38, weight: .bold).monospacedDigit())
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit())
                         .foregroundStyle(WColor.textPrimary)
                         .minimumScaleFactor(0.6)
                     Text(model.unit.symbol)

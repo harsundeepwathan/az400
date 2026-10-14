@@ -568,8 +568,8 @@ private struct PlanReadyStep: View {
 
                 WidgetHero(label: "\(plan.program.daysPerWeek) days a week", symbol: Icon.train, spacing: Space.sm) {
                     Text(programName)
-                        .font(.system(.largeTitle, weight: .heavy))
-                        .fontWidth(.condensed)
+                        .font(.system(.largeTitle, weight: .bold))
+                        .fontDesign(.rounded)
                         .foregroundStyle(WColor.onHero)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -586,7 +586,7 @@ private struct PlanReadyStep: View {
                 }
                 .accessibilityElement(children: .combine)
 
-                WidgetSection(title: "Your week", symbol: "calendar") {
+                WidgetSection(title: "Your week", symbol: "calendar", tint: .training) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(plan.program.workouts.enumerated()), id: \.offset) { index, workout in
                             HStack {
@@ -606,7 +606,7 @@ private struct PlanReadyStep: View {
                     }
                 }
 
-                WidgetSection(title: "Why this plan", symbol: "checkmark.seal") {
+                WidgetSection(title: "Why this plan", symbol: "checkmark.seal", tint: .calories) {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         ForEach(Array(plan.rationale.enumerated()), id: \.offset) { _, line in
                             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
@@ -645,8 +645,8 @@ private struct PlanReadyStep: View {
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.system(.title2, weight: .heavy).monospacedDigit())
-                .fontWidth(.condensed)
+                .font(.system(.title2, weight: .bold).monospacedDigit())
+                .fontDesign(.rounded)
                 .foregroundStyle(WColor.onHero)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

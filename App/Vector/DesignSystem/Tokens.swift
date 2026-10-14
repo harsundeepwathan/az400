@@ -133,10 +133,10 @@ enum WColor {
     static let rise = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
     static let riseSoft = innerStrong
 
-    // Macros in three strengths of the same navy, always direct-labelled P, C and F.
-    static let protein = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
-    static let carbs = Color(light: 0x6F86C8, dark: 0x5F78C4)
-    static let fat = Color(light: 0xB4C2E6, dark: 0x34477F)
+    // Macros in three strengths of Nutrition green, always direct-labelled P, C and F.
+    static let protein = Color(uiColor: .systemGreen)
+    static let carbs = Color(uiColor: .systemGreen).opacity(0.6)
+    static let fat = Color(uiColor: .systemGreen).opacity(0.32)
 }
 
 /// One colour across the dashboard: Vector navy on the system grouped surfaces.
@@ -148,7 +148,19 @@ enum WidgetTint {
 
     var ink: Color { Color(light: 0x1D3A8A, dark: 0x9FB3F5) }
 
-    var accent: Color { Color(light: 0x1D3A8A, dark: 0x8EA4EE) }
+    /// The area's colour, Apple Health style: Apple's system colours (they adapt
+    /// to dark mode and Increase Contrast). It fills the tile's icon box and
+    /// the tile's own marks (bars, rings). Text and actions stay navy.
+    var color: Color {
+        switch self {
+        case .insight: Color(light: 0x1D3A8A, dark: 0x5B78E0)
+        case .training: Color(uiColor: .systemOrange)
+        case .calories: Color(uiColor: .systemGreen)
+        case .body: Color(uiColor: .systemPurple)
+        }
+    }
+
+    var accent: Color { color }
 
     // Text and tracks on the tile.
     var text: Color { WColor.textPrimary }
