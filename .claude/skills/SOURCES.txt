@@ -1,0 +1,2 @@
+avdlee/SwiftUI-Agent-Skill @ 204dba7c67256a8b707ee3fbc5759a824191974f (2026-10-06)
+emilkowalski/skills @ 2d228630ba1446365f614a108cb8252f1feda202 (2026-10-11)

@@ -140,6 +140,7 @@ struct FilterSheet: View {
                 }
             }
             .navigationTitle("Filter")
+            .sensoryFeedback(.selection, trigger: filter)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Reset") { filter = TransactionFilter(); range = .any } }
@@ -170,7 +171,6 @@ struct FilterSheet: View {
                 var set = selection.wrappedValue ?? []
                 if isOn { set.remove(option.0) } else { set.insert(option.0) }
                 selection.wrappedValue = set.isEmpty ? nil : set
-                Haptics.selection()
             } label: {
                 HStack {
                     Text(option.1).foregroundStyle(KiraColor.textPrimary)

@@ -5,9 +5,22 @@ import KiraCore
 struct HomeView: View {
     @Environment(FinanceStore.self) private var store
     var openTab: (AppTab) -> Void
-    @State private var addingManually = false
-    @State private var selected: TransactionRecord?
-    @State private var showingBudgetEditor = false
+    /// One item-driven sheet for everything Summary presents (one sheet at a time, per HIG).
+    @State private var sheet: SummarySheet?
+
+    enum SummarySheet: Identifiable {
+        case addTransaction
+        case transaction(UUID)
+        case budget
+
+        var id: String {
+            switch self {
+            case .addTransaction: return "add"
+            case .transaction(let id): return "tx-\(id)"
+            case .budget: return "budget"
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,7 +30,7 @@ struct HomeView: View {
                         Surface {
                             EmptyStateView(symbol: "leaf", title: "Start with one transaction",
                                            message: "Use + to add a payment, scan a DuitNow QR, or import a bank statement. Kira keeps everything on your iPhone.",
-                                           actionTitle: "Add Transaction", action: { addingManually = true })
+                                           actionTitle: "Add Transaction", action: { sheet = .addTransaction })
                         }
                     } else {
                         spendingHero
@@ -36,12 +49,12 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .kiraNavigationSubtitle("\(Self.greeting(for: store.now())) · \(store.now().formatted(.dateTime.weekday(.wide).day().month(.wide)))")
             .kiraAddMenu()
-            .sheet(isPresented: $addingManually) { CaptureFlowView(flow: .manual) }
-            .sheet(item: $selected) { record in
-                NavigationStack { TransactionDetailView(transactionID: record.id) }
-            }
-            .sheet(isPresented: $showingBudgetEditor) {
-                NavigationStack { BudgetEditorView() }
+            .sheet(item: $sheet) { sheet in
+                switch sheet {
+                case .addTransaction: CaptureFlowView(flow: .manual)
+                case .transaction(let id): NavigationStack { TransactionDetailView(transactionID: id) }
+                case .budget: NavigationStack { BudgetEditorView() }
+                }
             }
         }
     }
@@ -66,7 +79,7 @@ struct HomeView: View {
                 Text(budgetLine(status))
                     .font(.subheadline).foregroundStyle(status.level == .overBudget ? KiraColor.error : KiraColor.textSecondary)
             } else {
-                Button { showingBudgetEditor = true } label: {
+                Button { sheet = .budget } label: {
                     Label("Set a monthly budget", systemImage: "target")
                         .font(.subheadline.weight(.medium))
                 }
@@ -120,18 +133,18 @@ struct HomeView: View {
             Surface {
                 VStack(spacing: 0) {
                     HealthRow(title: "Income received", value: summary.income, kind: .actual)
-                    Divider().overlay(KiraColor.separator)
+                    Divider()
                     HealthRow(title: "Upcoming commitments", value: forecast.scheduledCommitments, kind: .scheduled)
-                    Divider().overlay(KiraColor.separator)
+                    Divider()
                     HealthRow(title: "Expected income still to come", value: forecast.expectedIncome, kind: .scheduled)
-                    Divider().overlay(KiraColor.separator)
+                    Divider()
                     HealthRow(title: "Projected month-end cash", value: forecast.endBalance, kind: .estimated)
                     if store.outstandingCardBalances.minorUnits > 0 {
-                        Divider().overlay(KiraColor.separator)
+                        Divider()
                         HealthRow(title: "Credit cards outstanding", value: store.outstandingCardBalances, kind: .actual)
                     }
                     if summary.debtRepayments.minorUnits > 0 {
-                        Divider().overlay(KiraColor.separator)
+                        Divider()
                         HealthRow(title: "Loan repayments (not spending)", value: summary.debtRepayments, kind: .actual)
                     }
                 }
@@ -167,10 +180,13 @@ struct HomeView: View {
                     if recent.isEmpty {
                         Text("No transactions yet").font(.subheadline).foregroundStyle(KiraColor.textSecondary).padding(KiraSpacing.l)
                     }
-                    ForEach(Array(recent.enumerated()), id: \.element.id) { index, record in
-                        Button { selected = record } label: { TransactionRow(record: record).padding(.horizontal, KiraSpacing.l) }
-                            .buttonStyle(.plain)
-                        if index < recent.count - 1 { Divider().overlay(KiraColor.separator).padding(.leading, 68) }
+                    // One view per element (stable ID); the separator lives inside the row.
+                    ForEach(recent) { record in
+                        VStack(spacing: 0) {
+                            Button { sheet = .transaction(record.id) } label: { TransactionRow(record: record).padding(.horizontal, KiraSpacing.l) }
+                                .buttonStyle(.plain)
+                            if record.id != recent.last?.id { Divider().padding(.leading, 68) }
+                        }
                     }
                 }
             }

@@ -34,6 +34,13 @@ struct RootView: View {
             }
         }
         .kiraTabBarMinimizesOnScroll()
+        .sensoryFeedback(trigger: store.feedback) { _, event in
+            switch event?.kind {
+            case .success?: return .success
+            case .warning?: return .warning
+            case nil: return nil
+            }
+        }
         .fullScreenCover(isPresented: Binding(get: { !onboarded && !AppEnvironment.isUITesting }, set: { if !$0 { onboarded = true } })) {
             OnboardingView { onboarded = true }
         }

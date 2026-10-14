@@ -107,7 +107,7 @@ struct BudgetEditorView: View {
         for (categoryID, budget) in existing where allocations[categoryID] == nil {
             store.deleteBudget(budget)
         }
-        Haptics.success()
+        store.signal(.success)
         dismiss()
     }
 }

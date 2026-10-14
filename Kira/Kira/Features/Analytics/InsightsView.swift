@@ -213,13 +213,13 @@ struct InsightsView: View {
                         LabeledContent("Savings rate", value: PercentFormatter.string(savings))
                     }
                     if !channels.isEmpty {
-                        Divider().overlay(KiraColor.separator)
+                        Divider()
                         ForEach(Array(channels.prefix(4)), id: \.0) { pair in
                             LabeledContent(pair.0.displayName) { MoneyText(money: pair.1) }
                         }
                     }
                     if !recurring.isEmpty {
-                        Divider().overlay(KiraColor.separator)
+                        Divider()
                         Text("Looks recurring").font(.subheadline.weight(.medium))
                         ForEach(recurring.prefix(4)) { charge in
                             LabeledContent("\(charge.displayName) · next ~\(charge.nextExpectedDate.kiraShort)") { MoneyText(money: charge.typicalAmount) }
@@ -237,7 +237,7 @@ struct InsightsView: View {
             Surface(padding: 0) {
                 VStack(spacing: 0) {
                     gatedLink("Cash-flow forecast", symbol: "waveform.path.ecg", feature: .cashFlowForecast) { CashFlowView() }
-                    Divider().overlay(KiraColor.separator).padding(.leading, 52)
+                    Divider().padding(.leading, 52)
                     gatedLink("Commitments & loans", symbol: "calendar.badge.clock", feature: .manualTracking) { CommitmentsView() }
                 }
             }

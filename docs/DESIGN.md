@@ -30,3 +30,20 @@ Kira follows Apple's [Human Interface Guidelines](https://developer.apple.com/de
 - **App icon:** create it in [Icon Composer](https://developer.apple.com/icon-composer/) (layered, Liquid Glass-ready) and replace the placeholder `AppIcon`.
 - Check scroll-edge effects and title collapse on device; adjust `scrollEdgeEffectStyle` only if content looks crowded under the bars.
 - Run with Reduce Transparency, Increase Contrast and Bold Text on.
+
+## SwiftUI review (swiftui-expert-skill)
+
+The project now vendors [AvdLee/SwiftUI-Agent-Skill](https://github.com/AvdLee/SwiftUI-Agent-Skill) and selected skills from [emilkowalski/skills](https://github.com/emilkowalski/skills) under `.claude/skills/` (MIT; pinned commits in `SOURCES.txt`). Applying its correctness checklist and references changed:
+
+| Rule (skill reference) | Change |
+|---|---|
+| `@State` properties are `private`; seeds documented as one-time (state-management) | Editors and the reconciliation review take their model through `init` into private `@State` |
+| `ForEach` uses stable identity, never indices or `\.offset` (list-patterns) | Reconciliation, onboarding steps and Summary rows iterate by ID |
+| Constant number of views per `ForEach` element (list-patterns) | Optional rows resolved before the `ForEach`. Account sections only for types that exist |
+| `sensoryFeedback` replaces UIKit feedback generators, iOS 17+ (latest-apis) | `FinanceStore` raises `FeedbackEvent`. `RootView` plays it. Views use `.sensoryFeedback(_:trigger:)` |
+| Item-driven sheets; one enum instead of several booleans (sheet-navigation-patterns) | Summary uses a `SummarySheet` enum. The Add menu uses `sheet(item:)` and `fullScreenCover(item:)` |
+| `@ScaledMetric` for non-text sizes (accessibility-patterns) | Category icons and empty-state badges scale with Dynamic Type |
+| Previews use self-contained mock data (previews) | `Kira/Preview/PreviewData.swift`: in-memory store with synthetic data, plus light, dark and XXXL previews |
+| Respect Reduce Motion (apple-design §14) | The budget bar's spring animation is disabled when Reduce Motion is on |
+
+Flagged, not changed: `FileDocument` (used for exports) is soft-deprecated in SDK 27. Pushed capture screens still receive an `onFinished` closure, because `dismiss` inside a pushed view pops the stack rather than closing the sheet.

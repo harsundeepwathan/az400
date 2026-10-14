@@ -38,6 +38,13 @@ struct ImportReview: Identifiable {
     var skipCount: Int { items.filter { $0.decision == .skip }.count }
 }
 
+struct FeedbackEvent: Equatable {
+    enum Kind { case success, warning }
+    let kind: Kind
+    /// Unique per event so two successive saves both trigger feedback.
+    let id = UUID()
+}
+
 /// App-wide state and use cases. Holds the domain snapshot in memory, delegates every
 /// calculation to KiraCore engines and every write to the repository.
 @MainActor
@@ -52,6 +59,10 @@ final class FinanceStore {
     private(set) var customCategories: [CategoryDefinition] = []
     private(set) var loadError: String?
     var lastErrorMessage: String?
+
+    /// Latest haptic-worthy outcome. `RootView` plays it with `sensoryFeedback`, so feedback fires on
+    /// the same frame as the UI change and only for meaningful moments (save, error).
+    private(set) var feedback: FeedbackEvent?
 
     var tier: SubscriptionTier = .free
     var gate: FeatureGate { FeatureGate(tier: tier) }
@@ -147,7 +158,7 @@ final class FinanceStore {
         var record = categoryEngine.apply(to: record, rules: rules)
         record.source = .manual
         upsert([record])
-        Haptics.success()
+        signal(.success)
     }
 
     /// Saves an edited record. If the category changed, the choice is marked as the user's and a
@@ -175,7 +186,7 @@ final class FinanceStore {
         record.flags.remove(.unconfirmedPayment)
         record.updatedAt = now()
         upsert([record])
-        Haptics.success()
+        signal(.success)
     }
 
     func delete(_ ids: Set<UUID>) {
@@ -296,7 +307,7 @@ final class FinanceStore {
             try? repository.recordImport(source: review.source, profileID: review.profileID, fileName: review.fileName,
                                          count: toSave.count, at: now())
         }
-        Haptics.success()
+        signal(.success)
     }
 
     /// Manual merge of two stored records from the review list.
@@ -406,6 +417,10 @@ final class FinanceStore {
 
     // MARK: Helpers
 
+    func signal(_ kind: FeedbackEvent.Kind) {
+        feedback = FeedbackEvent(kind: kind)
+    }
+
     private func perform(_ work: () throws -> Void, then apply: () -> Void) {
         do {
             try work()
@@ -413,7 +428,7 @@ final class FinanceStore {
         } catch {
             lastErrorMessage = "Couldn’t save. \(error.localizedDescription)"
             logger.error("Save failed: \(error.localizedDescription, privacy: .public)")
-            Haptics.warning()
+            signal(.warning)
         }
     }
 }

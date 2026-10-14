@@ -41,8 +41,9 @@ enum CaptureFlow: String, Identifiable, CaseIterable {
 /// transaction is an action, so it lives in the toolbar as a standard Add (+) pull-down menu
 /// on the Summary and Activity screens rather than as a tab.
 struct AddMenuModifier: ViewModifier {
+    /// Item-driven presentation: sheets for most flows, full screen for the camera.
     @State private var flow: CaptureFlow?
-    @State private var scanning = false
+    @State private var cameraFlow: CaptureFlow?
 
     func body(content: Content) -> some View {
         content
@@ -70,15 +71,14 @@ struct AddMenuModifier: ViewModifier {
                 CaptureFlowView(flow: flow)
             }
             // HIG › Sheets: camera views suit a full-screen modal.
-            .fullScreenCover(isPresented: $scanning) {
-                CaptureFlowView(flow: .scan)
+            .fullScreenCover(item: $cameraFlow) { flow in
+                CaptureFlowView(flow: flow)
             }
     }
 
     private func menuButton(_ option: CaptureFlow) -> some View {
         Button {
-            Haptics.selection()
-            if option == .scan { scanning = true } else { flow = option }
+            if option == .scan { cameraFlow = option } else { flow = option }
         } label: {
             Label { Text(option.title); Text(option.subtitle) } icon: { Image(systemName: option.symbol) }
         }

@@ -17,13 +17,11 @@ struct AccountsView: View {
                     }
                     .listRowBackground(Color.clear)
                 } else {
-                    ForEach(AccountType.allCases, id: \.self) { type in
-                        let accounts = store.activeAccounts.filter { $0.type == type }
-                        if !accounts.isEmpty {
-                            Section(type.displayName) {
-                                ForEach(accounts) { account in
-                                    Button { editing = account } label: { AccountRow(account: account) }.buttonStyle(.plain)
-                                }
+                    // Only types that have accounts, so each element is exactly one Section.
+                    ForEach(AccountType.allCases.filter { type in store.activeAccounts.contains { $0.type == type } }, id: \.self) { type in
+                        Section(type.displayName) {
+                            ForEach(store.activeAccounts.filter { $0.type == type }) { account in
+                                Button { editing = account } label: { AccountRow(account: account) }.buttonStyle(.plain)
                             }
                         }
                     }
@@ -95,11 +93,16 @@ private struct AccountRow: View {
 struct AccountEditorView: View {
     @Environment(FinanceStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State var account: Account
+    /// One-time seed: edits stay local until Save.
+    @State private var account: Account
     @State private var balanceText = ""
     @State private var walletNames = ""
     @State private var error: String?
     @State private var confirmArchive = false
+
+    init(account: Account) {
+        _account = State(initialValue: account)
+    }
 
     var body: some View {
         Form {
@@ -163,7 +166,7 @@ struct AccountEditorView: View {
         }
         account.walletCardNames = walletNames.split(separator: ",").map { InputSanitizer.cleanText(String($0), maxLength: 60) }.filter { !$0.isEmpty }
         store.save(account: account)
-        Haptics.success()
+        store.signal(.success)
         dismiss()
     }
 }

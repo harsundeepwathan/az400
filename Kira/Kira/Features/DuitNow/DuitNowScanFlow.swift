@@ -31,6 +31,7 @@ struct DuitNowScanFlow: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await checkCamera() }
         .onChange(of: photoItem) { _, item in Task { await readPhoto(item) } }
+        .sensoryFeedback(trigger: errorMessage) { _, new in new == nil ? nil : .warning }
     }
 
     // MARK: Scanner
@@ -87,7 +88,6 @@ struct DuitNowScanFlow: View {
             amountText = parsed.amount.map { MoneyFormatter(signStyle: .never, spaceAfterSymbol: false).string(from: $0).replacingOccurrences(of: "RM", with: "") } ?? ""
         } catch let error as DuitNowQRParser.ParseError {
             errorMessage = Self.message(for: error)
-            Haptics.warning()
         } catch {
             errorMessage = "This QR code couldn’t be read."
         }
@@ -166,6 +166,6 @@ struct DuitNowScanFlow: View {
         }
         store.upsert([draft])
         saved = true
-        Haptics.success()
+        store.signal(.success)
     }
 }

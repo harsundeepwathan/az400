@@ -91,6 +91,7 @@ struct TransactionEditorView: View {
             ConfirmToolbarItem(title: "Save", action: save)
         }
         .onAppear(perform: loadIfNeeded)
+        .sensoryFeedback(trigger: amountError) { _, new in new == nil ? nil : .warning }
         .onChange(of: direction) { _, new in
             if let expected = kind.expectedDirection, expected != new { kind = new == .outflow ? .expense : .income }
         }
@@ -130,12 +131,12 @@ struct TransactionEditorView: View {
         let parsed: Money
         do {
             let result = try AmountParser().parse(amountText)
-            guard !result.money.isZero else { amountError = "Enter an amount above RM 0."; Haptics.warning(); return }
+            guard !result.money.isZero else { amountError = "Enter an amount above RM 0."; return }
             parsed = result.money
         } catch AmountParser.ParseError.tooManyDecimals {
-            amountError = "Use at most two decimal places."; Haptics.warning(); return
+            amountError = "Use at most two decimal places."; return
         } catch {
-            amountError = "Enter an amount like 12.50."; Haptics.warning(); return
+            amountError = "Enter an amount like 12.50."; return
         }
         amountError = nil
 

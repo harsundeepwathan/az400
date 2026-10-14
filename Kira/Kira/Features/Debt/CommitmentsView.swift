@@ -93,7 +93,8 @@ private struct CommitmentRow: View {
 struct CommitmentEditorView: View {
     @Environment(FinanceStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State var commitment: Commitment
+    /// One-time seed: edits stay local until Save.
+    @State private var commitment: Commitment
     @State private var amountText = ""
     @State private var day = 1
     @State private var isLoan = false
@@ -103,6 +104,10 @@ struct CommitmentEditorView: View {
     @State private var method: InterestMethod = .reducingBalance
     @State private var outstandingText = ""
     @State private var error: String?
+
+    init(commitment: Commitment) {
+        _commitment = State(initialValue: commitment)
+    }
 
     var body: some View {
         Form {
@@ -178,7 +183,7 @@ struct CommitmentEditorView: View {
             commitment.debtTerms = nil
         }
         store.save(commitment: commitment)
-        Haptics.success()
+        store.signal(.success)
         dismiss()
     }
 }
@@ -186,10 +191,15 @@ struct CommitmentEditorView: View {
 struct IncomeEditorView: View {
     @Environment(FinanceStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State var income: IncomeSource
+    /// One-time seed: edits stay local until Save.
+    @State private var income: IncomeSource
     @State private var amountText = ""
     @State private var day = 25
     @State private var error: String?
+
+    init(income: IncomeSource) {
+        _income = State(initialValue: income)
+    }
 
     var body: some View {
         Form {

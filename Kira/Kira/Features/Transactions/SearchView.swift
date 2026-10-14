@@ -21,9 +21,7 @@ struct SearchView: View {
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
                     suggestions
                 } else if results.isEmpty {
-                    if #available(iOS 17.0, *) {
-                        ContentUnavailableView.search(text: query)
-                    }
+                    ContentUnavailableView.search(text: query)
                 } else {
                     Section {
                         let summary = store.ledger.summarize(results, filter: TransactionFilter())

@@ -50,13 +50,16 @@ struct SectionHeader: View {
 struct CategoryIcon: View {
     let category: CategoryDefinition?
     var size: CGFloat = 40
+    /// Scales the circle with Dynamic Type so it stays proportional to the row text.
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     var body: some View {
         let definition = category ?? BuiltInCategory.other.definition
+        let side = size * scale
         Image(systemName: definition.symbol)
-            .font(.system(size: size * 0.42, weight: .medium))
+            .font(.system(size: side * 0.42, weight: .medium))
             .foregroundStyle(definition.color)
-            .frame(width: size, height: size)
+            .frame(width: side, height: side)
             .background(definition.softColor, in: Circle())
             .accessibilityHidden(true)
     }
@@ -94,6 +97,7 @@ struct BudgetBar: View {
     let fraction: Double
     var pace: Double?
     var height: CGFloat = 10
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -109,7 +113,8 @@ struct BudgetBar: View {
             }
         }
         .frame(height: height)
-        .animation(.smooth(duration: 0.5), value: fraction)
+        // Spring (interruptible) fill; no motion when Reduce Motion is on.
+        .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: fraction)
         .accessibilityElement()
         .accessibilityLabel("Budget used")
         .accessibilityValue(PercentFormatter.string(fraction))
@@ -128,13 +133,15 @@ struct EmptyStateView: View {
     let message: String
     var actionTitle: String?
     var action: (() -> Void)?
+    @ScaledMetric(relativeTo: .title) private var badge = 72.0
 
     var body: some View {
         VStack(spacing: KiraSpacing.m) {
             Image(systemName: symbol)
-                .font(.system(size: 34, weight: .light))
+                .font(.system(size: badge * 0.47, weight: .light))
                 .foregroundStyle(KiraColor.accent)
-                .frame(width: 72, height: 72)
+                .frame(width: badge, height: badge)
+                .accessibilityHidden(true)
                 .background(KiraColor.accentSoft, in: Circle())
             Text(title).font(.headline).foregroundStyle(KiraColor.textPrimary)
             Text(message).font(.subheadline).foregroundStyle(KiraColor.textSecondary).multilineTextAlignment(.center)

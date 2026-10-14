@@ -55,7 +55,7 @@ struct CashFlowView: View {
                         row("Expected income", forecast.expectedIncome, "Scheduled")
                         row("Commitments due", forecast.scheduledCommitments.negated, "Scheduled")
                         row("Everyday spending", forecast.estimatedDiscretionary.negated, "Estimate")
-                        Divider().overlay(KiraColor.separator)
+                        Divider()
                         row("Projected month end", forecast.endBalance, "Estimate")
                         if let date = forecast.lowestBalanceDate {
                             row("Lowest point (\(date.kiraShort))", forecast.lowestBalance, "Estimate")

@@ -79,14 +79,6 @@ extension Font {
     static let kiraCaption = Font.footnote
 }
 
-/// Haptics used sparingly: success on save, warning on errors, selection on choices.
-@MainActor
-enum Haptics {
-    static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-    static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
-    static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
-}
-
 extension CategoryDefinition {
     var color: Color { KiraColor.tint(tint) }
     var softColor: Color { KiraColor.softTint(tint) }

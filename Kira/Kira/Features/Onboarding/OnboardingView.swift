@@ -48,7 +48,14 @@ struct ShortcutsGuideView: View {
     @Environment(FinanceStore.self) private var store
     @State private var showingPaywall = false
 
-    private let steps: [(String, String)] = [
+    private struct Step: Identifiable {
+        let number: Int
+        let title: String
+        let detail: String
+        var id: Int { number }
+    }
+
+    private let rawSteps: [(String, String)] = [
         ("Open Shortcuts", "Go to the Automation tab and tap New Automation (+)."),
         ("Choose “Transaction”", "Under Wallet, pick Transaction. Select the cards you pay with, and choose all categories."),
         ("Run immediately", "Choose “Run Immediately” so it doesn’t ask each time. Then tap Next."),
@@ -56,6 +63,10 @@ struct ShortcutsGuideView: View {
         ("Pass the details", "Tap Amount and choose Shortcut Input › Amount. Do the same for Merchant and Card or Pass (tap the variable, then pick the field)."),
         ("Pay as usual", "When you tap your card with Apple Pay, the payment appears in Kira as Pending.")
     ]
+
+    private var steps: [Step] {
+        rawSteps.enumerated().map { Step(number: $0.offset + 1, title: $0.element.0, detail: $0.element.1) }
+    }
 
     var body: some View {
         List {
@@ -66,13 +77,13 @@ struct ShortcutsGuideView: View {
                 }
             }
             Section("Set up once") {
-                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                ForEach(steps) { step in
                     HStack(alignment: .top, spacing: KiraSpacing.m) {
-                        Text("\(index + 1)").font(.headline).foregroundStyle(.white)
+                        Text("\(step.number)").font(.headline).foregroundStyle(.white)
                             .frame(width: 28, height: 28).background(KiraColor.accent, in: Circle())
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(step.0).font(.headline)
-                            Text(step.1).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+                            Text(step.title).font(.headline)
+                            Text(step.detail).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
                         }
                     }
                     .padding(.vertical, 4)
