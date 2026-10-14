@@ -10,10 +10,10 @@ extension AppModel {
                         proteinTarget: profile?.targets.protein ?? 0, now: now())
     }
 
-    /// The quick-log menu behind the + in the tab bar.
-    var quickLogItems: [FloatingTabBar.QuickLogItem] {
+    /// The quick-log menu behind the + in Today's toolbar.
+    var quickLogItems: [QuickLogItem] {
         let meal = MealType.suggested(forHour: calendar.component(.hour, from: now()))
-        let workout: FloatingTabBar.QuickLogItem = if activeWorkout != nil {
+        let workout: QuickLogItem = if activeWorkout != nil {
             .init(title: "Resume workout", symbol: "play.fill") { [weak self] in self?.resumeWorkout() }
         } else if let next = nextWorkout {
             .init(title: "Start \(next.name)", symbol: "play.fill") { [weak self] in self?.startWorkout(next) }

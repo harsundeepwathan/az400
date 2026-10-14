@@ -246,7 +246,8 @@ struct WeeklyCheckInSheet: View {
                             .foregroundStyle(WColor.onHeroSecondary)
                         Text(Format.integer(to))
                     }
-                    .font(.system(.largeTitle, weight: .bold).monospacedDigit())
+                    .font(.system(.largeTitle, weight: .heavy).monospacedDigit())
+                    .fontWidth(.condensed)
                     .foregroundStyle(WColor.onHero)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)

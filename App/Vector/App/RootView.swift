@@ -27,44 +27,67 @@ struct RootView: View {
     }
 }
 
+/// Apple's standard tab bar: four destinations with SF Symbols. Built with
+/// the iOS 26 SDK it takes on Liquid Glass and shrinks as you scroll down.
+/// A minimized workout sits above it as a "now playing" bar.
 struct MainTabView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         @Bindable var model = model
-        // The system tab bar is hidden; a floating bar with the quick-log +
-        // sits over every tab instead.
         TabView(selection: $model.selectedTab) {
             tab(.today) { TodayView() }
             tab(.train) { TrainView() }
             tab(.nutrition) { NutritionView() }
             tab(.progress) { ProgressDashboardView() }
         }
-        .overlay(alignment: .bottom) {
-            FloatingTabBar(selection: $model.selectedTab, quickLog: model.quickLogItems)
-                .padding(.bottom, Space.xxs)
-        }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .tint(WidgetTint.training.ink)
+        .minimizesTabBarOnScroll()
         .sensoryFeedback(.selection, trigger: model.selectedTab)
     }
 
     private func tab<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            .toolbar(.hidden, for: .tabBar)
-            // Content scrolls clear of the floating bar; the mini player sits
-            // just above it while a workout is minimized.
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 0) {
-                    if model.activeWorkout != nil, model.cover == nil {
-                        WorkoutMiniPlayer()
-                            .padding(.horizontal, Space.gutter)
-                            .padding(.bottom, Space.xs)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    Color.clear.frame(height: FloatingTabBar.reservedHeight - 20)
+                if model.activeWorkout != nil, model.cover == nil {
+                    WorkoutMiniPlayer()
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.bottom, Space.xs)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .tabItem { Label(tab.title, systemImage: tab.symbol) }
             .tag(tab)
+    }
+}
+
+private extension View {
+    /// iOS 26: the tab bar shrinks while scrolling down, as in Apple's apps.
+    @ViewBuilder
+    func minimizesTabBarOnScroll() -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26, *) {
+            tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+
+    /// The mini player is a floating control: Liquid Glass on iOS 26, a material before.
+    @ViewBuilder
+    func floatingControlBackground() -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26, *) {
+            glassEffect(.regular.interactive(), in: .rect(cornerRadius: Radius.lg))
+        } else {
+            background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        }
+        #else
+        background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        #endif
     }
 }
 
@@ -194,8 +217,7 @@ struct WorkoutMiniPlayer: View {
                 }
                 .padding(.horizontal, Space.md)
                 .padding(.vertical, Space.sm)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+                .floatingControlBackground()
             }
             .buttonStyle(.pressable)
             .accessibilityLabel("Workout in progress, \(workout.session.name). Resume.")

@@ -25,8 +25,11 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Show Xcode
-        run: xcodebuild -version
+      - name: Use the newest Xcode 26 (iOS 26 SDK, Liquid Glass) when the runner has one
+        run: |
+          latest=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          xcodebuild -version
       - name: Generate the Xcode project
         run: |
           brew install xcodegen

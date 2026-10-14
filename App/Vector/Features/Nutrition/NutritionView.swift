@@ -2,8 +2,7 @@ import SwiftUI
 import UIKit
 import VectorCore
 
-/// Nutrition (widgets): the large title, add menu and day pager on the
-/// canvas; a Calories tile (ring, kcal left, macro bars, protein to go); a
+/// Nutrition: the standard large title with + in the toolbar, the day pager; a Calories tile (ring, kcal left, macro bars, protein to go); a
 /// Log food tile (Scan meal with an honest caption, then search, barcode and
 /// quick add); then each meal as its own tile. The screen is a plain `List`
 /// so food rows keep native swipe-to-delete; deleting offers Undo.
@@ -49,7 +48,10 @@ struct NutritionView: View {
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, 0)
             .background(WColor.canvas.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Nutrition")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { addMenu(suggested) }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if let deleted {
                     UndoBar(entry: deleted, onUndo: { undo(deleted) }, onDismiss: { dismissUndo() })
@@ -70,6 +72,20 @@ struct NutritionView: View {
                     .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    /// Every way to log food, behind the + in the toolbar.
+    private func addMenu(_ suggested: MealType) -> some View {
+        Menu {
+            Button("Scan meal", systemImage: Icon.scan) { openScanner(suggested) }
+            Button("Search food", systemImage: Icon.search) { model.sheet = .foodSearch(suggested) }
+            Button("Scan barcode", systemImage: Icon.barcode) { model.sheet = .barcode(suggested) }
+            Button("Quick add", systemImage: Icon.quickAdd) { model.sheet = .quickAdd(suggested) }
+            Button("Saved meals", systemImage: Icon.meal) { model.sheet = .savedMeals(suggested) }
+        } label: {
+            Label("Log food", systemImage: "plus")
+        }
+        .accessibilityHint("Adds to \(suggested.displayName.lowercased())")
     }
 
     private func openScanner(_ meal: MealType) {
@@ -120,7 +136,6 @@ private struct NutritionHero: View {
         let proteinToGo = max(nutrition.targets.protein - nutrition.consumed.protein, 0)
 
         VStack(alignment: .leading, spacing: 0) {
-            WidgetScreenHeader(title: "Nutrition") { addMenu }
             DayPager(day: $day)
                 .padding(.horizontal, 4)
                 .padding(.bottom, Space.xs)
@@ -132,7 +147,8 @@ private struct NutritionHero: View {
                                      colors: [WidgetTint.calories.accent, WidgetTint.calories.accentEnd])
                         VStack(spacing: 0) {
                             Text(Format.integer(abs(remaining)))
-                                .font(.system(size: heroSize * 0.55, weight: .bold).monospacedDigit())
+                                .font(.system(size: heroSize * 0.6, weight: .heavy).monospacedDigit())
+                                .fontWidth(.condensed)
                                 .foregroundStyle(WColor.textPrimary)
                                 .contentTransition(.numericText())
                                 .lineLimit(1)
@@ -190,25 +206,6 @@ private struct NutritionHero: View {
     }
 
     /// Every way to log, for the meal that fits the time of day.
-    private var addMenu: some View {
-        Menu {
-            Button("Scan meal", systemImage: Icon.scan, action: onScan)
-            Button("Search food", systemImage: Icon.search) { model.sheet = .foodSearch(suggested) }
-            Button("Scan barcode", systemImage: Icon.barcode) { model.sheet = .barcode(suggested) }
-            Button("Quick add", systemImage: Icon.quickAdd) { model.sheet = .quickAdd(suggested) }
-            Button("Saved meals", systemImage: Icon.meal) { model.sheet = .savedMeals(suggested) }
-        } label: {
-            Image(systemName: Icon.add)
-                .font(.system(.title3, weight: .bold))
-                .foregroundStyle(WColor.textPrimary)
-                .frame(width: 38, height: 38)
-                .background(WColor.innerStrong, in: Circle())
-                .frame(width: Size.minTouch, height: Size.minTouch)
-                .contentShape(Rectangle())
-        }
-        .accessibilityLabel("Log food")
-        .accessibilityHint("Adds to \(suggested.displayName.lowercased())")
-    }
 }
 
 /// ‹ Today, 5 Oct › with arrows (swiping would fight the scroll).

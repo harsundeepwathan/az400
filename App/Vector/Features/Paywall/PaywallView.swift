@@ -99,7 +99,8 @@ struct PaywallView: View {
                     .foregroundStyle(WColor.onHeroSecondary)
                 Text("2,550")
             }
-            .font(.system(.largeTitle, weight: .bold).monospacedDigit())
+            .font(.system(.largeTitle, weight: .heavy).monospacedDigit())
+            .fontWidth(.condensed)
             .foregroundStyle(WColor.onHero)
             .lineLimit(1)
             .minimumScaleFactor(0.7)

@@ -323,74 +323,49 @@ struct PageDots: View {
     }
 }
 
-// MARK: - Tab bar
+// MARK: - Quick log
 
-/// A floating tab bar: four icon-only destinations in a pill, and beside it a
-/// round blue + that opens the quick-log menu. Sits over content; tabs
-/// reserve `reservedHeight` at the bottom.
-struct FloatingTabBar: View {
-    @Binding var selection: AppTab
-    var quickLog: [QuickLogItem]
+/// One entry in the quick-log menu (start a workout, log food, weigh in).
+struct QuickLogItem: Identifiable {
+    var id: String { title }
+    var title: String
+    var symbol: String
+    var action: () -> Void
+}
 
-    static let reservedHeight: CGFloat = 92
-
-    struct QuickLogItem: Identifiable {
-        var id: String { title }
-        var title: String
-        var symbol: String
-        var action: () -> Void
-    }
+/// The + in Today's toolbar: a standard toolbar menu, as in Apple's own apps.
+struct QuickLogMenu: View {
+    var items: [QuickLogItem]
 
     var body: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 0) {
-                tab(.today)
-                tab(.train)
-                tab(.nutrition)
-                tab(.progress)
+        Menu {
+            ForEach(items) { item in
+                Button(item.title, systemImage: item.symbol, action: item.action)
             }
-            .padding(.horizontal, 8)
-            .frame(height: 64)
-            .background(.regularMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(WColor.edge, lineWidth: 1))
-            .shadow(color: .black.opacity(0.14), radius: 16, y: 8)
-
-            Menu {
-                ForEach(quickLog) { item in
-                    Button(action: item.action) { Label(item.title, systemImage: item.symbol) }
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(WColor.onStrong)
-                    .frame(width: 64, height: 64)
-                    .background(WColor.strong, in: Circle())
-                    .shadow(color: WColor.glow, radius: 14, y: 6)
-            }
-            .menuOrder(.fixed)
-            .accessibilityLabel("Log")
-            .accessibilityHint("Start a workout, log food or weigh in")
-        }
-        .padding(.horizontal, 16)
-    }
-
-    private func tab(_ tab: AppTab) -> some View {
-        let isSelected = selection == tab
-        return Button {
-            selection = tab
         } label: {
-            Image(systemName: tab.symbol)
-                .font(.system(size: 21, weight: .semibold))
-                .symbolVariant(isSelected ? .fill : .none)
-                .foregroundStyle(isSelected ? WColor.onSelected : WColor.textSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background { if isSelected { Capsule().fill(WColor.selected) } }
-                .contentShape(Capsule())
+            Label("Log", systemImage: "plus")
         }
-        .buttonStyle(.pressable)
-        .accessibilityLabel(tab.title)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .menuOrder(.fixed)
+        .accessibilityHint("Start a workout, log food or weigh in")
+    }
+}
+
+// MARK: - Navigation helpers
+
+extension View {
+    /// The subtitle under a large navigation title (iOS 26, Apple's new design).
+    /// Earlier systems show the title alone.
+    @ViewBuilder
+    func vectorNavigationSubtitle(_ text: String?) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26, *), let text {
+            navigationSubtitle(text)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
     }
 }
 
@@ -484,7 +459,7 @@ struct WidgetScreenHeader<Accessory: View>: View {
 
 // MARK: - Buttons
 
-/// The one primary action in a tile: Vector blue fill with a soft glow, white label, 16 pt corners.
+/// The one primary action in a tile: a solid navy fill, white label, 12 pt corners. No glow.
 struct WidgetPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -494,8 +469,7 @@ struct WidgetPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(WColor.onStrong)
             .frame(maxWidth: .infinity, minHeight: 52)
             .padding(.horizontal, Space.md)
-            .background(WColor.strong, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: isEnabled ? WColor.glow : .clear, radius: 14, y: 8)
+            .background(WColor.strong, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
@@ -512,7 +486,7 @@ struct WidgetSecondaryButtonStyle: ButtonStyle {
             .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity, minHeight: Size.minTouch)
             .padding(.horizontal, Space.xs)
-            .background(WColor.innerStrong, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(WColor.innerStrong, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }

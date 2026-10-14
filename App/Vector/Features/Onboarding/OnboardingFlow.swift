@@ -568,7 +568,8 @@ private struct PlanReadyStep: View {
 
                 WidgetHero(label: "\(plan.program.daysPerWeek) days a week", symbol: Icon.train, spacing: Space.sm) {
                     Text(programName)
-                        .font(.system(.largeTitle, weight: .bold))
+                        .font(.system(.largeTitle, weight: .heavy))
+                        .fontWidth(.condensed)
                         .foregroundStyle(WColor.onHero)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -644,7 +645,8 @@ private struct PlanReadyStep: View {
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.system(.title3, weight: .bold).monospacedDigit())
+                .font(.system(.title2, weight: .heavy).monospacedDigit())
+                .fontWidth(.condensed)
                 .foregroundStyle(WColor.onHero)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

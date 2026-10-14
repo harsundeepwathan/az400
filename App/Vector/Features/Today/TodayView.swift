@@ -1,8 +1,9 @@
 import SwiftUI
 import VectorCore
 
-/// The daily dashboard: a greeting, then "Up next" with the one primary
-/// action (Start, with a soft glow), today's insight, the last seven days,
+/// The daily dashboard under a standard large title, with + (quick log) and
+/// Profile in the toolbar: a greeting, then "Up next" with the one primary
+/// action (Start), today's insight, the last seven days,
 /// muscles trained, and Calories and Body side by side. The weekly check-in
 /// and the upgrade moment join as full-width tiles when they apply.
 struct TodayView: View {
@@ -36,7 +37,16 @@ struct TodayView: View {
                 .padding(.bottom, Space.lg)
             }
             .background(WColor.canvas.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Today")
+            .vectorNavigationSubtitle(Format.longDate(model.now(), calendar: model.calendar))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    QuickLogMenu(items: model.quickLogItems)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Profile", systemImage: "person.crop.circle") { model.sheet = .profile }
+                }
+            }
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
             .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: model.coachDecisions.count)
             .onChange(of: model.showsWeeklyCheckIn) { _, shows in
@@ -46,49 +56,14 @@ struct TodayView: View {
         }
     }
 
-    /// PRO badge and profile on top, then the date and a greeting.
+    /// The greeting under the large title.
     private var header: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            HStack {
-                if model.isPro {
-                    Text("PRO")
-                        .font(.system(.caption, weight: .heavy))
-                        .tracking(0.6)
-                        .foregroundStyle(WColor.onStrong)
-                        .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(WColor.strong, in: Capsule())
-                        .accessibilityLabel("Vector Pro")
-                }
-                Spacer(minLength: Space.sm)
-                Button {
-                    model.sheet = .profile
-                } label: {
-                    Image(systemName: "person")
-                        .font(.system(.body, weight: .semibold))
-                        .foregroundStyle(WColor.textPrimary)
-                        .frame(width: 40, height: 40)
-                        .background(WColor.tile, in: Circle())
-                        .overlay(Circle().strokeBorder(WColor.edge, lineWidth: 1))
-                        .frame(width: Size.minTouch, height: Size.minTouch)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.pressable)
-                .accessibilityLabel("Profile")
-            }
-            VStack(alignment: .leading, spacing: 0) {
-                Text(Format.longDate(model.now(), calendar: model.calendar))
-                    .font(.system(.subheadline, weight: .medium))
-                    .foregroundStyle(WColor.textSecondary)
-                Text(greeting)
-                    .font(.system(.largeTitle, weight: .bold))
-                    .foregroundStyle(WColor.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-            }
-        }
-        .padding(.horizontal, 4)
-        .padding(.top, Space.xs)
-        .padding(.bottom, Space.xs)
+        Text(greeting)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(WColor.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+            .padding(.bottom, Space.xxs)
     }
 
     /// "Good morning" until noon, "Good afternoon" until 18:00, then "Good evening".
@@ -136,7 +111,7 @@ private struct InsightTile: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 196)
+            .frame(height: 212)
             if highlights.count > 1 {
                 PageDots(count: highlights.count, current: page, tint: .insight)
                     .frame(maxWidth: .infinity)
@@ -150,12 +125,15 @@ private struct InsightTile: View {
 
 private struct InsightPage: View {
     var display: HighlightDisplay
+    /// The big number scales with Dynamic Type from a 64 pt base.
+    @ScaledMetric(relativeTo: .largeTitle) private var valueSize: CGFloat = 64
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(display.value)
-                    .font(.system(size: 48, weight: .bold, design: .default).monospacedDigit())
+                    .font(.system(size: valueSize, weight: .heavy).monospacedDigit())
+                    .fontWidth(.condensed)
                     .foregroundStyle(WidgetTint.insight.text)
                     .minimumScaleFactor(0.6)
                 Text(display.unit)
@@ -253,7 +231,8 @@ private struct UpNextTile: View {
                     .padding(.top, 12)
             }
             Text(state.title)
-                .font(.system(.title, weight: .bold))
+                .font(.system(.largeTitle, weight: .heavy))
+                .fontWidth(.condensed)
                 .foregroundStyle(WColor.textPrimary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)

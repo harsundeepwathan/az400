@@ -29,7 +29,11 @@ struct ProgressDashboardView: View {
             }
             .background(WColor.canvas.ignoresSafeArea())
             .navigationTitle("Progress")
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Coach", systemImage: Icon.recommendation) { model.sheet = .coach }
+                }
+            }
             .sheet(item: $detail) { ChartDetailView(detail: $0) }
         }
     }
@@ -44,20 +48,6 @@ private struct ProgressBodyField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            WidgetScreenHeader(title: "Progress") {
-                Button { model.sheet = .coach } label: {
-                    Label("Coach", systemImage: Icon.recommendation)
-                        .font(.system(.subheadline, weight: .semibold))
-                        .foregroundStyle(WColor.textPrimary)
-                        .padding(.horizontal, 14)
-                        .frame(height: 38)
-                        .background(WColor.innerStrong, in: Capsule())
-                        .frame(minHeight: Size.minTouch)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.pressable)
-            }
-
             FieldRangePicker(selection: $range, tint: WidgetTint.body.ink,
                              isLocked: { $0.requiresPro && !model.isPro },
                              onLockedTap: { model.presentPaywall(.history) })

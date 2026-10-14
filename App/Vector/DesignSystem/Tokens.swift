@@ -35,10 +35,10 @@ enum VColor {
     /// Ink on the accent: white in light mode, deep navy on the brighter dark-mode accent.
     static let textOnAccent = Color(light: 0xFFFFFF, dark: 0x050A1F)
 
-    // Accent: cobalt, the one action colour (primary buttons, links, selection, tab selection).
-    static let accent = Color(light: 0x2346E0, dark: 0x7C93FF)
-    static let accentText = Color(light: 0x1F3FD0, dark: 0x8FA2FF)
-    static let accentSoft = Color(light: 0xEEF2FF, dark: 0x111833)
+    // Accent: Vector navy, the one action colour (primary buttons, links, selection, tab selection).
+    static let accent = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
+    static let accentText = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
+    static let accentSoft = Color(light: 0xE1E7F5, dark: 0x1E2A4A)
 
     // Hero field: the near-black band at the top of Today with the rings.
     static let heroField = Color(light: 0x0B0C0F, dark: 0x0E1220)
@@ -58,11 +58,11 @@ enum VColor {
 
     // Area fields and their ink (category label, links, highlighted data).
     static let fieldTraining = Color(light: 0xEEF2FF, dark: 0x0D1328)
-    static let inkTraining = Color(light: 0x1F3FD0, dark: 0x8FA2FF)
+    static let inkTraining = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
     static let fieldNutrition = Color(light: 0xF4F5F8, dark: 0x111318)
     static let inkNutrition = Color(light: 0x0B0C0F, dark: 0xF4F5F7)
     static let fieldBody = Color(light: 0xF7F8FB, dark: 0x0C0E13)
-    static let inkBody = Color(light: 0x1F3FD0, dark: 0x8FA2FF)
+    static let inkBody = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
 
     // Status: always paired with an icon or label, never color alone.
     static let success = accent
@@ -79,9 +79,9 @@ enum VColor {
     static let body = inkBody
 
     // Macros and calories: three blues and black, always direct-labeled.
-    static let protein = Color(light: 0x2346E0, dark: 0x7C93FF)
-    static let carbs = Color(light: 0x6FA3FF, dark: 0x9CC2FF)
-    static let fat = Color(light: 0x0B0C0F, dark: 0xD6D9E0)
+    static let protein = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
+    static let carbs = Color(light: 0x6F86C8, dark: 0x5F78C4)
+    static let fat = Color(light: 0xB4C2E6, dark: 0x34477F)
     static let calories = Color(light: 0x1A2A6C, dark: 0xB7C4FF)
 
     // Data visualization
@@ -100,56 +100,55 @@ enum VColor {
 /// mode, near-black tiles in dark. Each area keeps one hue everywhere it
 /// appears, glowing softly from one corner of its tile.
 enum WColor {
-    static let canvas = Color(light: 0xF2F4F8, dark: 0x07090D)
-    static let tile = Color(light: 0xFFFFFF, dark: 0x12151C)
-    /// Hairline around every tile.
-    static let edge = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.06, darkAlpha: 0.07)
+    // Ground and surfaces are Apple's grouped system colours, so they follow
+    // light and dark, Increase Contrast and future system looks for free.
+    static let canvas = Color(uiColor: .systemGroupedBackground)
+    static let tile = Color(uiColor: .secondarySystemGroupedBackground)
+    /// Hairline around a tile: none in light (grouped cells have no border), faint in dark.
+    static let edge = Color(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0, darkAlpha: 0.06)
     /// Panels and chips inside a tile.
-    static let inner = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.045, darkAlpha: 0.06)
-    static let innerStrong = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.07, darkAlpha: 0.09)
+    static let inner = Color(uiColor: .quaternarySystemFill)
+    static let innerStrong = Color(uiColor: .tertiarySystemFill)
     /// Unfilled ring and bar tracks.
-    static let track = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.10)
+    static let track = Color(uiColor: .tertiarySystemFill)
     /// The earlier side of a comparison, rest-day dots.
-    static let quiet = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.20, darkAlpha: 0.24)
-    static let divider = Color(light: 0x121722, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.08)
+    static let quiet = Color(uiColor: .systemFill)
+    static let divider = Color(uiColor: .separator)
 
-    static let textPrimary = Color(light: 0x121722, dark: 0xF3F5F9)
-    static let textSecondary = Color(light: 0x5E6878, dark: 0xA3ACBB)
+    static let textPrimary = Color(uiColor: .label)
+    static let textSecondary = Color(uiColor: .secondaryLabel)
 
-    /// The Start button and the Today's insight tile: solid Vector blue with
-    /// white text (5:1 in light, deeper in dark so white text keeps its contrast).
-    static let strong = Color(light: 0x3460F0, dark: 0x2E4FD6)
+    /// The one accent, Vector navy: fills (Start, the plan and check-in heroes).
+    /// Deeper in light, a brighter navy in dark so white text keeps 4.5:1.
+    static let strong = Color(light: 0x1D3A8A, dark: 0x3A5BD0)
     static let onStrong = Color.white
-    /// Text on the solid blue hero tiles (plan, paywall example, check-in decision).
+    /// Text on the solid navy hero tiles (plan, paywall example, check-in decision).
     static let onHero = Color.white
     static let onHeroSecondary = Color.white.opacity(0.8)
-    /// The soft glow under the primary button, as in the reference.
-    static let glow = Color(light: 0x3460F0, dark: 0x3D6BFF, lightAlpha: 0.30, darkAlpha: 0.45)
-    /// The selected tab: a soft blue pill with blue icon and label.
-    static let selected = Color(light: 0xE8EEFF, dark: 0x1C2440)
-    static let onSelected = Color(light: 0x2F55E0, dark: 0x9DB1FF)
-    /// The quick-add button in the tab bar.
-    static let add = Color(light: 0x3D6BFF, dark: 0x3D6BFF)
-    /// Rises: blue ink like every other accent (always with an arrow and a sign).
-    static let rise = Color(light: 0x2F55E0, dark: 0x8AA2FF)
+    /// Selected choice rows and chips: a soft navy wash with navy ink.
+    static let selected = Color(light: 0xE1E7F5, dark: 0x1E2A4A)
+    static let onSelected = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
+    static let add = strong
+    /// Rises: navy ink like every other accent (always with an arrow and a sign).
+    static let rise = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
     static let riseSoft = innerStrong
 
-    // Macros in three strengths of the same blue, always direct-labelled P, C and F.
-    static let protein = Color(light: 0x3D6BFF, dark: 0x7C97FF)
-    static let carbs = Color(light: 0x8DA6FF, dark: 0x5670C9)
-    static let fat = Color(light: 0xB3C3FF, dark: 0x36457F)
+    // Macros in three strengths of the same navy, always direct-labelled P, C and F.
+    static let protein = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
+    static let carbs = Color(light: 0x6F86C8, dark: 0x5F78C4)
+    static let fat = Color(light: 0xB4C2E6, dark: 0x34477F)
 }
 
-/// One colour across the dashboard: Vector blue on white (near-black in dark).
+/// One colour across the dashboard: Vector navy on the system grouped surfaces.
 /// Areas keep their names so screens can say what a tile is, but they share
 /// the blue. Tiles are plain; colour goes on the primary action, bars and rings.
 /// `ink` is for text and icons (4.5:1 on its tile), `accent` for marks and fills.
 enum WidgetTint {
     case insight, training, calories, body
 
-    var ink: Color { Color(light: 0x2F55E0, dark: 0x8AA2FF) }
+    var ink: Color { Color(light: 0x1D3A8A, dark: 0x9FB3F5) }
 
-    var accent: Color { Color(light: 0x3D6BFF, dark: 0x6E8DFF) }
+    var accent: Color { Color(light: 0x1D3A8A, dark: 0x8EA4EE) }
 
     // Text and tracks on the tile.
     var text: Color { WColor.textPrimary }
@@ -215,7 +214,7 @@ enum Radius {
     static let md: CGFloat = 12
     /// Grouped cells.
     static let lg: CGFloat = 14
-    static let xl: CGFloat = 28
+    static let xl: CGFloat = 20
 }
 
 // MARK: - Size

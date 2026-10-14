@@ -24,8 +24,6 @@ struct TrainView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                WidgetScreenHeader(title: "Train", subtitle: programSubtitle) { menu }
-                    .canvasListRow()
                 TrainHero(path: $path,
                           onBrowsePrograms: { showsProgramBrowser = true },
                           onCreateWorkout: createWorkout)
@@ -43,7 +41,11 @@ struct TrainView: View {
             .scrollContentBackground(.hidden)
             .environment(\.defaultMinListRowHeight, 0)
             .background(WColor.canvas.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Train")
+            .vectorNavigationSubtitle(programSubtitle)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { menu }
+            }
             .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: model.program?.nextIndex)
             .navigationDestination(for: WorkoutTemplate.self) { TemplateDetailView(template: $0) }
             .navigationDestination(for: WorkoutSession.self) { SessionDetailView(session: $0) }
@@ -168,11 +170,8 @@ struct TrainView: View {
             Button("Empty workout", systemImage: "bolt") { model.startEmptyWorkout() }
             Button("Workout history", systemImage: "clock.arrow.circlepath") { path.append(Route.history) }
         } label: {
-            CanvasMoreMenuLabel()
+            Label("Program options", systemImage: "ellipsis")
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .accessibilityLabel("Program options")
     }
 
     private func createWorkout() {
