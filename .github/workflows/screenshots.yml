@@ -1,0 +1,101 @@
+# Runs the app in the iPhone simulator, captures the main screens in light and
+# dark mode, and publishes the PNGs to the `screenshots` branch (and as a run
+# artifact). Runs on demand and when the app's UI changes.
+name: Screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/vector-ios-app]
+    paths: ["App/**", "project.yml", ".github/workflows/screenshots.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shots:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode 26 when the runner has one
+        run: |
+          latest=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          xcodebuild -version
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Boot an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          phones = [x for k, v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
+          pro = [x for x in phones if x["name"].endswith("Pro")]
+          pick = sorted(pro or phones, key=lambda x: x["name"])[-1]
+          print(pick["udid"]); print(pick["name"], file=sys.stderr)')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project Vector.xcodeproj -scheme Vector \
+            -destination "id=$UDID" -derivedDataPath DD \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee build.log | grep -E "error:|BUILD|TEST BUILD" || true
+          grep -qE "TEST BUILD SUCCEEDED|BUILD SUCCEEDED" build.log
+      - name: Capture light and dark
+        run: |
+          mkdir -p shots
+          for mode in light dark; do
+            xcrun simctl ui "$UDID" appearance "$mode"
+            TEST_RUNNER_SHOT_DIR="$PWD/shots" TEST_RUNNER_SHOT_SUFFIX="$mode" \
+            xcodebuild test-without-building \
+              -project Vector.xcodeproj -scheme Vector \
+              -destination "id=$UDID" -derivedDataPath DD \
+              -only-testing:VectorUITests/ScreenshotTests \
+              -resultBundlePath "result-$mode.xcresult" \
+              CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Case|error|passed|failed" || true
+            mkdir -p "att-$mode"
+            xcrun xcresulttool export attachments --path "result-$mode.xcresult" --output-path "att-$mode" 2>/dev/null || true
+          done
+          # Fall back to the result-bundle attachments if the runner could not write files.
+          if [ -z "$(ls shots 2>/dev/null)" ]; then
+            python3 - <<'PY'
+          import json, os, shutil
+          for mode in ("light", "dark"):
+              folder = f"att-{mode}"
+              manifest = os.path.join(folder, "manifest.json")
+              if not os.path.exists(manifest):
+                  continue
+              for test in json.load(open(manifest)):
+                  for a in test.get("attachments", []):
+                      name = a.get("suggestedHumanReadableName", a["exportedFileName"]).split("_")[0]
+                      shutil.copy(os.path.join(folder, a["exportedFileName"]), os.path.join("shots", name + ".png"))
+          PY
+          fi
+          ls -la shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots
+      - name: Publish to the screenshots branch
+        run: |
+          [ -n "$(ls shots)" ] || exit 1
+          cd shots
+          git init -q -b screenshots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Screenshots for ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" HEAD:screenshots
