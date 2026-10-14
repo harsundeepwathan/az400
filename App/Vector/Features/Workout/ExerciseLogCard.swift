@@ -241,12 +241,34 @@ struct ExerciseLogCard: View {
         return weight > 0 ? "\(Format.weight(weight, unit: model.unit)) × \(reps)" : "\(reps) reps"
     }
 
+    /// The empty bar and smallest jump in the user's unit (20 kg / 2.5 kg, or 45 lb / 5 lb).
+    private var warmupPlanner: WarmupPlanner {
+        model.unit == .pounds
+            ? WarmupPlanner(bar: WeightUnit.pounds.toKilograms(45), step: WeightUnit.pounds.toKilograms(5))
+            : WarmupPlanner()
+    }
+
+    /// Offered when the first working set is heavier than the empty bar and
+    /// no warm-ups have been added yet.
+    private var canAddWarmups: Bool {
+        guard !log.sets.contains(where: { $0.kind == .warmup }),
+              let first = log.sets.first(where: { $0.kind != .warmup }) else { return false }
+        return !warmupPlanner.warmups(forWorkingWeight: max(first.weight, first.targetWeight ?? 0)).isEmpty
+    }
+
     private var optionsMenu: some View {
         Menu {
             Button("Exercise Details", systemImage: Icon.info, action: onShowDetail)
             Button("Replace Exercise", systemImage: Icon.swap, action: onShowDetail)
             Button("Rest Time", systemImage: Icon.timer, action: onEditRest)
             Button(log.note.isEmpty ? "Add Note" : "Edit Note", systemImage: "note.text") { editsNote = true }
+            if canAddWarmups {
+                Button("Add Warm-up Sets", systemImage: "flame") {
+                    withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) {
+                        model.updateWorkout { $0.addWarmups(toExercise: index, planner: warmupPlanner) }
+                    }
+                }
+            }
             if index < workout.session.exercises.count - 1 {
                 Button(isLinkedToNext ? "Unlink Superset" : "Superset with Next", systemImage: isLinkedToNext ? "link.badge.minus" : "link") {
                     withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) {
@@ -492,6 +514,15 @@ struct SetRow: View {
                 .frame(width: columns.check, alignment: .trailing)
         }
         .frame(minHeight: Size.setRowHeight + Space.xxs)
+        // A completed set turns green, so the finished part of the table reads at a glance.
+        .background {
+            if state == .done {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(WColor.done.opacity(0.14))
+                    .padding(.horizontal, -Space.xs)
+                    .transition(.opacity)
+            }
+        }
         .overlay(alignment: .leading) {
             if state == .active {
                 UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
@@ -609,7 +640,7 @@ struct SetRow: View {
             ZStack {
                 switch state {
                 case .done:
-                    Circle().fill(VColor.accent)
+                    Circle().fill(WColor.done)
                 case .active:
                     Circle().strokeBorder(VColor.accent, lineWidth: 2)
                 case .upcoming:
@@ -618,7 +649,7 @@ struct SetRow: View {
                 if state != .upcoming {
                     Image(systemName: Icon.check)
                         .font(.system(.subheadline, weight: .bold))
-                        .foregroundStyle(state == .done ? VColor.textOnAccent : VColor.accent)
+                        .foregroundStyle(state == .done ? Color.white : VColor.accent)
                         .symbolEffect(.bounce, value: reduceMotion ? false : set.isCompleted)
                 }
             }

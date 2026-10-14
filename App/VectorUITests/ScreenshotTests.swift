@@ -31,6 +31,17 @@ final class ScreenshotTests: XCTestCase {
             sleep(1)
             shoot(String(format: "%02d-%@", index + 4, tab.lowercased()))
         }
+        // The workout screen with one set done (green row) and the live stats strip.
+        let todayTab = app.tabBars.buttons["Today"].exists ? app.tabBars.buttons["Today"] : app.buttons["Today"]
+        todayTab.tap()
+        let start = app.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Start workout")).firstMatch
+        if start.waitForExistence(timeout: 5) {
+            start.tap()
+            let complete = app.buttons["Complete set"].firstMatch
+            if complete.waitForExistence(timeout: 5) { complete.tap() }
+            sleep(1)
+            shoot("07-workout")
+        }
     }
 
     private func launch(sampleData: Bool) {

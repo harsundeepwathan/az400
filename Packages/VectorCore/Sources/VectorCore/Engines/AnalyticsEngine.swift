@@ -78,6 +78,32 @@ public struct ChartPoint: Identifiable, Hashable, Sendable {
     }
 }
 
+/// What a weekly training chart counts.
+public enum WeeklyMetric: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case workouts, duration, volume, sets
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .workouts: "Workouts"
+        case .duration: "Duration"
+        case .volume: "Volume"
+        case .sets: "Sets"
+        }
+    }
+
+    /// Minutes for duration; kilograms for volume.
+    func value(of session: WorkoutSession) -> Double {
+        switch self {
+        case .workouts: 1
+        case .duration: session.endedAt.map { $0.timeIntervalSince(session.startedAt) / 60 } ?? 0
+        case .volume: session.volume
+        case .sets: Double(session.completedSetCount)
+        }
+    }
+}
+
 public struct MuscleVolume: Identifiable, Hashable, Sendable {
     public var muscle: MuscleGroup
     /// Hard sets in the window. Secondary muscles count as half a set.
@@ -197,10 +223,16 @@ public struct AnalyticsEngine: Sendable {
 
     /// Workouts per week across the window (always weekly buckets).
     public func frequencySeries(_ sessions: [WorkoutSession], range: TimeRange, now: Date) -> [ChartPoint] {
+        weeklySeries(sessions, metric: .workouts, range: range, now: now)
+    }
+
+    /// One training metric per week across the window: workouts, minutes
+    /// trained, volume (kg, working sets) or completed working sets.
+    public func weeklySeries(_ sessions: [WorkoutSession], metric: WeeklyMetric, range: TimeRange, now: Date) -> [ChartPoint] {
         let interval = range.interval(endingAt: now, calendar: calendar, earliest: sessions.map(\.startedAt).min())
         var totals: [Date: Double] = [:]
         for session in finished(sessions, in: interval) {
-            totals[bucketStart(session.startedAt, component: .weekOfYear), default: 0] += 1
+            totals[bucketStart(session.startedAt, component: .weekOfYear), default: 0] += metric.value(of: session)
         }
         return buckets(for: interval, component: .weekOfYear).map { ChartPoint(date: $0, value: totals[$0] ?? 0) }
     }

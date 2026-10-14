@@ -129,6 +129,8 @@ enum WColor {
     static let selected = Color(light: 0xE1E7F5, dark: 0x1E2A4A)
     static let onSelected = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
     static let add = strong
+    /// Completed sets: Apple's system green, the "done" colour (check and row wash).
+    static let done = Color(uiColor: .systemGreen)
     /// Rises: navy ink like every other accent (always with an arrow and a sign).
     static let rise = Color(light: 0x1D3A8A, dark: 0x9FB3F5)
     static let riseSoft = innerStrong

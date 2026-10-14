@@ -86,7 +86,13 @@ struct ActiveWorkoutView: View {
                 .background(WColor.canvas.ignoresSafeArea())
                 // Under the nav row, over the content: the record toast never covers the clock.
                 .overlay(alignment: .top) { WorkoutToastHost(toast: $model.toast) }
-                .safeAreaInset(edge: .top, spacing: 0) { navRow(workout) }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        navRow(workout)
+                        WorkoutStatsStrip(workout: workout, unit: model.unit)
+                    }
+                    .background(WColor.canvas.ignoresSafeArea(edges: .top))
+                }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if showsRestBar {
                         RestTimerBar()
@@ -146,14 +152,9 @@ struct ActiveWorkoutView: View {
         ZStack {
             TimelineView(.periodic(from: workout.session.startedAt, by: 1)) { context in
                 let elapsed = context.date.timeIntervalSince(workout.session.startedAt)
-                VStack(spacing: 0) {
-                    Text(workout.session.name)
-                        .font(VFont.headline)
-                        .foregroundStyle(VColor.textPrimary)
-                    Text(Format.clock(elapsed))
-                        .font(VFont.caption.monospacedDigit())
-                        .foregroundStyle(VColor.textSecondary)
-                }
+                Text(workout.session.name)
+                    .font(VFont.headline)
+                    .foregroundStyle(VColor.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .accessibilityElement(children: .ignore)
@@ -480,4 +481,41 @@ private struct RestDurationPicker: View {
     let model = AppModel.preview()
     model.startWorkout(model.nextWorkout!)
     return ActiveWorkoutView().environment(model)
+}
+
+/// Live numbers under the workout title: time, volume and sets done, in
+/// SF Pro Rounded. Updates every second.
+private struct WorkoutStatsStrip: View {
+    var workout: ActiveWorkout
+    var unit: WeightUnit
+
+    var body: some View {
+        TimelineView(.periodic(from: workout.session.startedAt, by: 1)) { context in
+            HStack(spacing: 0) {
+                stat("Duration", Format.clock(context.date.timeIntervalSince(workout.session.startedAt)))
+                stat("Volume", Format.volume(workout.session.volume, unit: unit))
+                stat("Sets", "\(workout.completedSets) of \(workout.totalSets)")
+            }
+        }
+        .padding(.horizontal, Space.gutter + 4)
+        .padding(.bottom, Space.xs)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(WColor.divider).frame(height: 0.5)
+        }
+    }
+
+    private func stat(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(WColor.textSecondary)
+            Text(value)
+                .font(.system(.headline, design: .rounded).monospacedDigit())
+                .foregroundStyle(WColor.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
 }

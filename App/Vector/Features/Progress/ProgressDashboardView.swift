@@ -462,6 +462,7 @@ private struct ConsistencySection: View {
     var range: TimeRange
     var onDetail: (ChartDetail) -> Void
     @Environment(AppModel.self) private var model
+    @State private var metric: WeeklyMetric = .workouts
 
     var body: some View {
         let days = model.foodEntries.isEmpty ? [] : model.calorieTargetDays(count: 7)
@@ -483,18 +484,49 @@ private struct ConsistencySection: View {
         }
     }
 
+    /// Training per week, switchable between workouts, time, volume and sets.
     private var workouts: some View {
-        let points = model.analytics.frequencySeries(model.sessions, range: range, now: model.now())
-        let total = Int(points.reduce(0) { $0 + $1.value })
+        let points = model.analytics.weeklySeries(model.sessions, metric: metric, range: range, now: model.now())
+        let total = points.reduce(0) { $0 + $1.value }
         let goal = model.profile?.daysPerWeek ?? 4
         return VStack(alignment: .leading, spacing: Space.sm) {
-            StatLine(items: [
-                .init(value: "\(total)", label: "\(total == 1 ? "workout" : "workouts") in \(points.count) \(points.count == 1 ? "week" : "weeks")"),
-                .init(value: "\(goal)", label: "a week planned")
-            ])
-            PeriodBarChart(points: points, unit: .weekOfYear, valueFormatter: { Format.integer($0) },
-                           goal: Double(goal), goalLabel: "Goal", accessibilityTitle: "Workouts per week", height: 120)
+            Picker("Show", selection: $metric) {
+                ForEach(WeeklyMetric.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            StatLine(items: summary(total: total, weeks: points.count, goal: goal))
+            PeriodBarChart(points: points, unit: .weekOfYear, valueFormatter: format,
+                           goal: metric == .workouts ? Double(goal) : nil, goalLabel: "Goal",
+                           accessibilityTitle: "\(metric.title) per week", height: 120)
                 .padding(.top, Space.xs)
+        }
+        .sensoryFeedback(.selection, trigger: metric)
+    }
+
+    private func format(_ value: Double) -> String {
+        switch metric {
+        case .workouts, .sets: Format.integer(value)
+        case .duration: value >= 60 ? "\(Int(value / 60))h \(Int(value.truncatingRemainder(dividingBy: 60)))m" : "\(Int(value))m"
+        case .volume: Format.volume(value, unit: model.unit)
+        }
+    }
+
+    private func summary(total: Double, weeks: Int, goal: Int) -> [StatLine.Item] {
+        let span = "in \(weeks) \(weeks == 1 ? "week" : "weeks")"
+        switch metric {
+        case .workouts:
+            let count = Int(total)
+            return [.init(value: "\(count)", label: "\(count == 1 ? "workout" : "workouts") \(span)"),
+                    .init(value: "\(goal)", label: "a week planned")]
+        case .duration:
+            return [.init(value: format(total), label: "trained \(span)"),
+                    .init(value: format(weeks > 0 ? total / Double(weeks) : 0), label: "a week on average")]
+        case .volume:
+            return [.init(value: format(total), label: "lifted \(span)"),
+                    .init(value: format(weeks > 0 ? total / Double(weeks) : 0), label: "a week on average")]
+        case .sets:
+            return [.init(value: Format.integer(total), label: "working sets \(span)"),
+                    .init(value: Format.integer(weeks > 0 ? total / Double(weeks) : 0), label: "a week on average")]
         }
     }
 
