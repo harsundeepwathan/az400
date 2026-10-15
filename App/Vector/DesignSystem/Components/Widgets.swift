@@ -30,14 +30,15 @@ struct WidgetTile<Accessory: View, Content: View>: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            IconBox(symbol: symbol, color: tint.color)
+        HStack(spacing: 8) {
+            IconBox(symbol: symbol, color: tint.color, baseSide: 24)
             Text(title)
                 .font(.headline)
                 .foregroundStyle(WColor.textPrimary)
                 // Half-width tiles: shrink a little rather than break a word ("Calo-ries").
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.85)
+                .layoutPriority(1)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 4)
             accessory
@@ -50,6 +51,7 @@ struct WidgetTile<Accessory: View, Content: View>: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.pressable)
+                .padding(.leading, -8)
                 .padding(.trailing, -12)
                 .accessibilityLabel("Open \(title)")
             }
@@ -547,7 +549,13 @@ extension WidgetScreenHeader where Accessory == EmptyView {
 struct IconBox: View {
     var symbol: String
     var color: Color
-    @ScaledMetric(relativeTo: .headline) private var side: CGFloat = 28
+    @ScaledMetric(relativeTo: .headline) private var side: CGFloat
+
+    init(symbol: String, color: Color, baseSide: CGFloat = 28) {
+        self.symbol = symbol
+        self.color = color
+        _side = ScaledMetric(wrappedValue: baseSide, relativeTo: .headline)
+    }
 
     var body: some View {
         Image(systemName: symbol)
