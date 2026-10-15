@@ -16,8 +16,8 @@ extension AppModel {
     func importWorkouts(from url: URL) throws -> WorkoutImportSummary {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let data = try Data(contentsOf: url)
-        let text = String(decoding: data, as: UTF8.self)
+        let fileData = try Data(contentsOf: url)
+        let text = String(decoding: fileData, as: UTF8.self)
         let result = try WorkoutImporter(catalog: catalog, timeZone: calendar.timeZone)
             .importCSV(text, strongUnit: unit)
 
