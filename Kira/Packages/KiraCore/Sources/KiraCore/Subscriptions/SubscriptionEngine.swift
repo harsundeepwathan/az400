@@ -49,6 +49,28 @@ public struct SubscriptionAlert: Equatable, Sendable, Identifiable {
     }
 }
 
+public struct SpendTotal: Equatable, Sendable {
+    public let amount: Money
+    public let since: Date
+    public let chargeCount: Int
+    /// True when computed from the schedule because no charges were recorded.
+    public let isEstimate: Bool
+}
+
+public struct MonthlyAmount: Equatable, Sendable, Identifiable {
+    public var id: Date { monthStart }
+    public let monthStart: Date
+    public let amount: Money
+}
+
+public struct RenewalCalendarMonth: Equatable, Sendable {
+    public let month: DateInterval
+    /// Keyed by start of day (Malaysia time).
+    public let renewalsByDay: [Date: [UpcomingRenewal]]
+    /// Full prices due this month in RM (other currencies excluded).
+    public let total: Money
+}
+
 /// A recurring charge found in transactions that isn't tracked yet.
 public struct SubscriptionSuggestion: Equatable, Sendable, Identifiable {
     public var id: String { merchantKey }
@@ -299,6 +321,85 @@ public struct SubscriptionEngine: Sendable {
                                         billedThroughApple: suggestion.service?.billedThroughAppleByDefault ?? false,
                                         createdAt: now, updatedAt: now)
         return rolledForward(draft, now: now)
+    }
+
+    // MARK: History
+
+    /// Spending to date. `recorded` is the sum of matched charges Kira has seen; when there are
+    /// none, `estimated` counts renewals since the start date at the current price instead.
+    public func totalSpent(for subscription: ServiceSubscription, transactions: [TransactionRecord], now: Date) -> SpendTotal {
+        let charges = matchedCharges(for: subscription, in: transactions)
+        if !charges.isEmpty {
+            let first = charges.map(\.transactionDate).min() ?? subscription.startDate
+            return SpendTotal(amount: charges.map(\.amount).sum(currency: subscription.amount.currency), since: first,
+                              chargeCount: charges.count, isEstimate: false)
+        }
+        guard subscription.status != .trial else {
+            return SpendTotal(amount: .zero(subscription.amount.currency), since: subscription.startDate, chargeCount: 0, isEstimate: true)
+        }
+        let end = subscription.status == .cancelled ? (subscription.cancelledAt ?? now) : now
+        let past = pastRenewals(of: subscription, from: subscription.startDate, through: end)
+        return SpendTotal(amount: subscription.amount.multiplied(by: Decimal(past.count)), since: subscription.startDate,
+                          chargeCount: past.count, isEstimate: true)
+    }
+
+    /// Most recent charge: a matched transaction if there is one, else the last expected renewal.
+    public func lastBilled(_ subscription: ServiceSubscription, transactions: [TransactionRecord], now: Date) -> (date: Date, isEstimate: Bool)? {
+        if let charge = matchedCharges(for: subscription, in: transactions).first { return (charge.transactionDate, false) }
+        guard subscription.status != .trial else { return nil }
+        let end = subscription.status == .cancelled ? min(subscription.cancelledAt ?? now, now) : now
+        return pastRenewals(of: subscription, from: subscription.startDate, through: end).last.map { ($0, true) }
+    }
+
+    /// Expected renewal dates in `[from, through]`, walking back from the next renewal.
+    func pastRenewals(of subscription: ServiceSubscription, from start: Date, through end: Date) -> [Date] {
+        let anchorDay = calendar.calendar.component(.day, from: subscription.nextRenewal)
+        var cursor = rolledForward(subscription, now: end).nextRenewal
+        var dates: [Date] = []
+        var guardCount = 0
+        while guardCount < 600 {
+            cursor = step(cursor, by: subscription.cycle, anchorDay: anchorDay, forward: false)
+            guard calendar.startOfDay(cursor) >= calendar.startOfDay(start) else { break }
+            if cursor <= end { dates.append(cursor) }
+            guardCount += 1
+        }
+        return dates.reversed()
+    }
+
+    /// Recorded subscription spending per calendar month (matched charges only — no estimates),
+    /// oldest first, for the trend chart.
+    public func monthlySpend(_ subscriptions: [ServiceSubscription], transactions: [TransactionRecord], endingAt date: Date, months: Int) -> [MonthlyAmount] {
+        let base = ledger.policy.baseCurrency
+        let charges = Dictionary(subscriptions.flatMap { matchedCharges(for: $0, in: transactions) }.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            .values.filter { $0.amount.currency == base }
+        var points: [MonthlyAmount] = []
+        var interval = calendar.monthInterval(containing: date)
+        for _ in 0..<max(months, 1) {
+            let total = charges.filter { interval.contains($0.transactionDate) && $0.transactionDate < interval.end }.map(\.amount).sum(currency: base)
+            points.insert(MonthlyAmount(monthStart: interval.start, amount: total), at: 0)
+            interval = calendar.previousMonthInterval(before: interval.start)
+        }
+        return points
+    }
+
+    // MARK: Calendar
+
+    /// Renewals in the calendar month containing `date`, grouped by day, with the month's total.
+    public func calendarMonth(_ subscriptions: [ServiceSubscription], containing date: Date) -> RenewalCalendarMonth {
+        let base = ledger.policy.baseCurrency
+        let month = calendar.monthInterval(containing: date)
+        var byDay: [Date: [UpcomingRenewal]] = [:]
+        var total = Money.zero(base)
+        for subscription in subscriptions where subscription.isLive {
+            let schedule = billingSchedule(subscription)
+            for renewal in renewals(of: schedule, in: month) {
+                let day = calendar.startOfDay(renewal)
+                let isConversion = subscription.status == .trial && calendar.dayDistance(from: schedule.nextRenewal, to: renewal) == 0
+                byDay[day, default: []].append(UpcomingRenewal(subscriptionID: subscription.id, date: renewal, amount: subscription.amount, isTrialConversion: isConversion))
+                if subscription.amount.currency == base { total += subscription.amount }
+            }
+        }
+        return RenewalCalendarMonth(month: month, renewalsByDay: byDay, total: total)
     }
 
     // MARK: Forecasting

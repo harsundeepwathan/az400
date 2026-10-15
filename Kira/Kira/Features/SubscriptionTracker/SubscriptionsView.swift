@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 import KiraCore
 
 /// Navigation value for a subscription's detail screen.
@@ -6,16 +7,19 @@ struct SubscriptionRoute: Hashable {
     let id: UUID
 }
 
+/// Navigation value for the renewal calendar.
+struct SubscriptionCalendarRoute: Hashable {}
+
 /// Tracked subscriptions: monthly cost, what renews next, anything that needs attention, and
 /// recurring charges Kira found that aren't tracked yet.
 struct SubscriptionsView: View {
     @Environment(FinanceStore.self) private var store
     @State private var sheet: SubscriptionSheet?
-    @State private var sort: SortOrder = .nextRenewal
+    @State private var sort: SortOrder = .upcoming
     @State private var pendingCancel: ServiceSubscription?
 
     enum SortOrder: String, CaseIterable, Identifiable {
-        case nextRenewal = "Next Renewal", cost = "Monthly Cost", name = "Name"
+        case upcoming = "Upcoming", cost = "Monthly Cost", name = "Name"
         var id: String { rawValue }
     }
 
@@ -48,9 +52,17 @@ struct SubscriptionsView: View {
                     }
                 }
             } else {
-                Section { SubscriptionTotalsView(summary: summary) }
+                Section {
+                    SubscriptionStatTiles(summary: summary, dueSoon: store.renewalsNext30Days)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+                Section {
+                    SubscriptionTrendView()
+                } header: {
+                    Text("Spending Trends")
+                }
                 alertsSection
-                upcomingSection(summary)
                 listSections
             }
             if !suggestions.isEmpty {
@@ -71,6 +83,12 @@ struct SubscriptionsView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button("Add Subscription", systemImage: "plus") { sheet = .add }
             }
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink(value: SubscriptionCalendarRoute()) {
+                    Label("Renewal Calendar", systemImage: "calendar")
+                }
+                .disabled(store.subscriptions.isEmpty)
+            }
             ToolbarItem(placement: .secondaryAction) {
                 Picker("Sort By", selection: $sort) {
                     ForEach(SortOrder.allCases) { Text($0.rawValue).tag($0) }
@@ -79,6 +97,9 @@ struct SubscriptionsView: View {
         }
         .navigationDestination(for: SubscriptionRoute.self) { route in
             SubscriptionDetailView(subscriptionID: route.id)
+        }
+        .navigationDestination(for: SubscriptionCalendarRoute.self) { _ in
+            SubscriptionCalendarView()
         }
         .sheet(item: $sheet) { sheet in
             switch sheet {
@@ -111,21 +132,6 @@ struct SubscriptionsView: View {
                 ForEach(alerts, id: \.alert.id) { item in
                     NavigationLink(value: SubscriptionRoute(id: item.subscription.id)) {
                         SubscriptionAlertRow(alert: item.alert, subscription: item.subscription)
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func upcomingSection(_ summary: SubscriptionSummary) -> some View {
-        let upcoming = summary.upcoming.prefix(5)
-            .compactMap { renewal in store.subscription(renewal.subscriptionID).map { (renewal: renewal, subscription: $0) } }
-        if !upcoming.isEmpty {
-            Section("Renewing Soon") {
-                ForEach(upcoming, id: \.renewal.id) { item in
-                    NavigationLink(value: SubscriptionRoute(id: item.subscription.id)) {
-                        UpcomingRenewalRow(renewal: item.renewal, subscription: item.subscription, now: store.now())
                     }
                 }
             }
@@ -166,7 +172,7 @@ struct SubscriptionsView: View {
     private func sorted(_ subscriptions: [ServiceSubscription]) -> [ServiceSubscription] {
         let engine = store.subscriptionEngine
         switch sort {
-        case .nextRenewal:
+        case .upcoming:
             return subscriptions.sorted { engine.billingSchedule($0).nextRenewal < engine.billingSchedule($1).nextRenewal }
         case .cost:
             return subscriptions.sorted { engine.monthlyCost($0).minorUnits > engine.monthlyCost($1).minorUnits }
@@ -178,28 +184,133 @@ struct SubscriptionsView: View {
 
 // MARK: - Rows
 
-/// Monthly and yearly totals, with trials and foreign-currency plans called out rather than hidden.
-struct SubscriptionTotalsView: View {
+/// Two summary tiles: what plans cost per month, and what's due in the next 30 days.
+/// Trials and foreign-currency plans are called out rather than hidden.
+struct SubscriptionStatTiles: View {
     let summary: SubscriptionSummary
+    let dueSoon: [UpcomingRenewal]
 
     var body: some View {
+        let dueTotal = dueSoon.filter { $0.amount.currency == .myr }.map(\.amount).sum()
         VStack(alignment: .leading, spacing: KiraSpacing.s) {
-            Text("Per month").font(.subheadline).foregroundStyle(KiraColor.textSecondary)
-            MoneyText(money: summary.monthlyTotal, font: .kiraHero)
-            Text("\(summary.yearlyTotal.formatted) a year · \(summary.activeCount) active")
-                .font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+            HStack(alignment: .top, spacing: KiraSpacing.m) {
+                tile(title: "Per Month", amount: summary.monthlyTotal,
+                     detail: "\(summary.activeCount) active service\(summary.activeCount == 1 ? "" : "s")")
+                tile(title: "Due in 30 Days", amount: dueTotal,
+                     detail: dueSoon.isEmpty ? "Nothing due" : "\(dueSoon.count) upcoming bill\(dueSoon.count == 1 ? "" : "s")")
+            }
             if summary.trialCount > 0 && summary.monthlyAfterTrials != summary.monthlyTotal {
                 Label("\(summary.monthlyAfterTrials.formatted)/mo after \(summary.trialCount == 1 ? "your free trial ends" : "\(summary.trialCount) free trials end")",
                       systemImage: "gift")
                     .font(.footnote).foregroundStyle(KiraColor.warning)
+                    .padding(.horizontal, KiraSpacing.xs)
             }
             if summary.foreignCurrencyCount > 0 {
                 Label("\(summary.foreignCurrencyCount) billed in another currency isn’t included", systemImage: "dollarsign.circle")
                     .font(.footnote).foregroundStyle(KiraColor.textSecondary)
+                    .padding(.horizontal, KiraSpacing.xs)
+            }
+        }
+    }
+
+    private func tile(title: String, amount: Money, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+            MoneyText(money: amount, font: .title2.weight(.bold))
+                .minimumScaleFactor(0.7).lineLimit(1)
+            Text(detail).font(.caption).foregroundStyle(KiraColor.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(KiraSpacing.l)
+        .background(KiraColor.surface, in: RoundedRectangle(cornerRadius: KiraRadius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Recorded subscription charges per month. Only real, matched transactions are plotted —
+/// never the schedule — so the chart is empty until statements or payments are recorded.
+struct SubscriptionTrendView: View {
+    @Environment(FinanceStore.self) private var store
+    @State private var range: Range = .sixMonths
+
+    enum Range: Int, CaseIterable, Identifiable {
+        case threeMonths = 3, sixMonths = 6, year = 12
+        var id: Int { rawValue }
+        var label: String { self == .year ? "1Y" : "\(rawValue)M" }
+    }
+
+    var body: some View {
+        let points = store.subscriptionSpend(months: range.rawValue)
+        let hasData = points.contains { !$0.amount.isZero }
+        VStack(alignment: .leading, spacing: KiraSpacing.m) {
+            Picker("Range", selection: $range) {
+                ForEach(Range.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+
+            if hasData {
+                // HIG › Charts: state the takeaway before the chart.
+                Text(Self.summary(points)).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+                Chart(points) { point in
+                    AreaMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", Double(point.amount.minorUnits) / 100))
+                        .foregroundStyle(KiraColor.accent.opacity(0.12))
+                        .interpolationMethod(.monotone)
+                    LineMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", Double(point.amount.minorUnits) / 100))
+                        .foregroundStyle(KiraColor.accent)
+                        .interpolationMethod(.monotone)
+                    PointMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", Double(point.amount.minorUnits) / 100))
+                        .foregroundStyle(KiraColor.accent)
+                        .symbolSize(30)
+                        .annotation(position: .top) {
+                            if points.count <= 6 {
+                                Text(point.amount.formatted).font(.caption2).foregroundStyle(KiraColor.textSecondary)
+                            }
+                        }
+                        .accessibilityLabel(point.monthStart.formatted(.dateTime.month(.wide).year()))
+                        .accessibilityValue(point.amount.formatted)
+                }
+                .chartYScale(domain: .automatic(includesZero: true))
+                .chartYAxis(.hidden)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .month, count: range == .year ? 2 : 1)) { _ in
+                        AxisValueLabel(format: .dateTime.month(.abbreviated))
+                    }
+                }
+                .frame(height: 160)
+                .accessibilityChartDescriptor(SubscriptionTrendDescriptor(points: points))
+            } else {
+                Text("Charges appear here once Kira matches them in imported statements or logged payments.")
+                    .font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .center)
+                    .multilineTextAlignment(.center)
             }
         }
         .padding(.vertical, KiraSpacing.xs)
-        .accessibilityElement(children: .combine)
+    }
+
+    static func summary(_ points: [MonthlyAmount]) -> String {
+        let nonZero = points.filter { !$0.amount.isZero }
+        let total = points.map(\.amount).sum()
+        guard !nonZero.isEmpty else { return "No recorded charges." }
+        let average = Money(minorUnits: total.minorUnits / Int64(points.count))
+        return "\(total.formatted) charged over \(points.count) months, about \(average.formatted) a month."
+    }
+}
+
+struct SubscriptionTrendDescriptor: AXChartDescriptorRepresentable {
+    let points: [MonthlyAmount]
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let values = points.map { Double($0.amount.minorUnits) / 100 }
+        let months = points.map { $0.monthStart.formatted(.dateTime.month(.wide).year()) }
+        let xAxis = AXCategoricalDataAxisDescriptor(title: "Month", categoryOrder: months)
+        let yAxis = AXNumericDataAxisDescriptor(title: "Charged in ringgit", range: 0...max(values.max() ?? 1, 1), gridlinePositions: []) { value in
+            MoneyFormatter.standard.accessibilityString(from: Money(minorUnits: Int64(value * 100)))
+        }
+        let series = AXDataSeriesDescriptor(name: "Subscription charges", isContinuous: true,
+                                            dataPoints: zip(months, values).map { AXDataPoint(x: $0, y: $1) })
+        return AXChartDescriptor(title: "Subscription spending", summary: SubscriptionTrendView.summary(points),
+                                 xAxis: xAxis, yAxis: yAxis, additionalAxes: [], series: [series])
     }
 }
 
@@ -222,7 +333,7 @@ struct SubscriptionRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 MoneyText(money: subscription.amount, font: .body.weight(.semibold))
                     .foregroundStyle(subscription.isLive ? KiraColor.textPrimary : KiraColor.textSecondary)
-                Text(subscription.cycle.shortSuffix).font(.caption2).foregroundStyle(KiraColor.textSecondary)
+                Text(subscription.cycle.displayName).font(.caption).foregroundStyle(KiraColor.textSecondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -237,7 +348,7 @@ struct SubscriptionRow: View {
         case .trial:
             return "Trial ends \((subscription.trialEndsAt ?? subscription.nextRenewal).kiraShort)"
         case .active:
-            var parts = ["Renews \(engine.billingSchedule(subscription).nextRenewal.kiraShort)"]
+            var parts = ["Renews on \(engine.billingSchedule(subscription).nextRenewal.formatted(date: .abbreviated, time: .omitted))"]
             if subscription.shareCount > 1 { parts.append("your share \(engine.yourShare(subscription).formatted)") }
             return parts.joined(separator: " · ")
         }
@@ -347,16 +458,35 @@ struct SuggestionRow: View {
     }
 }
 
+/// Status capsule with a symbol, so it doesn't rely on colour alone.
 struct SubscriptionStatusPill: View {
     let status: ServiceSubscriptionStatus
+    var prominent = false
 
     var body: some View {
-        let tint: Color = status == .trial ? KiraColor.warning : KiraColor.textSecondary
-        Text(status.displayName)
-            .font(.caption2.weight(.semibold))
+        Label(status.displayName.uppercased(), systemImage: symbol)
+            .labelStyle(.titleAndIcon)
+            .font((prominent ? Font.caption : .caption2).weight(.semibold))
             .foregroundStyle(tint)
-            .padding(.horizontal, 6).padding(.vertical, 2)
+            .padding(.horizontal, prominent ? 10 : 6).padding(.vertical, prominent ? 4 : 2)
             .background(tint.opacity(0.14), in: Capsule())
+    }
+
+    private var symbol: String {
+        switch status {
+        case .active: return "checkmark.circle.fill"
+        case .trial: return "gift.fill"
+        case .paused: return "pause.circle.fill"
+        case .cancelled: return "xmark.circle.fill"
+        }
+    }
+
+    private var tint: Color {
+        switch status {
+        case .active: return KiraColor.positive
+        case .trial: return KiraColor.warning
+        case .paused, .cancelled: return KiraColor.textSecondary
+        }
     }
 }
 

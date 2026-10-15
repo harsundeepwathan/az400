@@ -22,6 +22,9 @@ Kira follows Apple's [Human Interface Guidelines](https://developer.apple.com/de
 | Don't rely on colour alone (Color › Inclusive color) | Status is always text and symbol (Pending, Not paid yet, Matched seal). The budget bar states its % in text |
 | Use built-in text styles for Dynamic Type; keep truncation low at large sizes (Typography) | All text uses text styles (`.largeTitle`, `.title3`, `.body`, `.footnote`…). Money uses the rounded design with `monospacedDigit()`. A UI test runs at AccessibilityXXXL |
 | Charts: summarise the main message, start bars at zero, use familiar ticks, support VoiceOver and Audio Graphs (Charts) | Trend chart has a one-line summary, `includesZero: true`, 3 automatic ticks, per-mark labels and an `AXChartDescriptor` |
+| Charts: line charts suit change over time; label values only when it stays legible (Charts) | Subscriptions › Spending Trends: one line + area series in the system tint, a written summary first, value labels only up to 6 points (hidden for 1Y), hidden y-axis since points are labelled, and `SubscriptionTrendDescriptor` for Audio Graphs. It plots only recorded charges, never the schedule |
+| Status needs more than colour (Color › Inclusive color) | Subscription status pills pair text with a symbol (checkmark, gift, pause, xmark) |
+| Put destructive actions where people expect them and confirm them (Toolbars, Action sheets) | Subscription detail: Edit and a trash button in the toolbar; Delete always asks for confirmation |
 | Sheets: Cancel/Close leading, Done trailing; support the medium detent; one sheet at a time (Sheets) | Capture flows open one sheet each with a standard Close. The camera scanner uses a full-screen cover, as the HIG suggests for camera views |
 | Camera views suit a full-screen modal (Sheets) | `fullScreenCover` for DuitNow scanning |
 | Use badges only for critical information (Tab bars) | No tab badges. The review count lives in content (Summary banner, Activity segment) |
@@ -44,6 +47,7 @@ The project now vendors [AvdLee/SwiftUI-Agent-Skill](https://github.com/AvdLee/S
 | Item-driven sheets; one enum instead of several booleans (sheet-navigation-patterns) | Summary uses a `SummarySheet` enum. The Add menu uses `sheet(item:)` and `fullScreenCover(item:)` |
 | `@ScaledMetric` for non-text sizes (accessibility-patterns) | Category icons and empty-state badges scale with Dynamic Type |
 | Previews use self-contained mock data (previews) | `Kira/Preview/PreviewData.swift`: in-memory store with synthetic data, plus light, dark and XXXL previews |
+| Use `Button` for tappable elements, with accessibility labels (accessibility-patterns) | Renewal calendar day cells are buttons that speak "Today, Thursday 15 October. 2 renewals: Netflix, Spotify" and carry the selected trait |
 | Respect Reduce Motion (apple-design §14) | The budget bar's spring animation is disabled when Reduce Motion is on |
 
 Flagged, not changed: `FileDocument` (used for exports) is soft-deprecated in SDK 27. Pushed capture screens still receive an `onFinished` closure, because `dismiss` inside a pushed view pops the stack rather than closing the sheet.

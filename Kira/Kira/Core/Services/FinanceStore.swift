@@ -342,6 +342,21 @@ final class FinanceStore {
         subscriptionEngine.suggestions(transactions: transactions, existing: subscriptions)
     }
 
+    /// Live plans renewing in the next 30 days (including trials converting to paid).
+    var renewalsNext30Days: [UpcomingRenewal] {
+        let end = KLCalendar.shared.calendar.date(byAdding: .day, value: 30, to: now()) ?? now()
+        return subscriptionSummary.upcoming.filter { $0.date <= end }
+    }
+
+    /// Recorded subscription charges per month, for the trend chart.
+    func subscriptionSpend(months: Int) -> [MonthlyAmount] {
+        subscriptionEngine.monthlySpend(subscriptions, transactions: transactions, endingAt: now(), months: months)
+    }
+
+    func renewalCalendar(containing date: Date) -> RenewalCalendarMonth {
+        subscriptionEngine.calendarMonth(subscriptions, containing: date)
+    }
+
     func save(subscription: ServiceSubscription) {
         var subscription = subscriptionEngine.rolledForward(subscription, now: now())
         subscription.name = InputSanitizer.cleanText(subscription.name, maxLength: 60)

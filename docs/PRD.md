@@ -40,7 +40,7 @@ _Name: "Kira" is Malay for "count / calculate"._
 | Cash-flow forecast with confidence, safe-to-spend, low-balance periods | ✅ | Premium |
 | Commitments & income; loan schedules (reducing / flat-rate HP) | ✅ commitments / Premium loan analytics | Mixed |
 | Payslip estimator (EPF/SOCSO/EIS, versioned rules; PCB user-entered) | ✅ | Free |
-| Subscription tracker: services catalog, monthly/yearly totals, family-plan share, trials, renewal reminders (local notifications, no amounts), charge matching, price-change and "still subscribed?" alerts, suggestions from transactions, included in forecasts | ✅ | Free |
+| Subscription tracker: services catalog, monthly/yearly totals, family-plan share, trials, renewal reminders (local notifications, no amounts), charge matching, price-change and "still subscribed?" alerts, suggestions from transactions, included in forecasts, per-month and due-in-30-days tiles, spending trend (3M/6M/1Y, recorded charges only), renewal calendar with month total, last billed and total spent (recorded or labelled estimate) | ✅ | Free |
 | Face ID / passcode lock, app-switcher privacy, Data Protection | ✅ | Free |
 | CSV + JSON export, delete all data | ✅ | **Always free** |
 | StoreKit 2 subscriptions | ✅ | — |

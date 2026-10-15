@@ -179,3 +179,66 @@ final class SubscriptionTests: XCTestCase {
         XCTAssertTrue(FeatureGate(tier: .free).isAvailable(.subscriptionTracking))
     }
 }
+
+final class SubscriptionHistoryTests: XCTestCase {
+    let engine = SubscriptionEngine()
+    let cal = KLCalendar.shared
+
+    func netflix(start: Date = TestData.date(2025, 7, 25)) -> ServiceSubscription {
+        ServiceSubscription(name: "Netflix", serviceID: "netflix", amount: TestData.rm("54.90"), nextRenewal: TestData.date(2025, 10, 25), startDate: start)
+    }
+
+    func testTotalSpentFromRecordedCharges() {
+        let charges = [TestData.tx("54.90", on: TestData.date(2025, 8, 25), category: nil, merchant: "NETFLIX.COM"),
+                       TestData.tx("54.90", on: TestData.date(2025, 9, 25), category: nil, merchant: "NETFLIX.COM")]
+        let total = engine.totalSpent(for: netflix(), transactions: charges, now: TestData.date(2025, 10, 20))
+        XCTAssertEqual(total.amount, TestData.rm("109.80"))
+        XCTAssertFalse(total.isEstimate)
+        XCTAssertEqual(total.chargeCount, 2)
+        let last = engine.lastBilled(netflix(), transactions: charges, now: TestData.date(2025, 10, 20))
+        XCTAssertEqual(last?.isEstimate, false)
+        XCTAssertEqual(last.map { cal.calendar.component(.month, from: $0.date) }, 9)
+    }
+
+    func testTotalSpentEstimatedWithoutCharges() {
+        // Renewals on 25 Jul, 25 Aug, 25 Sep before 20 Oct.
+        let total = engine.totalSpent(for: netflix(), transactions: [], now: TestData.date(2025, 10, 20))
+        XCTAssertTrue(total.isEstimate)
+        XCTAssertEqual(total.chargeCount, 3)
+        XCTAssertEqual(total.amount, TestData.rm("164.70"))
+        XCTAssertEqual(engine.lastBilled(netflix(), transactions: [], now: TestData.date(2025, 10, 20))?.isEstimate, true)
+    }
+
+    func testMonthlySpendUsesRecordedChargesOnly() {
+        let charges = [TestData.tx("54.90", on: TestData.date(2025, 8, 25), category: nil, merchant: "NETFLIX.COM"),
+                       TestData.tx("17.90", on: TestData.date(2025, 9, 5), category: nil, merchant: "SPOTIFY"),
+                       TestData.tx("54.90", on: TestData.date(2025, 9, 25), category: nil, merchant: "NETFLIX.COM")]
+        let spotify = ServiceSubscription(name: "Spotify", serviceID: "spotify", amount: TestData.rm("17.90"), nextRenewal: TestData.date(2025, 11, 5))
+        let points = engine.monthlySpend([netflix(), spotify], transactions: charges, endingAt: TestData.date(2025, 10, 20), months: 3)
+        XCTAssertEqual(points.map(\.amount), [TestData.rm("54.90"), TestData.rm("72.80"), .zero()])
+    }
+
+    func testCalendarMonth() {
+        let spotify = ServiceSubscription(name: "Spotify", serviceID: "spotify", amount: TestData.rm("17.90"), nextRenewal: TestData.date(2025, 10, 5))
+        let weekly = ServiceSubscription(name: "Gym", amount: TestData.rm("10.00"), cycle: .weekly, nextRenewal: TestData.date(2025, 10, 6))
+        let off = ServiceSubscription(name: "Off", amount: TestData.rm("99.00"), nextRenewal: TestData.date(2025, 10, 7), status: .cancelled)
+        let month = engine.calendarMonth([netflix(), spotify, weekly, off], containing: TestData.date(2025, 10, 15))
+        XCTAssertEqual(month.renewalsByDay[cal.startOfDay(TestData.date(2025, 10, 25))]?.count, 1)
+        XCTAssertNil(month.renewalsByDay[cal.startOfDay(TestData.date(2025, 10, 7))], "cancelled plans don't appear")
+        // 54.90 + 17.90 + 4 × 10.00 (6, 13, 20, 27 Oct)
+        XCTAssertEqual(month.total, TestData.rm("112.80"))
+    }
+}
+
+extension SubscriptionHistoryTests {
+    func testCancelledPlanStopsAtCancellation() {
+        var plan = netflix()
+        plan.status = .cancelled
+        plan.cancelledAt = TestData.date(2025, 9, 1)
+        let now = TestData.date(2026, 1, 10)
+        // Renewals on 25 Jul and 25 Aug only.
+        XCTAssertEqual(engine.totalSpent(for: plan, transactions: [], now: now).chargeCount, 2)
+        let last = engine.lastBilled(plan, transactions: [], now: now)
+        XCTAssertEqual(last.map { cal.calendar.component(.month, from: $0.date) }, 8)
+    }
+}
