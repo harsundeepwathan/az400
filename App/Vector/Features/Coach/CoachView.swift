@@ -20,6 +20,8 @@ struct CoachView: View {
                         CoachSummaryCard()
                     }
 
+                    AskYourDataCard()
+
                     if model.isComputingInsights && model.insights.isEmpty {
                         ForEach(0..<2, id: \.self) { _ in
                             InsightCard(insight: CoachInsight(id: "placeholder", category: .training, tone: .neutral,

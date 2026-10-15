@@ -28,6 +28,18 @@ final class ScreenshotTests: XCTestCase {
             sleep(1)
             shoot(String(format: "%02d-%@", index + 4, tab.lowercased()))
         }
+        // Coach (from Progress), with Ask your data.
+        let coach = app.buttons["Coach"].firstMatch
+        if coach.waitForExistence(timeout: 3) {
+            coach.tap()
+            sleep(2)
+            app.swipeUp()
+            sleep(1)
+            shoot("08-coach")
+            let done = app.buttons["Done"].firstMatch
+            if done.waitForExistence(timeout: 3) { done.tap() }
+            sleep(1)
+        }
         tabButton("Today").tap()
         sleep(1)
         app.swipeUp()

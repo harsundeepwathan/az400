@@ -33,6 +33,14 @@ extension AppModel {
         return (summary, archive.digestShown(for: summary, sent: digest, userID: api.userID, now: now()))
     }
 
+    /// "Ask your data": a question answered from this week's digest (Pro).
+    func askCoach(_ question: String, digest: CoachDigest) async throws -> CoachAnswer {
+        guard let api else { throw CoachSummaryError.signedOut }
+        let answer = try await api.coachAsk(digest: digest, question: question)
+        track(.aiRecommendationViewed, ["surface": "ask_your_data"])
+        return answer
+    }
+
     /// Nil only if Application Support is unavailable.
     var coachSummaryArchive: CoachSummaryArchive? { try? CoachSummaryArchive.standard() }
 }

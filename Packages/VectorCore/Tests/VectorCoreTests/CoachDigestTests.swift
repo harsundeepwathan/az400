@@ -327,6 +327,20 @@ final class CoachDigestTests: XCTestCase {
         XCTAssertEqual(summary.generatedAt, ISO8601DateFormatter().date(from: "2026-10-05T07:12:00Z"))
     }
 
+    func testCoachAskPostsQuestionAndDecodes() async throws {
+        let transport = StubTransport { request in
+            XCTAssertEqual(request.url!.path, "/v1/coach/ask")
+            let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
+            XCTAssertEqual(body["question"] as? String, "Why is my squat stuck?")
+            XCTAssertNotNil(body["digest"] as? [String: Any])
+            return (200, #"{"answer":"Your Back Squat rose to 101.3 kg.","asks_left_today":19}"#)
+        }
+        let api = APIClient(baseURL: base, transport: transport, tokens: signedIn(), now: { self.now })
+        let digest = CoachDigestBuilder(calendar: calendar).build(fullContext(), recommendations: [])
+        let answer = try await api.coachAsk(digest: digest, question: "Why is my squat stuck?")
+        XCTAssertEqual(answer, CoachAnswer(text: "Your Back Squat rose to 101.3 kg.", asksLeftToday: 19))
+    }
+
     func testCoachSummaryErrorMapping() async {
         var reply: (Int, String) = (402, #"{"error":"pro_required"}"#)
         let transport = StubTransport { _ in reply }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { MessagesClient } from "./analyze.js";
 import { handleNotification } from "./appleNotifications.js";
 import { recordTransaction, entitlement } from "./appStore.js";
+import { coachAsk } from "./coachAsk.js";
 import { coachSummary } from "./coach.js";
 import { authenticate, refreshSession, signInWithApple, signOut } from "./auth.js";
 import type { Config } from "./config.js";
@@ -143,6 +144,18 @@ export function createApp(deps: AppDeps) {
       const userId = await user(req);
       const body = await readJson(req, 16_384);
       const result = await coachSummary(
+        { db, client: deps.claude, pricing: config.pricing, model: config.model, log, now: deps.now },
+        userId,
+        body,
+      );
+      return { status: 200, body: result };
+    })
+
+    // Ask your data (Pro)
+    .on("POST", "/v1/coach/ask", async (req) => {
+      const userId = await user(req);
+      const body = await readJson(req, 16_384);
+      const result = await coachAsk(
         { db, client: deps.claude, pricing: config.pricing, model: config.model, log, now: deps.now },
         userId,
         body,

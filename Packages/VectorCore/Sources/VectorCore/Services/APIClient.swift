@@ -96,6 +96,18 @@ public struct CoachSummary: Hashable, Sendable {
     }
 }
 
+/// An answer to "Ask your data", written from the user's own digest.
+public struct CoachAnswer: Hashable, Sendable {
+    public var text: String
+    /// Questions left today (the server caps them per UTC day); nil if not sent.
+    public var asksLeftToday: Int?
+
+    public init(text: String, asksLeftToday: Int?) {
+        self.text = text
+        self.asksLeftToday = asksLeftToday
+    }
+}
+
 /// Errors from `APIClient.coachSummary(digest:)`. Pro-required is its own
 /// case so the app never confuses it with the meal-scan quota (also a 402).
 public enum CoachSummaryError: Error, Hashable, Sendable {
@@ -346,6 +358,29 @@ public actor APIClient {
         }
         return CoachSummary(text: response.summary, cached: response.cached ?? false,
                             generatedAt: response.generated_at.flatMap(AllowanceDTO.parseDate))
+    }
+
+    // MARK: Ask your data
+
+    /// A question about the user's own data, answered from the digest
+    /// (`POST /v1/coach/ask`). Pro only; capped per day on the server.
+    /// Throws `CoachSummaryError` (same cases as the weekly summary).
+    public func coachAsk(digest: CoachDigest, question: String) async throws -> CoachAnswer {
+        struct Envelope: Encodable { var digest: CoachDigest; var question: String }
+        struct Response: Decodable { var answer: String; var asks_left_today: Int? }
+        let data: Data
+        do {
+            data = try await perform(path: "v1/coach/ask", method: "POST",
+                                     json: Envelope(digest: digest, question: question),
+                                     authorized: true, timeout: 70)
+        } catch let error as APIError {
+            throw CoachSummaryError(error)
+        }
+        guard let response = try? JSONDecoder().decode(Response.self, from: data),
+              !response.answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CoachSummaryError.unavailable
+        }
+        return CoachAnswer(text: response.answer, asksLeftToday: response.asks_left_today)
     }
 
     // MARK: Analytics
