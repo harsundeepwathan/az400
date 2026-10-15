@@ -33,8 +33,6 @@ final class ScreenshotTests: XCTestCase {
         if coach.waitForExistence(timeout: 3) {
             coach.tap()
             sleep(2)
-            app.swipeUp()
-            sleep(1)
             shoot("08-coach")
             let done = app.buttons["Done"].firstMatch
             if done.waitForExistence(timeout: 3) { done.tap() }

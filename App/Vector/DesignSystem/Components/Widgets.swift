@@ -35,6 +35,9 @@ struct WidgetTile<Accessory: View, Content: View>: View {
             Text(title)
                 .font(.headline)
                 .foregroundStyle(WColor.textPrimary)
+                // Half-width tiles: shrink a little rather than break a word ("Calo-ries").
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 4)
             accessory
