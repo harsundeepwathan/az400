@@ -97,6 +97,20 @@ struct ActiveWorkoutView: View {
                     if showsRestBar {
                         RestTimerBar()
                             .transition(Motion.slide(.bottom, reduceMotion: reduceMotion))
+                    } else if focusedField == nil, let focus = workout.focus,
+                              let log = workout.session.exercises[safe: focus.exercise],
+                              let set = log.sets[safe: focus.set], !set.isCompleted {
+                        // The next set and one big button in the thumb zone.
+                        CompleteSetBar(
+                            exercise: model.catalog[log.exerciseID]?.name ?? "Exercise",
+                            setLabel: set.kind == .warmup ? "Warm-up" : "Set \(workingNumber(log, focus.set))",
+                            load: "\(Format.weight(set.weight, unit: model.unit)) × \(set.reps)"
+                        ) {
+                            withAnimation(Motion.adaptive(Motion.snappy, reduceMotion: reduceMotion)) {
+                                model.completeSet(focus)
+                            }
+                        }
+                        .transition(Motion.slide(.bottom, reduceMotion: reduceMotion))
                     }
                 }
                 .animation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion), value: showsRestBar)
@@ -184,6 +198,11 @@ struct ActiveWorkoutView: View {
         .padding(.horizontal, Space.xs)
         .frame(minHeight: Size.minTouch)
         .background(WColor.canvas.ignoresSafeArea(edges: .top))
+    }
+
+    /// "Set 2" counts working sets only, so warm-ups don't shift the numbers.
+    private func workingNumber(_ log: ExerciseLog, _ index: Int) -> Int {
+        log.sets.prefix(index + 1).filter { $0.kind != .warmup }.count
     }
 
     private func finishButton(_ workout: ActiveWorkout) -> some View {
@@ -517,5 +536,44 @@ private struct WorkoutStatsStrip: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The bottom bar while training: which set is next, and Complete set as one
+/// large button where the thumb rests. Hidden while typing and while resting.
+private struct CompleteSetBar: View {
+    var exercise: String
+    var setLabel: String
+    var load: String
+    var onComplete: () -> Void
+
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(exercise)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(WColor.textPrimary)
+                    .lineLimit(1)
+                Text("\(setLabel) · \(load)")
+                    .font(.system(.footnote, design: .rounded).monospacedDigit())
+                    .foregroundStyle(WColor.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: Space.xs)
+            Button(action: onComplete) {
+                Label("Complete set", systemImage: "checkmark")
+                    .font(.body.weight(.bold))
+                    .foregroundStyle(WColor.onStrong)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: 50)
+                    .background(WColor.strong, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.pressable)
+            .accessibilityHint("\(exercise), \(setLabel), \(load)")
+        }
+        .padding(.horizontal, Space.gutter + 4)
+        .padding(.vertical, Space.sm)
+        .background(.bar)
+        .overlay(alignment: .top) { Rectangle().fill(WColor.divider).frame(height: 0.5) }
     }
 }

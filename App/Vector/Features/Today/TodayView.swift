@@ -435,7 +435,8 @@ private struct MusclesTile: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let volumes = model.analytics.weeklySetsPerMuscle(model.sessions, now: model.now())
+        let allVolumes = model.analytics.weeklySetsPerMuscle(model.sessions, now: model.now())
+        let volumes = allVolumes
             .filter { $0.sets > 0 }
             .sorted { $0.sets > $1.sets }
             .prefix(6)
@@ -443,6 +444,9 @@ private struct MusclesTile: View {
             let top = max(MuscleVolume.recommendedWeeklySets.upperBound, volumes.map(\.sets).max() ?? 0)
             WidgetTile(tint: .training, title: "Muscles trained", symbol: "figure.strengthtraining.traditional",
                        open: { model.selectedTab = .progress }) {
+                MuscleMap(sets: Dictionary(uniqueKeysWithValues: allVolumes.map { ($0.muscle, $0.sets) }))
+                    .frame(height: 200)
+                    .padding(.top, 12)
                 VStack(spacing: 10) {
                     ForEach(Array(volumes)) { volume in
                         HStack(spacing: 10) {
