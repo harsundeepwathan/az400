@@ -38,6 +38,7 @@ struct ExerciseLogCard: View {
     @AppStorage("logsEffort") private var logsEffort = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var showsPlates = false
     @State private var editsNote = false
     @State private var reportsDiscomfort = false
 
@@ -87,6 +88,15 @@ struct ExerciseLogCard: View {
         .sheet(isPresented: $reportsDiscomfort) {
             DiscomfortReportSheet(exerciseID: log.exerciseID, exerciseName: exercise?.name)
         }
+        .sheet(isPresented: $showsPlates) {
+            PlateCalculatorSheet(kilograms: plateTarget)
+        }
+    }
+
+    /// The load to plate up: the next unfinished working set, else the first working set.
+    private var plateTarget: Double {
+        let working = log.sets.filter { $0.kind != .warmup }
+        return (working.first { !$0.isCompleted } ?? working.first ?? log.sets.first).map { max($0.weight, $0.targetWeight ?? 0) } ?? 0
     }
 
     // MARK: Headers
@@ -262,6 +272,9 @@ struct ExerciseLogCard: View {
             Button("Replace Exercise", systemImage: Icon.swap, action: onShowDetail)
             Button("Rest Time", systemImage: Icon.timer, action: onEditRest)
             Button(log.note.isEmpty ? "Add Note" : "Edit Note", systemImage: "note.text") { editsNote = true }
+            if model.catalog[log.exerciseID]?.equipment == .barbell {
+                Button("Plate Calculator", systemImage: "circle.grid.cross") { showsPlates = true }
+            }
             if canAddWarmups {
                 Button("Add Warm-up Sets", systemImage: "flame") {
                     withAnimation(Motion.adaptive(Motion.smooth, reduceMotion: reduceMotion)) {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import VectorCore
 
 /// Profile and settings ("Fields"): a settings-shaped screen, so a native
@@ -12,6 +13,9 @@ struct ProfileView: View {
     @State private var showsTargets = false
     @State private var showsResetConfirm = false
     @State private var exportURL: URL?
+    @State private var csvURL: URL?
+    @State private var showsImporter = false
+    @State private var importMessage: String?
     @State private var healthConnected = false
     @AppStorage(CloudSyncPreference.key) private var iCloudSync = true
     @AppStorage("logsEffort") private var logsEffort = true
@@ -63,6 +67,11 @@ struct ProfileView: View {
                 Button("Delete everything", role: .destructive) { model.resetAll() }
             } message: {
                 Text("Workouts, food logs and your plan will be permanently deleted from this device.")
+            }
+            .alert("Import", isPresented: Binding(get: { importMessage != nil }, set: { if !$0 { importMessage = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(importMessage ?? "")
             }
         }
     }
@@ -294,6 +303,42 @@ struct ProfileView: View {
 
     private var dataSection: some View {
         Section {
+            Button {
+                showsImporter = true
+            } label: {
+                SettingsLabel("Import from Hevy or Strong", symbol: "square.and.arrow.down")
+            }
+            .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.commaSeparatedText, .plainText, .text]) { result in
+                switch result {
+                case .success(let url):
+                    do {
+                        let summary = try model.importWorkouts(from: url)
+                        var parts = ["Added \(summary.added) \(summary.added == 1 ? "workout" : "workouts") from \(summary.source)."]
+                        if summary.duplicates > 0 { parts.append("\(summary.duplicates) already here were skipped.") }
+                        if summary.newExercises > 0 { parts.append("\(summary.newExercises) exercises Vector didn't know were added as your own.") }
+                        importMessage = parts.joined(separator: " ")
+                    } catch WorkoutImporter.ImportError.unrecognizedFormat {
+                        importMessage = "That file isn't a Hevy or Strong workout export. In Hevy: Settings › Export & Import Data › Export Workouts. In Strong: Settings › Export Strong Data."
+                    } catch WorkoutImporter.ImportError.noWorkouts {
+                        importMessage = "That export has no completed sets to import."
+                    } catch {
+                        importMessage = "Couldn't read that file."
+                    }
+                case .failure:
+                    importMessage = "Couldn't open that file."
+                }
+            }
+            if let csvURL {
+                ShareLink(item: csvURL) {
+                    SettingsLabel("Export workouts (CSV)", symbol: "tablecells")
+                }
+            } else {
+                Button {
+                    csvURL = model.exportWorkoutsCSV()
+                } label: {
+                    SettingsLabel("Prepare workouts CSV", symbol: "tablecells")
+                }
+            }
             if let exportURL {
                 ShareLink(item: exportURL) {
                     SettingsLabel("Export your data (JSON)", symbol: "square.and.arrow.up")
@@ -313,7 +358,7 @@ struct ProfileView: View {
         } header: {
             Text("Data")
         } footer: {
-            Text("Deleting removes workouts, food logs and your plan from this device.")
+            Text("Switching from Hevy or Strong? Import their CSV export and every set comes with you, including warm-ups, drop sets and RPE. Your workouts export as CSV too. Deleting removes workouts, food logs and your plan from this device.")
         }
     }
 
