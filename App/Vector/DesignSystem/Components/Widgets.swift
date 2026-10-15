@@ -549,7 +549,7 @@ extension WidgetScreenHeader where Accessory == EmptyView {
 struct IconBox: View {
     var symbol: String
     var color: Color
-    @ScaledMetric(relativeTo: .headline) private var side: CGFloat
+    @ScaledMetric private var side: CGFloat
 
     init(symbol: String, color: Color, baseSide: CGFloat = 28) {
         self.symbol = symbol
