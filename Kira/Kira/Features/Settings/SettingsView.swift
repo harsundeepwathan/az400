@@ -146,6 +146,8 @@ struct RulesView: View {
 }
 
 struct PrivacyInfoView: View {
+    @AppStorage(ServiceLogoStore.preferenceKey) private var showServiceLogos = true
+
     var body: some View {
         List {
             Section("Where your data lives") {
@@ -155,6 +157,16 @@ struct PrivacyInfoView: View {
             Section("What Kira reads") {
                 Text("Receipts, QR codes and statements you choose are processed on-device with Apple frameworks. Nothing is sent to an AI service.")
                 Text("Kira never asks for your online banking username or password.")
+            }
+            Section {
+                Toggle("Show service logos", isOn: $showServiceLogos)
+                    .onChange(of: showServiceLogos) { _, show in
+                        if !show { Task { await ServiceLogoStore.shared.removeAll() } }
+                    }
+            } header: {
+                Text("Service logos")
+            } footer: {
+                Text("Kira shows each subscription’s official app icon, downloaded once from Apple’s App Store and kept on this iPhone. The request contains only the app’s public App Store ID, never prices or anything you’ve entered. Turn this off to use built-in icons and remove the downloaded logos.")
             }
             Section("Your rights (PDPA)") {
                 Text("You can export all your data at any time (Settings › Your data) and delete it permanently. Deletion removes the database, the capture inbox, saved secrets and preferences from this device.")

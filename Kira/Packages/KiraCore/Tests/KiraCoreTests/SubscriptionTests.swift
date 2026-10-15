@@ -242,3 +242,14 @@ extension SubscriptionHistoryTests {
         XCTAssertEqual(last.map { cal.calendar.component(.month, from: $0.date) }, 8)
     }
 }
+
+final class SubscriptionCatalogLogoTests: XCTestCase {
+    func testAppStoreIDsAreUniqueAndPlausible() {
+        let ids = SubscriptionCatalog.services.compactMap(\.appStoreID)
+        XCTAssertEqual(Set(ids).count, ids.count, "each service maps to its own app")
+        XCTAssertTrue(ids.allSatisfy { $0 > 100_000_000 })
+        XCTAssertEqual(SubscriptionCatalog.service(id: "netflix")?.appStoreID, 363590051)
+        // Services with no standalone App Store app fall back to the built-in tile.
+        XCTAssertNil(SubscriptionCatalog.service(id: "icloud")?.appStoreID)
+    }
+}

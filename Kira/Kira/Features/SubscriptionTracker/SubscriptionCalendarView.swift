@@ -164,7 +164,7 @@ private struct DayCell: View {
     let isToday: Bool
     let isSelected: Bool
     var onSelect: () -> Void
-    @ScaledMetric(relativeTo: .body) private var cellHeight = 58.0
+    @ScaledMetric(relativeTo: .body) private var cellHeight = 64.0
 
     var body: some View {
         let subscriptions = renewals.compactMap { store.subscription($0.subscriptionID) }
@@ -176,20 +176,21 @@ private struct DayCell: View {
                     .foregroundStyle(isToday ? Color.white : KiraColor.textPrimary)
                     .frame(width: 24, height: 24)
                     .background { if isToday { Circle().fill(KiraColor.accent) } }
-                HStack(spacing: -4) {
+                HStack(spacing: -6) {
                     ForEach(subscriptions.prefix(2)) { subscription in
-                        ServiceIcon(subscription: subscription, size: 18)
+                        ServiceIcon(subscription: subscription, size: 22, ring: KiraColor.surface)
                     }
                 }
-                .frame(height: 18)
+                .frame(height: 26)
                 Text(subscriptions.count > 2 ? "+\(subscriptions.count - 2)" : " ")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(KiraColor.textSecondary)
             }
             .frame(maxWidth: .infinity, minHeight: cellHeight)
             .background {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isSelected ? KiraColor.accentSoft : Color.clear)
+                // Outline rather than fill, so the icons' surface-coloured rings stay seamless.
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(isSelected ? KiraColor.accent : Color.clear, lineWidth: 1.5)
             }
             .contentShape(Rectangle())
         }

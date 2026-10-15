@@ -489,6 +489,7 @@ final class FinanceStore {
         if let domain = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: domain) }
         transactions = []; accounts = []; budgets = []; commitments = []; incomes = []; rules = []; customCategories = []; subscriptions = []
         SubscriptionReminders.removeAll()
+        Task { await ServiceLogoStore.shared.removeAll() }
     }
 
     // MARK: Helpers

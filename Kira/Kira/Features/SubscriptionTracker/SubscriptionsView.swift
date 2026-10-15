@@ -40,6 +40,7 @@ struct SubscriptionsView: View {
     var body: some View {
         let summary = store.subscriptionSummary
         let suggestions = store.subscriptionSuggestions
+        let dueSoon = store.renewalsNext30Days
         List {
             if store.subscriptions.isEmpty {
                 Section {
@@ -53,7 +54,7 @@ struct SubscriptionsView: View {
                 }
             } else {
                 Section {
-                    SubscriptionStatTiles(summary: summary, dueSoon: store.renewalsNext30Days)
+                    SubscriptionStatTiles(summary: summary, dueSoon: dueSoon, dueSubscriptions: dueSubscriptions(dueSoon))
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                 }
@@ -169,6 +170,14 @@ struct SubscriptionsView: View {
         }
     }
 
+    private func dueSubscriptions(_ renewals: [UpcomingRenewal]) -> [ServiceSubscription] {
+        var seen = Set<UUID>()
+        return renewals.compactMap { renewal in
+            guard seen.insert(renewal.subscriptionID).inserted else { return nil }
+            return store.subscription(renewal.subscriptionID)
+        }
+    }
+
     private func sorted(_ subscriptions: [ServiceSubscription]) -> [ServiceSubscription] {
         let engine = store.subscriptionEngine
         switch sort {
@@ -189,15 +198,29 @@ struct SubscriptionsView: View {
 struct SubscriptionStatTiles: View {
     let summary: SubscriptionSummary
     let dueSoon: [UpcomingRenewal]
+    /// Services behind `dueSoon`, soonest first, each once.
+    let dueSubscriptions: [ServiceSubscription]
 
     var body: some View {
         let dueTotal = dueSoon.filter { $0.amount.currency == .myr }.map(\.amount).sum()
         VStack(alignment: .leading, spacing: KiraSpacing.s) {
             HStack(alignment: .top, spacing: KiraSpacing.m) {
-                tile(title: "Per Month", amount: summary.monthlyTotal,
-                     detail: "\(summary.activeCount) active service\(summary.activeCount == 1 ? "" : "s")")
-                tile(title: "Due in 30 Days", amount: dueTotal,
-                     detail: dueSoon.isEmpty ? "Nothing due" : "\(dueSoon.count) upcoming bill\(dueSoon.count == 1 ? "" : "s")")
+                tile(title: "Per Month", symbol: "repeat", amount: summary.monthlyTotal) {
+                    Text("\(summary.activeCount) active · \(summary.yearlyTotal.formatted)/yr")
+                        .font(.caption).foregroundStyle(KiraColor.textSecondary)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                }
+                tile(title: "Due in 30 Days", symbol: "calendar", amount: dueTotal) {
+                    if dueSubscriptions.isEmpty {
+                        Text("Nothing due").font(.caption).foregroundStyle(KiraColor.textSecondary)
+                    } else {
+                        HStack(spacing: 6) {
+                            ServiceIconStack(subscriptions: dueSubscriptions, size: 22, limit: 3)
+                            Text("\(dueSoon.count) bill\(dueSoon.count == 1 ? "" : "s")")
+                                .font(.caption).foregroundStyle(KiraColor.textSecondary)
+                        }
+                    }
+                }
             }
             if summary.trialCount > 0 && summary.monthlyAfterTrials != summary.monthlyTotal {
                 Label("\(summary.monthlyAfterTrials.formatted)/mo after \(summary.trialCount == 1 ? "your free trial ends" : "\(summary.trialCount) free trials end")",
@@ -213,12 +236,15 @@ struct SubscriptionStatTiles: View {
         }
     }
 
-    private func tile(title: String, amount: Money, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
-            MoneyText(money: amount, font: .title2.weight(.bold))
-                .minimumScaleFactor(0.7).lineLimit(1)
-            Text(detail).font(.caption).foregroundStyle(KiraColor.textSecondary)
+    private func tile<Footer: View>(title: String, symbol: String, amount: Money, @ViewBuilder footer: () -> Footer) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(KiraColor.textSecondary)
+            MoneyText(money: amount, font: .system(.title, design: .rounded).weight(.bold))
+                .minimumScaleFactor(0.6).lineLimit(1)
+            footer()
+                .frame(minHeight: 26, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(KiraSpacing.l)
@@ -232,6 +258,8 @@ struct SubscriptionStatTiles: View {
 struct SubscriptionTrendView: View {
     @Environment(FinanceStore.self) private var store
     @State private var range: Range = .sixMonths
+    /// Month under the person's finger while scrubbing the chart.
+    @State private var selectedMonth: Date?
 
     enum Range: Int, CaseIterable, Identifiable {
         case threeMonths = 3, sixMonths = 6, year = 12
@@ -242,6 +270,9 @@ struct SubscriptionTrendView: View {
     var body: some View {
         let points = store.subscriptionSpend(months: range.rawValue)
         let hasData = points.contains { !$0.amount.isZero }
+        let selected = selectedMonth.flatMap { month in
+            points.first { KLCalendar.shared.calendar.isDate($0.monthStart, equalTo: month, toGranularity: .month) }
+        }
         VStack(alignment: .leading, spacing: KiraSpacing.m) {
             Picker("Range", selection: $range) {
                 ForEach(Range.allCases) { Text($0.label).tag($0) }
@@ -249,43 +280,90 @@ struct SubscriptionTrendView: View {
             .pickerStyle(.segmented)
 
             if hasData {
-                // HIG › Charts: state the takeaway before the chart.
-                Text(Self.summary(points)).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
-                Chart(points) { point in
-                    AreaMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", Double(point.amount.minorUnits) / 100))
-                        .foregroundStyle(KiraColor.accent.opacity(0.12))
-                        .interpolationMethod(.monotone)
-                    LineMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", Double(point.amount.minorUnits) / 100))
-                        .foregroundStyle(KiraColor.accent)
-                        .interpolationMethod(.monotone)
-                    PointMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", Double(point.amount.minorUnits) / 100))
-                        .foregroundStyle(KiraColor.accent)
-                        .symbolSize(30)
-                        .annotation(position: .top) {
-                            if points.count <= 6 {
-                                Text(point.amount.formatted).font(.caption2).foregroundStyle(KiraColor.textSecondary)
-                            }
-                        }
-                        .accessibilityLabel(point.monthStart.formatted(.dateTime.month(.wide).year()))
-                        .accessibilityValue(point.amount.formatted)
-                }
-                .chartYScale(domain: .automatic(includesZero: true))
-                .chartYAxis(.hidden)
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .month, count: range == .year ? 2 : 1)) { _ in
-                        AxisValueLabel(format: .dateTime.month(.abbreviated))
-                    }
-                }
-                .frame(height: 160)
-                .accessibilityChartDescriptor(SubscriptionTrendDescriptor(points: points))
+                headline(points, selected: selected)
+                chart(points, selected: selected)
             } else {
-                Text("Charges appear here once Kira matches them in imported statements or logged payments.")
-                    .font(.subheadline).foregroundStyle(KiraColor.textSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .center)
-                    .multilineTextAlignment(.center)
+                ContentUnavailableView {
+                    Label("No Charges Yet", systemImage: "chart.line.uptrend.xyaxis")
+                } description: {
+                    Text("Charges appear here once Kira matches them in imported statements or logged payments.")
+                }
+                .frame(minHeight: 160)
             }
         }
         .padding(.vertical, KiraSpacing.xs)
+        .sensoryFeedback(.selection, trigger: selected?.monthStart)
+    }
+
+    /// HIG › Charts: lead with the takeaway. While scrubbing, it shows the selected month instead.
+    private func headline(_ points: [MonthlyAmount], selected: MonthlyAmount?) -> some View {
+        let total = points.map(\.amount).sum()
+        let average = Money(minorUnits: total.minorUnits / Int64(max(points.count, 1)))
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(selected.map { $0.monthStart.formatted(.dateTime.month(.wide).year()) } ?? "Average a month")
+                .font(.subheadline).foregroundStyle(KiraColor.textSecondary)
+            MoneyText(money: selected?.amount ?? average, font: .system(.title2, design: .rounded).weight(.bold))
+                .contentTransition(.numericText())
+            Text(selected.map { isCurrentMonth($0) ? "Charged so far this month" : "Charged that month" }
+                 ?? "\(total.formatted) charged in the last \(points.count) months")
+                .font(.caption).foregroundStyle(KiraColor.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func chart(_ points: [MonthlyAmount], selected: MonthlyAmount?) -> some View {
+        Chart {
+            ForEach(Array(zip(points, [nil] + points.dropLast().map(Optional.some))), id: \.0.id) { point, previous in
+                let value = Double(point.amount.minorUnits) / 100
+                // Labels go below a point that dropped, so they don't sit on the line.
+                let dropped = previous.map { point.amount.minorUnits < $0.amount.minorUnits } ?? false
+                AreaMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", value))
+                    .foregroundStyle(LinearGradient(colors: [KiraColor.accent.opacity(0.28), KiraColor.accent.opacity(0.02)],
+                                                    startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.monotone)  // never overshoots between real values
+                LineMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", value))
+                    .foregroundStyle(KiraColor.accent)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.monotone)  // never overshoots between real values
+                PointMark(x: .value("Month", point.monthStart, unit: .month), y: .value("Charged", value))
+                    // The current month is still in progress: drawn hollow and called "so far".
+                    .symbol {
+                        Circle()
+                            .strokeBorder(KiraColor.accent, lineWidth: 2)
+                            .background(Circle().fill(isCurrentMonth(point) ? KiraColor.surface : KiraColor.accent))
+                            .frame(width: 8, height: 8)
+                    }
+                    .annotation(position: dropped ? .bottom : .top, spacing: 6) {
+                        if points.count <= 6 && selected == nil {
+                            Text(point.amount.formatted)
+                                .font(.caption2.weight(.medium)).monospacedDigit()
+                                .foregroundStyle(KiraColor.textSecondary)
+                        }
+                    }
+                    .accessibilityLabel(point.monthStart.formatted(.dateTime.month(.wide).year()) + (isCurrentMonth(point) ? ", so far" : ""))
+                    .accessibilityValue(point.amount.formatted)
+            }
+            if let selected {
+                RuleMark(x: .value("Month", selected.monthStart, unit: .month))
+                    .foregroundStyle(KiraColor.textTertiary)
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            }
+        }
+        .chartXSelection(value: $selectedMonth)
+        .chartYScale(domain: .automatic(includesZero: true))
+        .chartYAxis(.hidden)
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .month, count: range == .year ? 2 : 1)) { _ in
+                AxisValueLabel(format: .dateTime.month(.abbreviated))
+            }
+        }
+        .chartPlotStyle { $0.padding(.horizontal, 12) }
+        .frame(height: 170)
+        .accessibilityChartDescriptor(SubscriptionTrendDescriptor(points: points))
+    }
+
+    private func isCurrentMonth(_ point: MonthlyAmount) -> Bool {
+        KLCalendar.shared.calendar.isDate(point.monthStart, equalTo: store.now(), toGranularity: .month)
     }
 
     static func summary(_ points: [MonthlyAmount]) -> String {
@@ -362,7 +440,7 @@ struct UpcomingRenewalRow: View {
 
     var body: some View {
         HStack(spacing: KiraSpacing.m) {
-            ServiceIcon(subscription: subscription, size: 32)
+            ServiceIcon(subscription: subscription, size: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(subscription.name)
                 Text(renewal.isTrialConversion ? "First charge after trial · \(relativeDay)" : relativeDay)
@@ -444,7 +522,7 @@ struct SuggestionRow: View {
 
     var body: some View {
         HStack(spacing: KiraSpacing.m) {
-            ServiceIcon(service: suggestion.service, name: suggestion.name, size: 32)
+            ServiceIcon(service: suggestion.service, name: suggestion.name, size: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(suggestion.name)
                 Text("\(suggestion.occurrences) charges · last \(suggestion.lastCharge.kiraShort)")
@@ -487,40 +565,5 @@ struct SubscriptionStatusPill: View {
         case .trial: return KiraColor.warning
         case .paused, .cancelled: return KiraColor.textSecondary
         }
-    }
-}
-
-/// App-icon-style tile for a service: catalog symbol in the service's tint, or a monogram.
-struct ServiceIcon: View {
-    let service: SubscriptionService?
-    let name: String
-    var size: CGFloat = 40
-    @ScaledMetric(relativeTo: .body) private var scale = 1.0
-
-    init(subscription: ServiceSubscription, size: CGFloat = 40) {
-        self.service = SubscriptionCatalog.service(id: subscription.serviceID)
-        self.name = subscription.name
-        self.size = size
-    }
-
-    init(service: SubscriptionService?, name: String, size: CGFloat = 40) {
-        self.service = service
-        self.name = name
-        self.size = size
-    }
-
-    var body: some View {
-        let side = size * scale
-        let tint = KiraColor.tint(service?.tint ?? "slate")
-        ZStack {
-            RoundedRectangle(cornerRadius: side * 0.26, style: .continuous).fill(tint.opacity(0.15))
-            if let service {
-                Image(systemName: service.symbol).font(.system(size: side * 0.44, weight: .semibold)).foregroundStyle(tint)
-            } else {
-                Text(String(name.prefix(1)).uppercased()).font(.system(size: side * 0.46, weight: .bold, design: .rounded)).foregroundStyle(tint)
-            }
-        }
-        .frame(width: side, height: side)
-        .accessibilityHidden(true)
     }
 }

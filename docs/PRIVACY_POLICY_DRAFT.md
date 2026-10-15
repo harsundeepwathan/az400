@@ -13,6 +13,7 @@ Kira is a personal finance tracker that works **on your iPhone**. We don't opera
 | Transactions, accounts, balances, budgets, commitments, income | You (typed, imported, scanned, Shortcuts) | On your device only | Providing the app |
 | Receipt images, statements, QR codes | Files/photos/camera you choose | On-device (Apple Vision, PDFKit). Images aren't stored after reading | Extracting transaction details |
 | Subscription status | Apple App Store | On device via StoreKit | Unlocking paid features |
+| Service logos (optional, on by default) | Apple App Store public lookup and image CDN | Requests contain only a service app's public App Store ID; Apple sees your IP address, as with any App Store request. Logos are cached on device and removed with "Delete all data" or when the setting is turned off | Showing the official icon of each tracked service |
 | Face ID / Touch ID | iOS | iOS only — Kira never receives biometric data | App lock |
 
 We **never** collect online banking usernames, passwords or one-time codes.

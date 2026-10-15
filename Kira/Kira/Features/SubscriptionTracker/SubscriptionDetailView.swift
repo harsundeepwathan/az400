@@ -40,8 +40,10 @@ struct SubscriptionDetailView: View {
         return List {
             Section {
                 VStack(spacing: KiraSpacing.s) {
-                    ServiceIcon(subscription: subscription, size: 64)
-                    Text(subscription.name).font(.title2.weight(.semibold)).multilineTextAlignment(.center)
+                    ServiceIcon(subscription: subscription, size: 96)
+                        .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+                        .padding(.bottom, KiraSpacing.xs)
+                    Text(subscription.name).font(.title.weight(.bold)).multilineTextAlignment(.center)
                     if let category {
                         Label(category.name, systemImage: category.symbol)
                             .font(.caption.weight(.medium))
@@ -50,7 +52,7 @@ struct SubscriptionDetailView: View {
                             .background(KiraColor.track, in: Capsule())
                     }
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        MoneyText(money: subscription.amount, font: .kiraFigure)
+                        MoneyText(money: subscription.amount, font: .system(.largeTitle, design: .rounded).weight(.bold))
                         Text(subscription.cycle.displayName).font(.subheadline).foregroundStyle(KiraColor.textSecondary)
                     }
                     SubscriptionStatusPill(status: subscription.status, prominent: true)
@@ -175,6 +177,8 @@ struct SubscriptionDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(alignment: .top) { ServiceAmbience(subscription: subscription) }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Edit") { editing = subscription }
@@ -196,5 +200,29 @@ struct SubscriptionDetailView: View {
         } message: {
             Text("Its charges stay in Activity. To keep a record, mark it cancelled instead.")
         }
+    }
+}
+
+/// A soft wash of the service's colours behind the header, made by blurring its logo (or its
+/// system tint) and fading it into the grouped background — the way Apple Music and the App
+/// Store tint a detail page. Purely decorative content-layer colour; no glass.
+private struct ServiceAmbience: View {
+    let subscription: ServiceSubscription
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            KiraColor.background
+            if contrast == .standard {
+                ServiceIcon(subscription: subscription, size: 220)
+                    .blur(radius: 70)
+                    .opacity(0.45)
+                    .offset(y: -40)
+                    .frame(maxWidth: .infinity)
+                    .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 420))
+            }
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 }
