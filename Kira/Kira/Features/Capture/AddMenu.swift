@@ -3,7 +3,7 @@ import KiraCore
 
 /// Ways to add a transaction, ordered by least effort.
 enum CaptureFlow: String, Identifiable, CaseIterable {
-    case manual, scan, receipt, statement, shortcuts
+    case manual, scan, receipt, statement, subscription, shortcuts
     var id: String { rawValue }
 
     var title: String {
@@ -12,6 +12,7 @@ enum CaptureFlow: String, Identifiable, CaseIterable {
         case .scan: return "Scan DuitNow QR"
         case .receipt: return "Import Receipt"
         case .statement: return "Import Statement"
+        case .subscription: return "Add Subscription"
         case .shortcuts: return "Set Up Apple Pay Logging"
         }
     }
@@ -22,6 +23,7 @@ enum CaptureFlow: String, Identifiable, CaseIterable {
         case .scan: return "Saves a draft before you pay"
         case .receipt: return "Screenshot or photo of a receipt"
         case .statement: return "CSV or PDF from your bank or e-wallet"
+        case .subscription: return "Netflix, Spotify, iCloud+…"
         case .shortcuts: return "Log Apple Pay taps with Shortcuts"
         }
     }
@@ -32,6 +34,7 @@ enum CaptureFlow: String, Identifiable, CaseIterable {
         case .scan: return "qrcode.viewfinder"
         case .receipt: return "doc.text.viewfinder"
         case .statement: return "tray.and.arrow.down"
+        case .subscription: return "repeat"
         case .shortcuts: return "wave.3.right"
         }
     }
@@ -59,6 +62,7 @@ struct AddMenuModifier: ViewModifier {
                             menuButton(.statement)
                         }
                         Section {
+                            menuButton(.subscription)
                             menuButton(.shortcuts)
                         }
                     } label: {
@@ -106,6 +110,9 @@ struct CaptureFlowView: View {
                 ReceiptImportView { dismiss() }.toolbar { CloseToolbarItem { dismiss() } }
             case .statement:
                 StatementImportView { dismiss() }.toolbar { CloseToolbarItem { dismiss() } }
+            case .subscription:
+                // The editor supplies its own Close and Add buttons.
+                SubscriptionEditorView(subscription: nil)
             case .shortcuts:
                 ShortcutsGuideView().toolbar { CloseToolbarItem { dismiss() } }
             }

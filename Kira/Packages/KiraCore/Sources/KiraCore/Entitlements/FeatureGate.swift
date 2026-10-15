@@ -16,7 +16,7 @@ public enum SubscriptionTier: Int, Codable, Comparable, CaseIterable, Sendable {
 
 public enum Feature: String, CaseIterable, Sendable {
     // Always free — the user's data is never held hostage.
-    case manualTracking, basicBudgets, dashboard, exportData, deleteData, viewHistory, editTransactions
+    case manualTracking, basicBudgets, dashboard, exportData, deleteData, viewHistory, editTransactions, subscriptionTracking
     // Plus
     case unlimitedImports, advancedReceiptExtraction, shortcutsCapture, advancedReconciliation, customRules, detailedAnalytics
     // Premium
@@ -24,7 +24,7 @@ public enum Feature: String, CaseIterable, Sendable {
 
     public var requiredTier: SubscriptionTier {
         switch self {
-        case .manualTracking, .basicBudgets, .dashboard, .exportData, .deleteData, .viewHistory, .editTransactions: return .free
+        case .manualTracking, .basicBudgets, .dashboard, .exportData, .deleteData, .viewHistory, .editTransactions, .subscriptionTracking: return .free
         case .unlimitedImports, .advancedReceiptExtraction, .shortcutsCapture, .advancedReconciliation, .customRules, .detailedAnalytics: return .plus
         case .cashFlowForecast, .debtAnalytics, .multiAccountInsights, .advancedReports, .cloudSync: return .premium
         }

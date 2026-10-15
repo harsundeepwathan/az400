@@ -53,6 +53,7 @@ Counted statuses: confirmed, reconciled, pending (by default; labelled). Drafts,
 | `Budget` | categoryID? (nil = total), limit, period (monthly/weekly), rollover (none/carryUnused/carryAll), alertThreshold |
 | `Commitment` | name, type (mortgage, rent, car financing, personal loan, credit card, insurance, utilities, subscription, PTPTN, BNPL), amount, recurrence, start/end, accountID, `DebtTerms?` |
 | `DebtTerms` | principal, annualRate (Decimal), tenureMonths, method (reducing balance / flat rate), startDate, statedOutstanding? |
+| `ServiceSubscription` | name, serviceID (catalog), amount (full price), cycle (weekly/monthly/quarterly/yearly/every N months), nextRenewal, status (active/trial/paused/cancelled), trialEndsAt, cancelledAt, accountID, categoryID, shareCount, reminderDaysBefore, billedThroughApple, matchPattern, notes |
 | `IncomeSource` | name, type (basic/additional salary, freelance, bonus, rental), expectedNet, gross?, recurrence |
 | `MerchantRule` | pattern, matchType (exact/contains/prefix), categoryID, kind?, learnedFromCorrection |
 | `StatutoryRuleSet` | versioned EPF/SOCSO/EIS rates, ceilings, effectiveFrom, source, userVerified |

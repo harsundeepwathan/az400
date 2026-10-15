@@ -238,6 +238,8 @@ struct InsightsView: View {
                 VStack(spacing: 0) {
                     gatedLink("Cash-flow forecast", symbol: "waveform.path.ecg", feature: .cashFlowForecast) { CashFlowView() }
                     Divider().padding(.leading, 52)
+                    gatedLink("Subscriptions", symbol: "repeat", feature: .subscriptionTracking) { SubscriptionsView() }
+                    Divider().padding(.leading, 52)
                     gatedLink("Commitments & loans", symbol: "calendar.badge.clock", feature: .manualTracking) { CommitmentsView() }
                 }
             }

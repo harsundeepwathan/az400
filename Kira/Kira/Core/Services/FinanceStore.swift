@@ -57,6 +57,7 @@ final class FinanceStore {
     private(set) var incomes: [IncomeSource] = []
     private(set) var rules: [MerchantRule] = []
     private(set) var customCategories: [CategoryDefinition] = []
+    private(set) var subscriptions: [ServiceSubscription] = []
     private(set) var loadError: String?
     var lastErrorMessage: String?
 
@@ -74,6 +75,7 @@ final class FinanceStore {
     let ledger = LedgerCalculator()
     let categoryEngine = CategoryEngine()
     let reconciliation = ReconciliationEngine()
+    let subscriptionEngine = SubscriptionEngine()
     var now: () -> Date = { Date() }
 
     init(repository: FinanceRepository, inbox: CaptureInbox = CaptureInbox()) {
@@ -93,6 +95,8 @@ final class FinanceStore {
             incomes = snapshot.incomes
             rules = snapshot.rules
             customCategories = snapshot.customCategories
+            // Stale renewal dates roll forward on load so "next renewal" is never in the past.
+            subscriptions = snapshot.subscriptions.map { subscriptionEngine.rolledForward($0, now: now()) }
             loadError = nil
         } catch {
             loadError = error.localizedDescription
@@ -321,6 +325,61 @@ final class FinanceStore {
             .compactMap { candidate in transaction(candidate.existingID).map { ($0, candidate) } }
     }
 
+    // MARK: Subscriptions
+
+    var liveSubscriptions: [ServiceSubscription] { subscriptions.filter(\.isLive) }
+
+    func subscription(_ id: UUID) -> ServiceSubscription? { subscriptions.first { $0.id == id } }
+
+    var subscriptionSummary: SubscriptionSummary { subscriptionEngine.summary(subscriptions, now: now()) }
+
+    var subscriptionAlerts: [SubscriptionAlert] {
+        subscriptionEngine.alerts(subscriptions, transactions: transactions, now: now())
+    }
+
+    /// Recurring charges found in recorded transactions that aren't tracked yet.
+    var subscriptionSuggestions: [SubscriptionSuggestion] {
+        subscriptionEngine.suggestions(transactions: transactions, existing: subscriptions)
+    }
+
+    func save(subscription: ServiceSubscription) {
+        var subscription = subscriptionEngine.rolledForward(subscription, now: now())
+        subscription.name = InputSanitizer.cleanText(subscription.name, maxLength: 60)
+        subscription.matchPattern = InputSanitizer.cleanOptional(subscription.matchPattern, maxLength: 60)
+        subscription.notes = InputSanitizer.cleanOptional(subscription.notes, maxLength: 500)
+        subscription.updatedAt = now()
+        guard !subscription.name.isEmpty else { lastErrorMessage = "Give this subscription a name."; return }
+        perform { try repository.upsert(subscription: subscription) } then: {
+            if let index = subscriptions.firstIndex(where: { $0.id == subscription.id }) { subscriptions[index] = subscription } else { subscriptions.append(subscription) }
+            signal(.success)
+        }
+        Task { await SubscriptionReminders.reschedule(subscriptions, engine: subscriptionEngine, now: now()) }
+    }
+
+    /// Records the user's own cancellation. Kira can't cancel with the provider.
+    func markCancelled(_ subscription: ServiceSubscription) {
+        var cancelled = subscription
+        cancelled.status = .cancelled
+        cancelled.cancelledAt = now()
+        save(subscription: cancelled)
+    }
+
+    func deleteSubscription(_ subscription: ServiceSubscription) {
+        perform { try repository.deleteSubscription(id: subscription.id) } then: {
+            subscriptions.removeAll { $0.id == subscription.id }
+        }
+        Task { await SubscriptionReminders.reschedule(subscriptions, engine: subscriptionEngine, now: now()) }
+    }
+
+    /// Commitments plus live subscriptions, so forecasts and insights include renewals once.
+    /// Commitments the user entered as "Subscription" type are kept; the engine's duplicate-charge
+    /// check stops the same renewal being counted twice in a month.
+    var plannedCommitments: [Commitment] {
+        let fromSubscriptions = subscriptions.compactMap(subscriptionEngine.commitment(for:))
+        let trackedNames = Set(fromSubscriptions.map { MerchantNormalizer.key($0.name) })
+        return commitments.filter { !($0.type == .subscription && trackedNames.contains(MerchantNormalizer.key($0.name))) } + fromSubscriptions
+    }
+
     // MARK: Budgets, commitments, income
 
     var monthlyBudget: Budget? { budgets.first { $0.categoryID == nil && $0.period == .monthly && $0.isActive } }
@@ -381,12 +440,12 @@ final class FinanceStore {
 
     func forecast() -> CashFlowForecast {
         CashFlowForecaster(ledger: ledger).forecast(asOf: now(), accounts: accounts, transactions: transactions,
-                                                    commitments: commitments, incomes: incomes, monthlyBudget: monthlyBudget, categories: categories)
+                                                    commitments: plannedCommitments, incomes: incomes, monthlyBudget: monthlyBudget, categories: categories)
     }
 
     func insights() -> [Insight] {
         InsightGenerator(analytics: AnalyticsEngine(ledger: ledger), categories: categories)
-            .insights(now: now(), transactions: transactions, commitments: commitments, monthlyBudget: monthlyBudget)
+            .insights(now: now(), transactions: transactions, commitments: plannedCommitments, monthlyBudget: monthlyBudget)
     }
 
     var outstandingCardBalances: Money {
@@ -403,7 +462,8 @@ final class FinanceStore {
     func exportJSON() throws -> Data {
         try? repository.logAudit(action: "export.json", detail: "full snapshot")
         return try DataExporter.json(DataExporter.Snapshot(exportedAt: now(), accounts: accounts, transactions: transactions, budgets: budgets,
-                                                           commitments: commitments, incomes: incomes, rules: rules, customCategories: customCategories))
+                                                           commitments: commitments, incomes: incomes, rules: rules, customCategories: customCategories,
+                                                           subscriptions: subscriptions))
     }
 
     /// Deletes every record, the capture inbox, Keychain secrets and preferences.
@@ -412,7 +472,8 @@ final class FinanceStore {
         inbox.removeAll()
         try KeychainStore().removeAll()
         if let domain = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: domain) }
-        transactions = []; accounts = []; budgets = []; commitments = []; incomes = []; rules = []; customCategories = []
+        transactions = []; accounts = []; budgets = []; commitments = []; incomes = []; rules = []; customCategories = []; subscriptions = []
+        SubscriptionReminders.removeAll()
     }
 
     // MARK: Helpers

@@ -28,6 +28,9 @@ flowchart LR
     Accounts --> AccountEditor
     Accounts --> Commitments --> CommitmentEditor & IncomeEditor & Payroll[Payslip estimator]
     Accounts --> Settings --> Rules & Privacy & Limitations & Paywall
+    Home --> Subs[Subscriptions] --> SubDetail[Subscription detail] --> SubEdit[Subscription editor]
+    Accounts --> Subs
+    Capture --> SubEdit
 ```
 
 | Screen | Purpose | Empty state | Key states |
@@ -48,3 +51,6 @@ flowchart LR
 | Settings | Plan, app lock, capture, rules, export CSV/JSON, privacy, delete all (type DELETE) | — | — |
 
 **Accessibility:** all amounts carry VoiceOver phrasing ("2,845 ringgit 60 sen"). Rows are combined accessibility elements. Status is never conveyed by colour alone. System fonts give Dynamic Type everywhere. Charts have accessibility labels/values. A UI test runs at AccessibilityXXXL.
+| Subscriptions | Monthly and yearly totals (your share), trial and foreign-currency notes, Needs Attention (price changed, trial ending, no recent charge, duplicate), Renewing Soon (30 days), Active and Paused & Cancelled lists, sort, swipe to mark cancelled, "Found in Your Transactions" suggestions | ContentUnavailableView with Add | Trial pill, cancelled rows dimmed |
+| Subscription detail | Price per cycle, next renewal or first charge, per-month and per-year cost, your share, matched charge history, Update Price, Manage in App Store (Apple-billed), Mark Paused / Cancelled / Active, Delete | "No charges found" explanation | Explains that Kira can't cancel with the provider |
+| Subscription editor | Service picker (29 Malaysian-available services + custom), price and currency, billing cycle, status and trial end, paid from, billed through Apple, family split, reminder, category, statement text, notes | — | Inline price validation |

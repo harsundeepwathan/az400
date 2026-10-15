@@ -36,6 +36,7 @@ struct HomeView: View {
                         spendingHero
                         if !store.needsReview.isEmpty { reviewBanner }
                         healthSection
+                        SubscriptionsSummaryCard()
                         insightsSection
                         recentSection
                     }

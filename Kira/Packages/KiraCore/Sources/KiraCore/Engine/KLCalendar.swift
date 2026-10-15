@@ -81,6 +81,17 @@ public struct KLCalendar: Sendable {
                 if atNoon >= lower && atNoon < upperBound { results.append(atNoon) }
                 cursor = addingMonths(1, to: cursor)
             }
+        case .everyMonths(let months, let day):
+            let step = max(months, 1)
+            let anchor = monthInterval(containing: startDate).start
+            var cursor = anchor
+            while cursor < upperBound {
+                let clampedDay = min(max(day, 1), daysInMonth(containing: cursor))
+                let occurrence = calendar.date(byAdding: .day, value: clampedDay - 1, to: cursor)!
+                let atNoon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: occurrence)!
+                if atNoon >= lower && atNoon < upperBound { results.append(atNoon) }
+                cursor = addingMonths(step, to: cursor)
+            }
         case .weekly(let weekday):
             var cursor = startOfDay(lower)
             while cursor < upperBound {

@@ -6,6 +6,8 @@ public enum Recurrence: Hashable, Codable, Sendable {
     case monthly(day: Int)
     case weekly(weekday: Int) // 1 = Sunday … 7 = Saturday (Gregorian)
     case yearly(month: Int, day: Int)
+    /// Every `months` months on `day`, counted from the start date's month (quarterly = 3).
+    case everyMonths(Int, day: Int)
     case once(Date)
 }
 

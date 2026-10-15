@@ -11,6 +11,7 @@ struct FinanceSnapshot: Sendable {
     var incomes: [IncomeSource] = []
     var rules: [MerchantRule] = []
     var customCategories: [CategoryDefinition] = []
+    var subscriptions: [ServiceSubscription] = []
 }
 
 /// Persistence boundary. Views and view models never touch SwiftData directly, so the store can be
@@ -31,6 +32,8 @@ protocol FinanceRepository: AnyObject {
     func upsert(rule: MerchantRule) throws
     func deleteRule(id: UUID) throws
     func upsert(category: CategoryDefinition) throws
+    func upsert(subscription: ServiceSubscription) throws
+    func deleteSubscription(id: UUID) throws
     func recordImport(source: ImportSource, profileID: String?, fileName: String, count: Int, at date: Date) throws
     func importCount(since date: Date) throws -> Int
     func logAudit(action: String, detail: String) throws
@@ -76,6 +79,7 @@ final class SwiftDataFinanceRepository: FinanceRepository {
         snapshot.incomes = try context.fetch(FetchDescriptor<IncomeEntity>()).map { try decode(IncomeSource.self, $0.payload) }
         snapshot.rules = try context.fetch(FetchDescriptor<RuleEntity>()).map { try decode(MerchantRule.self, $0.payload) }
         snapshot.customCategories = try context.fetch(FetchDescriptor<CategoryEntity>()).map { try decode(CategoryDefinition.self, $0.payload) }
+        snapshot.subscriptions = try context.fetch(FetchDescriptor<SubscriptionEntity>()).map { try decode(ServiceSubscription.self, $0.payload) }
         return snapshot
     }
 
@@ -153,6 +157,14 @@ final class SwiftDataFinanceRepository: FinanceRepository {
         try context.delete(model: RuleEntity.self, where: #Predicate { $0.id == id }); try context.save()
     }
 
+    func upsert(subscription: ServiceSubscription) throws {
+        let id = subscription.id
+        try upsertPayload(subscription, fetch: FetchDescriptor<SubscriptionEntity>(predicate: #Predicate { $0.id == id }), make: { SubscriptionEntity(id: id, payload: $0) }, set: { $0.payload = $1 })
+    }
+    func deleteSubscription(id: UUID) throws {
+        try context.delete(model: SubscriptionEntity.self, where: #Predicate { $0.id == id }); try context.save()
+    }
+
     func upsert(category: CategoryDefinition) throws {
         let id = category.id
         try upsertPayload(category, fetch: FetchDescriptor<CategoryEntity>(predicate: #Predicate { $0.id == id }), make: { CategoryEntity(id: id, payload: $0) }, set: { $0.payload = $1 })
@@ -200,6 +212,7 @@ final class SwiftDataFinanceRepository: FinanceRepository {
         try context.delete(model: RuleEntity.self)
         try context.delete(model: CategoryEntity.self)
         try context.delete(model: ImportBatchEntity.self)
+        try context.delete(model: SubscriptionEntity.self)
         try context.delete(model: AuditEventEntity.self)
         try context.save()
     }

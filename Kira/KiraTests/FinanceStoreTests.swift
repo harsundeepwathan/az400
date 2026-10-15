@@ -136,6 +136,28 @@ final class FinanceStoreTests: XCTestCase {
         XCTAssertTrue(store.inbox.pending().isEmpty)
     }
 
+    func testSubscriptionsPersistAndFeedForecast() throws {
+        let netflix = ServiceSubscription(name: "Netflix", serviceID: "netflix", amount: rm("54.90"),
+                                          nextRenewal: KLCalendar.shared.date(2025, 10, 25))
+        store.save(subscription: netflix)
+        XCTAssertEqual(try store.repository.loadSnapshot().subscriptions.first?.amount, rm("54.90"))
+        XCTAssertEqual(store.subscriptionSummary.monthlyTotal, rm("54.90"))
+        XCTAssertTrue(store.plannedCommitments.contains { $0.name == "Netflix" && $0.type == .subscription })
+        XCTAssertEqual(store.forecast().scheduledCommitments, rm("54.90"), "renewal on 25 Oct is in the forecast")
+
+        store.markCancelled(store.subscription(netflix.id)!)
+        XCTAssertEqual(store.subscription(netflix.id)?.status, .cancelled)
+        XCTAssertEqual(store.subscriptionSummary.monthlyTotal, .zero())
+        XCTAssertEqual(store.forecast().scheduledCommitments, .zero())
+    }
+
+    func testStaleRenewalRollsForwardOnLoad() throws {
+        try store.repository.upsert(subscription: ServiceSubscription(name: "Spotify", amount: rm("17.90"), nextRenewal: KLCalendar.shared.date(2025, 6, 5)))
+        store.load()
+        let next = try XCTUnwrap(store.subscriptions.first?.nextRenewal)
+        XCTAssertGreaterThanOrEqual(next, KLCalendar.shared.startOfDay(store.now()))
+    }
+
     func testExportAvailableOnFreeTier() {
         store.tier = .free
         store.upsert([TransactionRecord(amount: rm("3.00"), direction: .outflow, kind: .expense, merchant: "=evil", transactionDate: store.now())])

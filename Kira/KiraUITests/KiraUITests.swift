@@ -31,7 +31,7 @@ final class KiraUITests: XCTestCase {
         app.launchArguments = ["-uiTesting"]
         app.launch()
         app.navigationBars.buttons["Add"].tap()
-        for item in ["Add Manually", "Scan DuitNow QR", "Import Receipt", "Import Statement"] {
+        for item in ["Add Manually", "Scan DuitNow QR", "Import Receipt", "Import Statement", "Add Subscription"] {
             XCTAssertTrue(app.buttons[item].waitForExistence(timeout: 3), item)
         }
         XCTAssertFalse(app.tabBars.buttons["Capture"].exists)

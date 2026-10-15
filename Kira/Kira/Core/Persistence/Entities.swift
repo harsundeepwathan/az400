@@ -70,6 +70,14 @@ final class CategoryEntity {
     init(id: String, payload: Data) { self.id = id; self.payload = payload }
 }
 
+/// A tracked service subscription (Netflix, Spotify…).
+@Model
+final class SubscriptionEntity {
+    @Attribute(.unique) var id: UUID
+    var payload: Data
+    init(id: UUID, payload: Data) { self.id = id; self.payload = payload }
+}
+
 /// One statement/receipt import, for the free-tier monthly limit and the import history screen.
 @Model
 final class ImportBatchEntity {
@@ -107,6 +115,6 @@ final class AuditEventEntity {
 enum KiraSchema {
     static let models: [any PersistentModel.Type] = [
         TransactionEntity.self, AccountEntity.self, BudgetEntity.self, CommitmentEntity.self, IncomeEntity.self,
-        RuleEntity.self, CategoryEntity.self, ImportBatchEntity.self, AuditEventEntity.self
+        RuleEntity.self, CategoryEntity.self, SubscriptionEntity.self, ImportBatchEntity.self, AuditEventEntity.self
     ]
 }

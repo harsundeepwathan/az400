@@ -50,9 +50,11 @@ public enum DataExporter {
         public var incomes: [IncomeSource]
         public var rules: [MerchantRule]
         public var customCategories: [CategoryDefinition]
+        /// Added in format 1.1; optional so older exports still decode.
+        public var subscriptions: [ServiceSubscription]?
 
         public init(exportedAt: Date, accounts: [Account], transactions: [TransactionRecord], budgets: [Budget], commitments: [Commitment],
-                    incomes: [IncomeSource], rules: [MerchantRule], customCategories: [CategoryDefinition]) {
+                    incomes: [IncomeSource], rules: [MerchantRule], customCategories: [CategoryDefinition], subscriptions: [ServiceSubscription] = []) {
             self.exportedAt = exportedAt
             self.formatVersion = 1
             self.accounts = accounts
@@ -62,6 +64,7 @@ public enum DataExporter {
             self.incomes = incomes
             self.rules = rules
             self.customCategories = customCategories
+            self.subscriptions = subscriptions
         }
     }
 

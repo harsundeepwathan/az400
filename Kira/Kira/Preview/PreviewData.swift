@@ -46,6 +46,14 @@ enum PreviewData {
             tx("286.50", "foodpanda", .foodDelivery, day: 12, account: card.id),
             tx("320.00", "Lotus’s", .groceries, day: 6)
         ])
+        store.save(subscription: ServiceSubscription(name: "Netflix", serviceID: "netflix", amount: rm("54.90"),
+                                                     nextRenewal: calendar.date(2025, 10, 21), categoryID: BuiltInCategory.entertainment.id))
+        store.save(subscription: ServiceSubscription(name: "Spotify Family", serviceID: "spotify", amount: rm("29.90"),
+                                                     nextRenewal: calendar.date(2025, 10, 28), shareCount: 3))
+        store.save(subscription: ServiceSubscription(name: "iCloud+", serviceID: "icloud", amount: rm("12.90"),
+                                                     nextRenewal: calendar.date(2025, 11, 2), billedThroughApple: true))
+        store.save(subscription: ServiceSubscription(name: "Viu", serviceID: "viu", amount: rm("15.90"), nextRenewal: calendar.date(2025, 10, 24),
+                                                     status: .trial, trialEndsAt: calendar.date(2025, 10, 24)))
         return store
     }
 }
@@ -76,5 +84,7 @@ extension View {
 #Preview("Activity") { ActivityView().previewEnvironment() }
 #Preview("Insights") { InsightsView().previewEnvironment() }
 #Preview("Search") { SearchView().previewEnvironment() }
+#Preview("Subscriptions") { NavigationStack { SubscriptionsView() }.previewEnvironment() }
+#Preview("Subscriptions · empty") { NavigationStack { SubscriptionsView() }.previewEnvironment(empty: true) }
 #Preview("Add transaction") { CaptureFlowView(flow: .manual).previewEnvironment() }
 #endif

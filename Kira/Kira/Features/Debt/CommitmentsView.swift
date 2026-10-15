@@ -56,6 +56,7 @@ struct CommitmentsView: View {
         case .monthly(let day): return "Monthly on day \(day)"
         case .weekly(let weekday): return "Weekly on \(Calendar.current.weekdaySymbols[(weekday - 1 + 7) % 7])"
         case .yearly(let month, let day): return "Yearly on \(day) \(Calendar.current.shortMonthSymbols[(month - 1 + 12) % 12])"
+        case .everyMonths(let months, let day): return "Every \(months) months on day \(day)"
         case .once(let date): return "Once on \(date.kiraMedium)"
         }
     }

@@ -31,6 +31,7 @@ struct AccountsView: View {
                 }
 
                 Section {
+                    NavigationLink { SubscriptionsView() } label: { Label("Subscriptions", systemImage: "repeat") }
                     NavigationLink { CommitmentsView() } label: { Label("Commitments & income", systemImage: "calendar.badge.clock") }
                     NavigationLink { SettingsView() } label: { Label("Settings & privacy", systemImage: "gearshape") }
                 }
